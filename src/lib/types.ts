@@ -3,6 +3,17 @@ export type MuscleGroup = {
   name: string;
 };
 
+export type Profile = {
+  id: string;
+  full_name: string | null;
+  age: number | null;
+  height_cm: number | null;
+  weight_kg: number | null;
+  sex: string | null;
+  goal: string | null;
+  onboarded: boolean;
+};
+
 export type Exercise = {
   id: string;
   user_id: string | null;
@@ -17,6 +28,7 @@ export type WorkoutPlan = {
   user_id: string;
   date: string;
   title: string | null;
+  is_rest_day: boolean;
   muscle_groups?: MuscleGroup[];
   planned_exercises?: PlannedExercise[];
 };

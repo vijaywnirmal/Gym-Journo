@@ -17,7 +17,17 @@ export default async function TodayPage() {
         <SignOutButton />
       </div>
 
-      {plan ? (
+      {plan?.is_rest_day ? (
+        <div className="mb-4 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
+          <div className="mb-1 flex items-center justify-between">
+            <h2 className="font-semibold text-neutral-100">😴 Rest day</h2>
+            <Link href={`/schedule/${date}`} className="text-xs text-neutral-400 underline">
+              Edit
+            </Link>
+          </div>
+          {plan.title && <p className="text-sm text-neutral-400">{plan.title}</p>}
+        </div>
+      ) : plan ? (
         <div className="mb-4 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="font-semibold text-neutral-100">{plan.title ?? "Scheduled workout"}</h2>

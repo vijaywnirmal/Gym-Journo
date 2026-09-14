@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 export type SavePlanInput = {
   date: string;
   title: string;
+  isRestDay: boolean;
   muscleGroupIds: string[];
   exercises: { exerciseId: string; targetSets: number | null; targetReps: number | null }[];
 };
@@ -20,7 +21,12 @@ export async function savePlan(input: SavePlanInput) {
   const { data: plan, error: upsertError } = await supabase
     .from("workout_plans")
     .upsert(
-      { user_id: user.id, date: input.date, title: input.title || null },
+      {
+        user_id: user.id,
+        date: input.date,
+        title: input.title || null,
+        is_rest_day: input.isRestDay,
+      },
       { onConflict: "user_id,date" }
     )
     .select()
@@ -31,13 +37,13 @@ export async function savePlan(input: SavePlanInput) {
   await supabase.from("workout_plan_muscle_groups").delete().eq("plan_id", plan.id);
   await supabase.from("planned_exercises").delete().eq("plan_id", plan.id);
 
-  if (input.muscleGroupIds.length > 0) {
+  if (!input.isRestDay && input.muscleGroupIds.length > 0) {
     await supabase.from("workout_plan_muscle_groups").insert(
       input.muscleGroupIds.map((muscle_group_id) => ({ plan_id: plan.id, muscle_group_id }))
     );
   }
 
-  if (input.exercises.length > 0) {
+  if (!input.isRestDay && input.exercises.length > 0) {
     await supabase.from("planned_exercises").insert(
       input.exercises.map((ex, i) => ({
         plan_id: plan.id,

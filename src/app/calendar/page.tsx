@@ -51,7 +51,11 @@ export default async function CalendarPage({
                   {formatDate(date)} {isToday && <span className="text-neutral-500">· today</span>}
                 </p>
                 <p className="text-xs text-neutral-400">
-                  {info?.title ? info.title : "Not scheduled"}
+                  {info?.isRestDay
+                    ? `😴 Rest day${info.title ? ` · ${info.title}` : ""}`
+                    : info?.title
+                      ? info.title
+                      : "Not scheduled"}
                   {info?.completed ? " · logged ✓" : ""}
                 </p>
               </div>
@@ -62,12 +66,14 @@ export default async function CalendarPage({
                 >
                   Schedule
                 </Link>
-                <Link
-                  href={`/log/${date}`}
-                  className="rounded-lg bg-white px-2.5 py-1.5 text-xs font-medium text-neutral-900"
-                >
-                  Log
-                </Link>
+                {!info?.isRestDay && (
+                  <Link
+                    href={`/log/${date}`}
+                    className="rounded-lg bg-white px-2.5 py-1.5 text-xs font-medium text-neutral-900"
+                  >
+                    Log
+                  </Link>
+                )}
               </div>
             </div>
           );

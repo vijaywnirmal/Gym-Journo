@@ -1,5 +1,16 @@
 import { createClient } from "@/lib/supabase/server";
-import type { Exercise, MuscleGroup, WorkoutPlan, WorkoutLog } from "@/lib/types";
+import type { Exercise, MuscleGroup, WorkoutPlan, WorkoutLog, Profile } from "@/lib/types";
+
+export async function getProfile(): Promise<Profile | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
+  return data;
+}
 
 type ExerciseRow = {
   id: string;
@@ -69,12 +80,16 @@ export async function getWeekOverview(dates: string[]) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return new Map<string, { title: string | null; completed: boolean }>();
+  if (!user)
+    return new Map<
+      string,
+      { title: string | null; completed: boolean; isRestDay: boolean }
+    >();
 
   const [{ data: plans }, { data: logs }] = await Promise.all([
     supabase
       .from("workout_plans")
-      .select("date, title")
+      .select("date, title, is_rest_day")
       .eq("user_id", user.id)
       .in("date", dates),
     supabase
@@ -84,10 +99,17 @@ export async function getWeekOverview(dates: string[]) {
       .in("date", dates),
   ]);
 
-  const overview = new Map<string, { title: string | null; completed: boolean }>();
-  for (const date of dates) overview.set(date, { title: null, completed: false });
+  const overview = new Map<
+    string,
+    { title: string | null; completed: boolean; isRestDay: boolean }
+  >();
+  for (const date of dates) overview.set(date, { title: null, completed: false, isRestDay: false });
   for (const plan of plans ?? []) {
-    overview.set(plan.date, { ...overview.get(plan.date)!, title: plan.title });
+    overview.set(plan.date, {
+      ...overview.get(plan.date)!,
+      title: plan.title,
+      isRestDay: plan.is_rest_day,
+    });
   }
   for (const log of logs ?? []) {
     overview.set(log.date, { ...overview.get(log.date)!, completed: !!log.completed_at });
