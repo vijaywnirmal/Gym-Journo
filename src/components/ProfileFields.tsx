@@ -127,7 +127,7 @@ export function PasswordFields({
             type={show ? "text" : "password"}
             value={password}
             onChange={(e) => onPasswordChange(e.target.value)}
-            placeholder="At least 6 characters"
+            placeholder="At least 8 characters"
             className={`${inputClass} flex-1`}
           />
           <button

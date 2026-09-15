@@ -45,7 +45,7 @@ export default function ProfileEditForm({ initial }: { initial: ProfileFieldsVal
   }
 
   return (
-    <div className="flex flex-col gap-6 pb-6">
+    <div className="flex flex-col gap-6">
       <ProfileFields value={fields} onChange={setFields} />
 
       <div className="border-t border-neutral-800 pt-5">

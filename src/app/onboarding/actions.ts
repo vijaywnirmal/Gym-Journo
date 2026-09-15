@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { passwordSchema } from "@/lib/validation/auth";
 
 export type CompleteOnboardingInput = {
   fullName: string;
@@ -20,8 +21,9 @@ export async function completeOnboarding(input: CompleteOnboardingInput) {
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not signed in" };
 
-  if (input.password.length < 6) {
-    return { error: "Password must be at least 6 characters." };
+  const parsedPassword = passwordSchema.safeParse(input.password);
+  if (!parsedPassword.success) {
+    return { error: parsedPassword.error.issues[0]?.message ?? "Invalid password." };
   }
 
   const { error: passwordError } = await supabase.auth.updateUser({

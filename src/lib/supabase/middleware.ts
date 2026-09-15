@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { resolveRedirect } from "@/lib/auth/route-guard";
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -27,28 +28,29 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const pathname = request.nextUrl.pathname;
-  const isAuthRoute = pathname.startsWith("/login") || pathname.startsWith("/auth");
-  const isOnboardingRoute = pathname.startsWith("/onboarding");
-
-  if (!user && !isAuthRoute) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
-  }
-
-  if (user && !isAuthRoute && !isOnboardingRoute) {
+  let isOnboarded = false;
+  if (user) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("onboarded")
       .eq("id", user.id)
       .maybeSingle();
+    isOnboarded = !!profile?.onboarded;
+  }
 
-    if (!profile?.onboarded) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/onboarding";
-      return NextResponse.redirect(url);
-    }
+  const redirectTo = resolveRedirect({
+    pathname: request.nextUrl.pathname,
+    search: request.nextUrl.search,
+    isAuthenticated: !!user,
+    isOnboarded,
+  });
+
+  if (redirectTo) {
+    const url = request.nextUrl.clone();
+    const [path, search] = redirectTo.split("?");
+    url.pathname = path;
+    url.search = search ?? "";
+    return NextResponse.redirect(url);
   }
 
   return supabaseResponse;
