@@ -2,7 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { validateDateOfBirth, validatePassword } from "@/lib/validation";
+import {
+  validateDateOfBirth,
+  validateExperienceLevel,
+  validatePassword,
+  validatePrimaryGoal,
+  validateTargetWeightKg,
+  validateTrainingDaysPerWeek,
+} from "@/lib/validation";
 
 export type CompleteOnboardingInput = {
   fullName: string;
@@ -10,7 +17,10 @@ export type CompleteOnboardingInput = {
   heightCm: number | null;
   weightKg: number | null;
   sex: string;
-  goal: string;
+  primaryGoal: string;
+  targetWeightKg: number | null;
+  experienceLevel: string;
+  trainingDaysPerWeek: number | null;
   password?: string;
 };
 
@@ -26,6 +36,27 @@ export async function completeOnboarding(input: CompleteOnboardingInput) {
   if (input.dateOfBirth) {
     const dobError = validateDateOfBirth(input.dateOfBirth);
     if (dobError) return { error: dobError };
+  }
+
+  if (!input.fullName.trim()) return { error: "Enter your name." };
+
+  if (!input.primaryGoal) return { error: "Select a primary goal." };
+  const primaryGoalError = validatePrimaryGoal(input.primaryGoal);
+  if (primaryGoalError) return { error: primaryGoalError };
+
+  if (!input.experienceLevel) return { error: "Select your experience level." };
+  const experienceLevelError = validateExperienceLevel(input.experienceLevel);
+  if (experienceLevelError) return { error: experienceLevelError };
+
+  if (input.trainingDaysPerWeek === null) {
+    return { error: "Select how many days per week you want to train." };
+  }
+  const trainingDaysError = validateTrainingDaysPerWeek(input.trainingDaysPerWeek);
+  if (trainingDaysError) return { error: trainingDaysError };
+
+  if (input.targetWeightKg !== null) {
+    const targetWeightError = validateTargetWeightKg(input.targetWeightKg);
+    if (targetWeightError) return { error: targetWeightError };
   }
 
   if (input.password) {
@@ -49,7 +80,10 @@ export async function completeOnboarding(input: CompleteOnboardingInput) {
     height_cm: input.heightCm,
     weight_kg: input.weightKg,
     sex: input.sex || null,
-    goal: input.goal || null,
+    primary_goal: input.primaryGoal,
+    target_weight_kg: input.targetWeightKg,
+    experience_level: input.experienceLevel,
+    training_days_per_week: input.trainingDaysPerWeek,
     onboarded: true,
     updated_at: new Date().toISOString(),
   });

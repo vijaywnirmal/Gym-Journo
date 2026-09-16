@@ -3,7 +3,11 @@ import {
   isValidEmail,
   safeRedirectPath,
   validateDateOfBirth,
+  validateExperienceLevel,
   validatePassword,
+  validatePrimaryGoal,
+  validateTargetWeightKg,
+  validateTrainingDaysPerWeek,
   MIN_PASSWORD_LENGTH,
 } from "./validation";
 
@@ -64,6 +68,64 @@ describe("validateDateOfBirth", () => {
 
   it("rejects an implausibly old date", () => {
     expect(validateDateOfBirth("1800-01-01")).not.toBeNull();
+  });
+});
+
+describe("validatePrimaryGoal", () => {
+  it("accepts each allowed value", () => {
+    for (const v of ["build_muscle", "lose_fat", "maintain", "general_fitness"]) {
+      expect(validatePrimaryGoal(v)).toBeNull();
+    }
+  });
+
+  it("rejects an invalid value", () => {
+    expect(validatePrimaryGoal("improve_performance")).not.toBeNull();
+    expect(validatePrimaryGoal("")).not.toBeNull();
+  });
+});
+
+describe("validateExperienceLevel", () => {
+  it("accepts each allowed value", () => {
+    for (const v of ["beginner", "intermediate", "advanced"]) {
+      expect(validateExperienceLevel(v)).toBeNull();
+    }
+  });
+
+  it("rejects an invalid value", () => {
+    expect(validateExperienceLevel("expert")).not.toBeNull();
+    expect(validateExperienceLevel("")).not.toBeNull();
+  });
+});
+
+describe("validateTrainingDaysPerWeek", () => {
+  it("accepts values from 1 through 7", () => {
+    for (let n = 1; n <= 7; n++) {
+      expect(validateTrainingDaysPerWeek(n)).toBeNull();
+    }
+  });
+
+  it("rejects 0", () => {
+    expect(validateTrainingDaysPerWeek(0)).not.toBeNull();
+  });
+
+  it("rejects 8", () => {
+    expect(validateTrainingDaysPerWeek(8)).not.toBeNull();
+  });
+
+  it("rejects non-integers", () => {
+    expect(validateTrainingDaysPerWeek(3.5)).not.toBeNull();
+  });
+});
+
+describe("validateTargetWeightKg", () => {
+  it("rejects zero, negative, and unreasonably large values", () => {
+    expect(validateTargetWeightKg(0)).not.toBeNull();
+    expect(validateTargetWeightKg(-10)).not.toBeNull();
+    expect(validateTargetWeightKg(1000)).not.toBeNull();
+  });
+
+  it("accepts a reasonable value", () => {
+    expect(validateTargetWeightKg(70)).toBeNull();
   });
 });
 

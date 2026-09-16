@@ -30,7 +30,10 @@ export default function ProfileEditForm({ initial }: { initial: ProfileFieldsVal
         heightCm: fields.heightCm ? parseFloat(fields.heightCm) : null,
         weightKg: fields.weightKg ? parseFloat(fields.weightKg) : null,
         sex: fields.sex,
-        goal: fields.goal,
+        primaryGoal: fields.primaryGoal,
+        targetWeightKg: fields.targetWeightKg ? parseFloat(fields.targetWeightKg) : null,
+        experienceLevel: fields.experienceLevel,
+        trainingDaysPerWeek: fields.trainingDaysPerWeek ? parseInt(fields.trainingDaysPerWeek, 10) : null,
         password: password || undefined,
       });
       if (result.error) {

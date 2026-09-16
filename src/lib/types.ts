@@ -10,7 +10,10 @@ export type Profile = {
   height_cm: number | null;
   weight_kg: number | null;
   sex: string | null;
-  goal: string | null;
+  primary_goal: string | null;
+  target_weight_kg: number | null;
+  experience_level: string | null;
+  training_days_per_week: number | null;
   onboarded: boolean;
 };
 

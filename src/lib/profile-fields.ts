@@ -6,7 +6,10 @@ export type ProfileFieldsValue = {
   heightCm: string;
   weightKg: string;
   sex: string;
-  goal: string;
+  primaryGoal: string;
+  targetWeightKg: string;
+  experienceLevel: string;
+  trainingDaysPerWeek: string;
 };
 
 export function profileFieldsFromProfile(profile: Profile | null): ProfileFieldsValue {
@@ -16,6 +19,9 @@ export function profileFieldsFromProfile(profile: Profile | null): ProfileFields
     heightCm: profile?.height_cm?.toString() ?? "",
     weightKg: profile?.weight_kg?.toString() ?? "",
     sex: profile?.sex ?? "",
-    goal: profile?.goal ?? "",
+    primaryGoal: profile?.primary_goal ?? "",
+    targetWeightKg: profile?.target_weight_kg?.toString() ?? "",
+    experienceLevel: profile?.experience_level ?? "",
+    trainingDaysPerWeek: profile?.training_days_per_week?.toString() ?? "",
   };
 }

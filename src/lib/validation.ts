@@ -30,3 +30,34 @@ export function validatePassword(password: string): string | null {
   }
   return null;
 }
+
+export const PRIMARY_GOALS = ["build_muscle", "lose_fat", "maintain", "general_fitness"] as const;
+export type PrimaryGoal = (typeof PRIMARY_GOALS)[number];
+
+export const EXPERIENCE_LEVELS = ["beginner", "intermediate", "advanced"] as const;
+export type ExperienceLevel = (typeof EXPERIENCE_LEVELS)[number];
+
+export function validatePrimaryGoal(value: string): string | null {
+  if (!PRIMARY_GOALS.includes(value as PrimaryGoal)) return "Select a valid goal.";
+  return null;
+}
+
+export function validateExperienceLevel(value: string): string | null {
+  if (!EXPERIENCE_LEVELS.includes(value as ExperienceLevel)) return "Select a valid experience level.";
+  return null;
+}
+
+export function validateTrainingDaysPerWeek(value: number): string | null {
+  if (!Number.isInteger(value) || value < 1 || value > 7) {
+    return "Training days per week must be between 1 and 7.";
+  }
+  return null;
+}
+
+// Loose sanity bounds, matching the style used for date of birth — just enough to catch typos.
+export function validateTargetWeightKg(value: number): string | null {
+  if (!Number.isFinite(value) || value <= 0 || value > 500) {
+    return "Enter a valid target weight.";
+  }
+  return null;
+}

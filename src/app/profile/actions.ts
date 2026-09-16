@@ -3,7 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { validateDateOfBirth, validatePassword } from "@/lib/validation";
+import {
+  validateDateOfBirth,
+  validateExperienceLevel,
+  validatePassword,
+  validatePrimaryGoal,
+  validateTargetWeightKg,
+  validateTrainingDaysPerWeek,
+} from "@/lib/validation";
 
 export type UpdateProfileInput = {
   fullName: string;
@@ -11,7 +18,10 @@ export type UpdateProfileInput = {
   heightCm: number | null;
   weightKg: number | null;
   sex: string;
-  goal: string;
+  primaryGoal: string;
+  targetWeightKg: number | null;
+  experienceLevel: string;
+  trainingDaysPerWeek: number | null;
   password?: string;
 };
 
@@ -25,6 +35,26 @@ export async function updateProfile(input: UpdateProfileInput) {
   if (input.dateOfBirth) {
     const dobError = validateDateOfBirth(input.dateOfBirth);
     if (dobError) return { error: dobError };
+  }
+
+  if (input.primaryGoal) {
+    const primaryGoalError = validatePrimaryGoal(input.primaryGoal);
+    if (primaryGoalError) return { error: primaryGoalError };
+  }
+
+  if (input.experienceLevel) {
+    const experienceLevelError = validateExperienceLevel(input.experienceLevel);
+    if (experienceLevelError) return { error: experienceLevelError };
+  }
+
+  if (input.trainingDaysPerWeek !== null) {
+    const trainingDaysError = validateTrainingDaysPerWeek(input.trainingDaysPerWeek);
+    if (trainingDaysError) return { error: trainingDaysError };
+  }
+
+  if (input.targetWeightKg !== null) {
+    const targetWeightError = validateTargetWeightKg(input.targetWeightKg);
+    if (targetWeightError) return { error: targetWeightError };
   }
 
   if (input.password) {
@@ -44,7 +74,10 @@ export async function updateProfile(input: UpdateProfileInput) {
       height_cm: input.heightCm,
       weight_kg: input.weightKg,
       sex: input.sex || null,
-      goal: input.goal || null,
+      primary_goal: input.primaryGoal || null,
+      target_weight_kg: input.targetWeightKg,
+      experience_level: input.experienceLevel || null,
+      training_days_per_week: input.trainingDaysPerWeek,
       updated_at: new Date().toISOString(),
     })
     .eq("id", user.id);
