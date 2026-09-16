@@ -71,3 +71,29 @@ export function validateExerciseName(name: string): string | null {
   }
   return null;
 }
+
+export const MAX_TEMPLATE_NAME_LENGTH = 100;
+
+export function validateTemplateName(name: string): string | null {
+  if (typeof name !== "string" || !name.trim()) return "Enter a template name.";
+  if (name.trim().length > MAX_TEMPLATE_NAME_LENGTH) {
+    return `Template name must be ${MAX_TEMPLATE_NAME_LENGTH} characters or fewer.`;
+  }
+  return null;
+}
+
+// Targets are optional (see validation callsite), but when a value is supplied it must be a
+// sane positive number — loose bounds, just enough to catch typos.
+export function validateTargetSets(value: number): string | null {
+  if (!Number.isInteger(value) || value < 1 || value > 50) {
+    return "Enter a valid number of sets.";
+  }
+  return null;
+}
+
+export function validateTargetReps(value: number): string | null {
+  if (!Number.isInteger(value) || value < 1 || value > 200) {
+    return "Enter a valid number of reps.";
+  }
+  return null;
+}

@@ -116,6 +116,16 @@ export async function deleteAccount() {
   const { error: logsError } = await supabase.from("workout_logs").delete().eq("user_id", user.id);
   if (logsError) return genericError;
 
+  // workout_templates must be removed before exercises for the same reason as workout_plans/
+  // workout_logs above: template_exercises.exercise_id restricts deletion of a referenced
+  // exercise, and that restriction isn't guaranteed to resolve before the auth.users -> exercises
+  // cascade during Auth user deletion.
+  const { error: templatesError } = await supabase
+    .from("workout_templates")
+    .delete()
+    .eq("user_id", user.id);
+  if (templatesError) return genericError;
+
   const { error: exercisesError } = await supabase
     .from("exercises")
     .delete()

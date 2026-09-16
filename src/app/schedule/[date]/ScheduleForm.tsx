@@ -1,18 +1,27 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { Exercise, MuscleGroup, WorkoutPlan } from "@/lib/types";
+import type { Exercise, MuscleGroup, WorkoutPlan, WorkoutTemplate } from "@/lib/types";
 import { savePlan, deletePlan } from "./actions";
+import ExerciseTargetEditor, { type ExerciseTargets } from "./ExerciseTargetEditor";
+import TemplateManager from "./TemplateManager";
 
 type Props = {
   date: string;
   muscleGroups: MuscleGroup[];
   exercises: Exercise[];
   existingPlan: WorkoutPlan | null;
+  templates: WorkoutTemplate[];
 };
 
-export default function ScheduleForm({ date, muscleGroups, exercises, existingPlan }: Props) {
+export default function ScheduleForm({
+  date,
+  muscleGroups,
+  exercises,
+  existingPlan,
+  templates,
+}: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [title, setTitle] = useState(existingPlan?.title ?? "");
@@ -20,24 +29,16 @@ export default function ScheduleForm({ date, muscleGroups, exercises, existingPl
   const [selectedMuscles, setSelectedMuscles] = useState<Set<string>>(
     new Set(existingPlan?.muscle_groups?.map((m) => m.id) ?? [])
   );
-  const [selectedExercises, setSelectedExercises] = useState<
-    Map<string, { targetSets: string; targetReps: string }>
-  >(
+  const [selectedExercises, setSelectedExercises] = useState<ExerciseTargets>(
     new Map(
       existingPlan?.planned_exercises?.map((pe) => [
         pe.exercise_id,
-        { targetSets: pe.target_sets?.toString() ?? "3", targetReps: pe.target_reps?.toString() ?? "10" },
+        { targetSets: pe.target_sets?.toString() ?? "", targetReps: pe.target_reps?.toString() ?? "" },
       ]) ?? []
     )
   );
+  const [templateId, setTemplateId] = useState("");
   const [saved, setSaved] = useState(false);
-
-  const filteredExercises = useMemo(() => {
-    if (selectedMuscles.size === 0) return exercises;
-    return exercises.filter((ex) =>
-      ex.muscle_groups?.some((mg) => selectedMuscles.has(mg.id))
-    );
-  }, [exercises, selectedMuscles]);
 
   function toggleMuscle(id: string) {
     setSelectedMuscles((prev) => {
@@ -48,22 +49,19 @@ export default function ScheduleForm({ date, muscleGroups, exercises, existingPl
     });
   }
 
-  function toggleExercise(id: string) {
-    setSelectedExercises((prev) => {
-      const next = new Map(prev);
-      if (next.has(id)) next.delete(id);
-      else next.set(id, { targetSets: "3", targetReps: "10" });
-      return next;
-    });
-  }
-
-  function updateTarget(id: string, field: "targetSets" | "targetReps", value: string) {
-    setSelectedExercises((prev) => {
-      const next = new Map(prev);
-      const current = next.get(id);
-      if (current) next.set(id, { ...current, [field]: value });
-      return next;
-    });
+  function applyTemplate(id: string) {
+    setTemplateId(id);
+    if (!id) return;
+    const template = templates.find((t) => t.id === id);
+    if (!template) return;
+    const next: ExerciseTargets = new Map();
+    for (const te of template.template_exercises ?? []) {
+      next.set(te.exercise_id, {
+        targetSets: te.target_sets?.toString() ?? "",
+        targetReps: te.target_reps?.toString() ?? "",
+      });
+    }
+    setSelectedExercises(next);
   }
 
   function handleSubmit() {
@@ -143,53 +141,36 @@ export default function ScheduleForm({ date, muscleGroups, exercises, existingPl
             </div>
           </div>
 
-          <div>
-            <p className="mb-2 text-sm font-semibold text-neutral-100">Exercises</p>
-            <div className="flex flex-col gap-2">
-              {filteredExercises.map((ex) => {
-                const selected = selectedExercises.get(ex.id);
-                return (
-                  <div key={ex.id} className="rounded-xl border border-neutral-800 p-3">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={!!selected}
-                        onChange={() => toggleExercise(ex.id)}
-                      />
-                      <span className="font-medium text-neutral-100">{ex.name}</span>
-                    </label>
-                    {selected && (
-                      <div className="mt-2 flex items-center gap-3 pl-6 text-sm text-neutral-300">
-                        <label className="flex items-center gap-1.5">
-                          Sets
-                          <input
-                            type="number"
-                            min={1}
-                            value={selected.targetSets}
-                            onChange={(e) => updateTarget(ex.id, "targetSets", e.target.value)}
-                            className="w-14 rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-100"
-                          />
-                        </label>
-                        <label className="flex items-center gap-1.5">
-                          Reps
-                          <input
-                            type="number"
-                            min={1}
-                            value={selected.targetReps}
-                            onChange={(e) => updateTarget(ex.id, "targetReps", e.target.value)}
-                            className="w-14 rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-100"
-                          />
-                        </label>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-              {filteredExercises.length === 0 && (
-                <p className="text-sm text-neutral-400">No exercises match those muscle groups.</p>
-              )}
+          {templates.length > 0 && (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-400">
+                Use a template
+              </label>
+              <select
+                value={templateId}
+                onChange={(e) => applyTemplate(e.target.value)}
+                className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-base text-neutral-100"
+              >
+                <option value="">Select a template...</option>
+                {templates.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-neutral-500">
+                Applying a template replaces the exercises below until you save.
+              </p>
             </div>
-          </div>
+          )}
+
+          <ExerciseTargetEditor
+            exercises={exercises}
+            selected={selectedExercises}
+            onChange={setSelectedExercises}
+          />
+
+          <TemplateManager templates={templates} exercises={exercises} />
         </>
       )}
 

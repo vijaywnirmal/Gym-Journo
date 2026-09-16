@@ -1,5 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
-import type { Exercise, MuscleGroup, WorkoutPlan, WorkoutLog, Profile } from "@/lib/types";
+import type {
+  Exercise,
+  MuscleGroup,
+  WorkoutPlan,
+  WorkoutLog,
+  Profile,
+  WorkoutTemplate,
+} from "@/lib/types";
 
 export type AiPlan = {
   id: string;
@@ -169,6 +176,31 @@ export async function getExercises(): Promise<Exercise[]> {
     equipment: row.equipment,
     notes: row.notes,
     muscle_groups: row.exercise_muscle_groups.map((r) => r.muscle_group),
+  }));
+}
+
+export async function getTemplates(): Promise<WorkoutTemplate[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from("workout_templates")
+    .select(
+      "*, template_exercises(*, exercise:exercises(id, user_id, name, equipment, notes))"
+    )
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
+
+  if (error) return [];
+
+  return ((data ?? []) as unknown as WorkoutTemplate[]).map((template) => ({
+    ...template,
+    template_exercises: (template.template_exercises ?? []).sort(
+      (a, b) => a.position - b.position
+    ),
   }));
 }
 

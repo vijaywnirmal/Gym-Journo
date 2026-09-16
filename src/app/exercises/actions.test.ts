@@ -96,7 +96,7 @@ describe("deleteExercise", () => {
     });
     const result = await deleteExercise("custom-1");
     expect(result.error).toBe(
-      "This exercise is used in a workout plan or workout log and can't be deleted."
+      "This exercise is used in a workout plan, workout log, or template and can't be deleted."
     );
   });
 

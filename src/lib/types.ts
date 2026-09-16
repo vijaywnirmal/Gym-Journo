@@ -74,3 +74,23 @@ export type LoggedSet = {
   weight_unit: string;
   notes: string | null;
 };
+
+// A reusable workout definition. Instantiating one copies its template_exercises into a dated
+// WorkoutPlan/PlannedExercise row set — there is no live link back to the template afterward.
+export type WorkoutTemplate = {
+  id: string;
+  user_id: string;
+  name: string;
+  created_at: string;
+  template_exercises?: TemplateExercise[];
+};
+
+export type TemplateExercise = {
+  id: string;
+  template_id: string;
+  exercise_id: string;
+  position: number;
+  target_sets: number | null;
+  target_reps: number | null;
+  exercise?: Exercise;
+};

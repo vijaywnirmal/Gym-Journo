@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getExercises, getMuscleGroups, getPlanForDate } from "@/lib/queries";
+import { getExercises, getMuscleGroups, getPlanForDate, getTemplates } from "@/lib/queries";
 import { formatDate } from "@/lib/date";
 import ScheduleForm from "./ScheduleForm";
 
@@ -9,10 +9,11 @@ export default async function SchedulePage({
   params: Promise<{ date: string }>;
 }) {
   const { date } = await params;
-  const [muscleGroups, exercises, plan] = await Promise.all([
+  const [muscleGroups, exercises, plan, templates] = await Promise.all([
     getMuscleGroups(),
     getExercises(),
     getPlanForDate(date),
+    getTemplates(),
   ]);
 
   return (
@@ -21,7 +22,13 @@ export default async function SchedulePage({
         ← Calendar
       </Link>
       <h1 className="mb-4 text-xl font-bold">Schedule for {formatDate(date)}</h1>
-      <ScheduleForm date={date} muscleGroups={muscleGroups} exercises={exercises} existingPlan={plan} />
+      <ScheduleForm
+        date={date}
+        muscleGroups={muscleGroups}
+        exercises={exercises}
+        existingPlan={plan}
+        templates={templates}
+      />
     </main>
   );
 }

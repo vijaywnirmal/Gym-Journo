@@ -100,22 +100,25 @@ describe("deleteAccount", () => {
   // must always be deleted before exercises, regardless of whether the account actually has any
   // workout data. Without this order, a user who created and used a custom exercise could not
   // have their account deleted.
-  it("deletes workout_plans and workout_logs before exercises (no service-role key)", async () => {
+  it("deletes workout_plans, workout_logs, and workout_templates before exercises (no service-role key)", async () => {
     createAdminClient.mockReturnValue(null);
     const result = await deleteAccount();
     expect(result).toEqual({ success: true, fullyDeleted: false });
 
     const plansIndex = deleteOrder.indexOf("workout_plans");
     const logsIndex = deleteOrder.indexOf("workout_logs");
+    const templatesIndex = deleteOrder.indexOf("workout_templates");
     const exercisesIndex = deleteOrder.indexOf("exercises");
     expect(plansIndex).toBeGreaterThanOrEqual(0);
     expect(logsIndex).toBeGreaterThanOrEqual(0);
+    expect(templatesIndex).toBeGreaterThanOrEqual(0);
     expect(exercisesIndex).toBeGreaterThan(plansIndex);
     expect(exercisesIndex).toBeGreaterThan(logsIndex);
+    expect(exercisesIndex).toBeGreaterThan(templatesIndex);
     expect(deleteOrder).toContain("profiles");
   });
 
-  it("deletes workout_plans and workout_logs before exercises, then deletes the Auth user (service-role key present)", async () => {
+  it("deletes workout_plans, workout_logs, and workout_templates before exercises, then deletes the Auth user (service-role key present)", async () => {
     const deleteUser = vi.fn().mockResolvedValue({ error: null });
     createAdminClient.mockReturnValue({ auth: { admin: { deleteUser } } });
 
@@ -126,10 +129,24 @@ describe("deleteAccount", () => {
     expect(exercisesIndex).toBeGreaterThanOrEqual(0);
     expect(deleteUser).toHaveBeenCalledWith("user-1");
     // deleteAccount no longer relies on the Auth-user cascade to clean up exercises — it must
-    // already have deleted workout_plans/workout_logs/exercises itself before calling deleteUser.
+    // already have deleted workout_plans/workout_logs/workout_templates/exercises itself before
+    // calling deleteUser. A custom exercise referenced only by a template (Phase 5) would trip
+    // the same FK-ordering bug Phase 4.1 fixed for plans/logs if workout_templates weren't
+    // included here too.
     expect(deleteOrder).toEqual(
-      expect.arrayContaining(["workout_plans", "workout_logs", "exercises"])
+      expect.arrayContaining(["workout_plans", "workout_logs", "workout_templates", "exercises"])
     );
+  });
+
+  it("stops and returns a safe generic error if workout_templates deletion fails, without touching exercises or the Auth user", async () => {
+    failTable = "workout_templates";
+    const deleteUser = vi.fn().mockResolvedValue({ error: null });
+    createAdminClient.mockReturnValue({ auth: { admin: { deleteUser } } });
+
+    const result = await deleteAccount();
+    expect(result.error).toBe("Something went wrong deleting your account. Please try again.");
+    expect(deleteOrder).not.toContain("exercises");
+    expect(deleteUser).not.toHaveBeenCalled();
   });
 
   it("stops and returns a safe generic error if workout_plans deletion fails, without touching exercises or the Auth user", async () => {
@@ -166,6 +183,7 @@ describe("deleteAccount", () => {
     createAdminClient.mockReturnValue(null);
     await deleteAccount();
     expect(from).toHaveBeenCalledWith("workout_plans");
+    expect(from).toHaveBeenCalledWith("workout_templates");
     expect(from).toHaveBeenCalledWith("exercises");
     expect(from).toHaveBeenCalledWith("profiles");
     // Every delete in this module is scoped via .eq(...) on the authenticated user's id/user_id —

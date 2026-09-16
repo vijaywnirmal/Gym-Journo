@@ -71,7 +71,8 @@ export async function deleteExercise(exerciseId: string) {
   if (error) {
     if (error.code === "23503") {
       return {
-        error: "This exercise is used in a workout plan or workout log and can't be deleted.",
+        error:
+          "This exercise is used in a workout plan, workout log, or template and can't be deleted.",
       };
     }
     return { error: "Something went wrong deleting this exercise. Please try again." };
