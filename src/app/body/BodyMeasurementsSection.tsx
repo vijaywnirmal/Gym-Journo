@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type { BodyMeasurement } from "@/lib/types";
 import { formatDate, today } from "@/lib/date";
@@ -8,8 +8,10 @@ import { saveMeasurement, deleteMeasurement } from "./actions";
 
 export default function BodyMeasurementsSection({
   measurements,
+  progressSummary,
 }: {
   measurements: BodyMeasurement[];
+  progressSummary?: ReactNode;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -76,6 +78,8 @@ export default function BodyMeasurementsSection({
         </p>
         {latest && <p className="text-xs text-neutral-500">{formatDate(latest.date)}</p>}
       </div>
+
+      {progressSummary}
 
       {editingId !== null ? (
         <div className="flex flex-col gap-3 rounded-xl border border-neutral-800 p-4">

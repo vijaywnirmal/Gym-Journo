@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { today, shiftDate } from "@/lib/date";
 import type {
   Exercise,
   MuscleGroup,
@@ -413,6 +414,75 @@ export async function getPreviousPerformance(
   return {
     date: row.date,
     sets: sets.map((s) => ({ reps: s.reps, weight: s.weight, weightUnit: s.weight_unit })),
+  };
+}
+
+export type TrainingConsistency = {
+  windowDays: number;
+  daysLogged: number;
+};
+
+// Count of distinct days with a workout_logs row in the rolling window ending today — a purely
+// descriptive activity count. Every day counts equally regardless of planned/freeform,
+// completed_at, or how many exercises/sets it has; workout_logs.date is already unique per user
+// (see 0001_init.sql), so no separate de-duplication step is needed.
+export async function getTrainingConsistency(windowDays = 28): Promise<TrainingConsistency> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { windowDays, daysLogged: 0 };
+
+  const sinceStr = shiftDate(today(), -windowDays);
+  const { data, error } = await supabase
+    .from("workout_logs")
+    .select("date")
+    .eq("user_id", user.id)
+    .gte("date", sinceStr);
+
+  if (error) return { windowDays, daysLogged: 0 };
+  return { windowDays, daysLogged: data?.length ?? 0 };
+}
+
+export type BodyWeightWindowPoint = { date: string; weightKg: number };
+
+export type BodyWeightWindow = {
+  windowDays: number;
+  measurementCount: number;
+  earliest: BodyWeightWindowPoint | null;
+  latest: BodyWeightWindowPoint | null;
+};
+
+// The earliest and latest body_measurements rows within the rolling window ending today, for a
+// simple raw-delta comparison — no interpolation, no rate, no percentage. When only one
+// measurement falls in the window, earliest and latest are the same row (the caller decides
+// not to show a delta when measurementCount < 2).
+export async function getBodyWeightWindow(windowDays = 28): Promise<BodyWeightWindow> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { windowDays, measurementCount: 0, earliest: null, latest: null };
+
+  const sinceStr = shiftDate(today(), -windowDays);
+  const { data, error } = await supabase
+    .from("body_measurements")
+    .select("date, weight_kg")
+    .eq("user_id", user.id)
+    .gte("date", sinceStr)
+    .order("date", { ascending: true });
+
+  if (error || !data || data.length === 0) {
+    return { windowDays, measurementCount: 0, earliest: null, latest: null };
+  }
+
+  const earliest = data[0];
+  const latest = data[data.length - 1];
+  return {
+    windowDays,
+    measurementCount: data.length,
+    earliest: { date: earliest.date, weightKg: earliest.weight_kg },
+    latest: { date: latest.date, weightKg: latest.weight_kg },
   };
 }
 
