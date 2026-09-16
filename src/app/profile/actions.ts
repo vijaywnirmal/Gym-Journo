@@ -134,6 +134,7 @@ export async function deleteAccount() {
 
   await supabase.from("ai_plans").delete().eq("user_id", user.id);
   await supabase.from("nutrition_logs").delete().eq("user_id", user.id);
+  await supabase.from("body_measurements").delete().eq("user_id", user.id);
 
   const admin = createAdminClient();
   if (admin) {

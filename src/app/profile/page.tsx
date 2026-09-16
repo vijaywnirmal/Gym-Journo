@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getProfile } from "@/lib/queries";
 import { profileFieldsFromProfile } from "@/lib/profile-fields";
 import SignOutButton from "@/components/SignOutButton";
@@ -14,6 +15,13 @@ export default async function ProfilePage() {
         <SignOutButton />
       </div>
       <ProfileEditForm initial={profileFieldsFromProfile(profile)} />
+      <Link
+        href="/body"
+        className="mt-5 mb-1 flex items-center justify-between rounded-xl border border-neutral-800 bg-neutral-900 p-4"
+      >
+        <span className="text-sm font-medium text-neutral-100">📈 Body & Progress</span>
+        <span className="text-neutral-500">→</span>
+      </Link>
       <div className="pb-10">
         <DeleteAccountSection />
       </div>

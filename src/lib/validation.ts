@@ -1,3 +1,5 @@
+import { today } from "@/lib/date";
+
 // Only allow same-origin, path-relative redirect targets — prevents open redirects via a crafted `next` param.
 export function safeRedirectPath(next: string | null | undefined, fallback = "/"): string {
   if (!next) return fallback;
@@ -94,6 +96,37 @@ export function validateTargetSets(value: number): string | null {
 export function validateTargetReps(value: number): string | null {
   if (!Number.isInteger(value) || value < 1 || value > 200) {
     return "Enter a valid number of reps.";
+  }
+  return null;
+}
+
+// Same loose-sanity-bounds style as validateTargetWeightKg — just enough to catch typos/garbage,
+// not a precise medical bound.
+export function validateWeightKg(value: number): string | null {
+  if (!Number.isFinite(value) || value <= 0 || value > 500) {
+    return "Enter a valid weight.";
+  }
+  return null;
+}
+
+// Body measurements are historical/current only — a future date isn't a meaningful entry.
+// Compared as plain yyyy-MM-dd strings against the same local-time `today()` the rest of the
+// app (Calendar, Home, the logger) already uses as its single source of truth for "today" —
+// comparing against a UTC-derived date instead could disagree with it near local midnight and
+// wrongly reject the current day's own date.
+export function validateMeasurementDate(date: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(new Date(date).getTime())) {
+    return "Enter a valid date.";
+  }
+  if (date > today()) return "Date can't be in the future.";
+  return null;
+}
+
+export const MAX_MEASUREMENT_NOTE_LENGTH = 500;
+
+export function validateMeasurementNote(notes: string): string | null {
+  if (notes.length > MAX_MEASUREMENT_NOTE_LENGTH) {
+    return `Note must be ${MAX_MEASUREMENT_NOTE_LENGTH} characters or fewer.`;
   }
   return null;
 }

@@ -5,13 +5,18 @@ import {
   validateDateOfBirth,
   validateExerciseName,
   validateExperienceLevel,
+  validateMeasurementDate,
+  validateMeasurementNote,
   validatePassword,
   validatePrimaryGoal,
   validateTargetWeightKg,
   validateTrainingDaysPerWeek,
+  validateWeightKg,
   MAX_EXERCISE_NAME_LENGTH,
+  MAX_MEASUREMENT_NOTE_LENGTH,
   MIN_PASSWORD_LENGTH,
 } from "./validation";
+import { today } from "./date";
 
 describe("safeRedirectPath", () => {
   it("allows a normal relative path", () => {
@@ -160,5 +165,70 @@ describe("validatePassword", () => {
 
   it("accepts passwords at or above the minimum length", () => {
     expect(validatePassword("a".repeat(MIN_PASSWORD_LENGTH))).toBeNull();
+  });
+});
+
+describe("validateWeightKg", () => {
+  it("accepts a normal weight", () => {
+    expect(validateWeightKg(72.5)).toBeNull();
+  });
+
+  it("rejects zero", () => {
+    expect(validateWeightKg(0)).not.toBeNull();
+  });
+
+  it("rejects negative values", () => {
+    expect(validateWeightKg(-10)).not.toBeNull();
+  });
+
+  it("rejects NaN/non-finite values", () => {
+    expect(validateWeightKg(NaN)).not.toBeNull();
+    expect(validateWeightKg(Infinity)).not.toBeNull();
+  });
+
+  it("rejects an unreasonably large value", () => {
+    expect(validateWeightKg(5000)).not.toBeNull();
+  });
+});
+
+describe("validateMeasurementDate", () => {
+  // Regression test for the exact bug found during live Phase 8 verification: comparing the
+  // input against a UTC-derived "today" (e.g. `new Date().toISOString().slice(0, 10)`) instead
+  // of the app's canonical local-time `today()` could disagree near local midnight and wrongly
+  // reject the current day's own date. This must always accept whatever `today()` itself returns.
+  it("accepts the app's own canonical today() value, regardless of local timezone offset", () => {
+    expect(validateMeasurementDate(today())).toBeNull();
+  });
+
+  it("rejects a date one year in the future", () => {
+    const future = new Date();
+    future.setFullYear(future.getFullYear() + 1);
+    expect(validateMeasurementDate(future.toISOString().slice(0, 10))).not.toBeNull();
+  });
+
+  it("rejects a malformed date string", () => {
+    expect(validateMeasurementDate("not-a-date")).not.toBeNull();
+  });
+
+  it("accepts a past date", () => {
+    expect(validateMeasurementDate("2020-01-01")).toBeNull();
+  });
+});
+
+describe("validateMeasurementNote", () => {
+  it("accepts a normal note", () => {
+    expect(validateMeasurementNote("Feeling good today")).toBeNull();
+  });
+
+  it("accepts an empty note", () => {
+    expect(validateMeasurementNote("")).toBeNull();
+  });
+
+  it("rejects a note longer than the maximum length", () => {
+    expect(validateMeasurementNote("a".repeat(MAX_MEASUREMENT_NOTE_LENGTH + 1))).not.toBeNull();
+  });
+
+  it("accepts a note at exactly the maximum length", () => {
+    expect(validateMeasurementNote("a".repeat(MAX_MEASUREMENT_NOTE_LENGTH))).toBeNull();
   });
 });

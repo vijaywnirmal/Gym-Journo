@@ -94,3 +94,15 @@ export type TemplateExercise = {
   target_reps: number | null;
   exercise?: Exercise;
 };
+
+// A historical body-weight entry — separate from and never synced with profiles.weight_kg
+// (the current-attribute field). One row per user per date.
+export type BodyMeasurement = {
+  id: string;
+  user_id: string;
+  date: string;
+  weight_kg: number;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};

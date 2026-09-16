@@ -189,4 +189,10 @@ describe("deleteAccount", () => {
     // Every delete in this module is scoped via .eq(...) on the authenticated user's id/user_id —
     // there is no code path that accepts a caller-supplied user id.
   });
+
+  it("deletes body_measurements (Phase 8)", async () => {
+    createAdminClient.mockReturnValue(null);
+    await deleteAccount();
+    expect(deleteOrder).toContain("body_measurements");
+  });
 });

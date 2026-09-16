@@ -7,6 +7,7 @@ import type {
   LoggedSet,
   Profile,
   WorkoutTemplate,
+  BodyMeasurement,
 } from "@/lib/types";
 
 export type AiPlan = {
@@ -413,6 +414,25 @@ export async function getPreviousPerformance(
     date: row.date,
     sets: sets.map((s) => ({ reps: s.reps, weight: s.weight, weightUnit: s.weight_unit })),
   };
+}
+
+// All of a user's historical weight entries, newest first. Small, unpaginated data volume (at
+// most one row per day) — no cap/pagination is warranted here, unlike workout history.
+export async function getBodyMeasurements(): Promise<BodyMeasurement[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from("body_measurements")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("date", { ascending: false });
+
+  if (error) return [];
+  return data ?? [];
 }
 
 export async function getLogForDate(date: string): Promise<WorkoutLogWithContext | null> {
