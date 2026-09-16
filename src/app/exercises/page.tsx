@@ -22,11 +22,13 @@ export default async function ExercisesPage() {
 
       <ExerciseCreateForm muscleGroups={muscleGroups} />
 
-      <div className="flex flex-col gap-6 pb-6">
+      <div className="flex flex-col gap-3 pb-6">
         {[...grouped.entries()].map(([groupName, list]) => (
-          <div key={groupName}>
-            <h2 className="mb-2 text-sm font-semibold text-neutral-400">{groupName}</h2>
-            <ul className="flex flex-col gap-2">
+          <details key={groupName} className="rounded-xl border border-neutral-800">
+            <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-neutral-200">
+              {groupName} ({list.length})
+            </summary>
+            <ul className="flex flex-col gap-2 px-4 pb-4">
               {list.map((ex) => (
                 <li
                   key={ex.id}
@@ -45,7 +47,7 @@ export default async function ExercisesPage() {
                 </li>
               ))}
             </ul>
-          </div>
+          </details>
         ))}
       </div>
     </main>
