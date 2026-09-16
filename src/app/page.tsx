@@ -1,21 +1,42 @@
 import Link from "next/link";
-import { getLogForDate, getPlanForDate } from "@/lib/queries";
+import { getLastCompletedLog, getLogForDate, getPlanForDate, getProfile } from "@/lib/queries";
 import { formatDate, today } from "@/lib/date";
+import { formatGoalSummary, getGreeting, getWorkoutCta } from "@/lib/home";
 import SignOutButton from "@/components/SignOutButton";
 
 export default async function TodayPage() {
   const date = today();
-  const [plan, log] = await Promise.all([getPlanForDate(date), getLogForDate(date)]);
+  const [profile, plan, log] = await Promise.all([
+    getProfile(),
+    getPlanForDate(date),
+    getLogForDate(date),
+  ]);
+
+  const greeting = getGreeting(profile?.full_name ?? null, new Date().getHours());
+  const goalSummary = profile ? formatGoalSummary(profile) : null;
+  const cta = getWorkoutCta(date, !!log, !!log?.completed_at);
+
+  const hasNothingToday = !plan && !log;
+  const recentActivity = hasNothingToday ? await getLastCompletedLog() : null;
 
   return (
     <main className="px-4 pt-6">
       <div className="mb-4 flex items-center justify-between">
         <div>
           <p className="text-sm text-neutral-500">{formatDate(date)}</p>
-          <h1 className="text-xl font-bold">Today</h1>
+          <h1 className="text-xl font-bold">{greeting}</h1>
         </div>
         <SignOutButton />
       </div>
+
+      {goalSummary && (
+        <div className="mb-4 rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3">
+          <p className="text-sm font-medium text-neutral-100">{goalSummary.goalLine}</p>
+          {goalSummary.targetLine && (
+            <p className="text-xs text-neutral-400">{goalSummary.targetLine}</p>
+          )}
+        </div>
+      )}
 
       {plan?.is_rest_day ? (
         <div className="mb-4 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
@@ -47,6 +68,12 @@ export default async function TodayPage() {
               ))}
             </div>
           )}
+          {plan.planned_exercises && plan.planned_exercises.length > 0 && (
+            <p className="mb-2 text-xs text-neutral-500">
+              {plan.planned_exercises.length} exercise
+              {plan.planned_exercises.length === 1 ? "" : "s"}
+            </p>
+          )}
           <ul className="mb-4 flex flex-col gap-1 text-sm text-neutral-300">
             {plan.planned_exercises?.map((pe) => (
               <li key={pe.id}>
@@ -54,11 +81,14 @@ export default async function TodayPage() {
               </li>
             ))}
           </ul>
+          {log?.completed_at && (
+            <p className="mb-2 text-xs text-green-400">Completed ✓</p>
+          )}
           <Link
-            href={`/log/${date}`}
+            href={cta.href}
             className="block rounded-lg bg-white px-4 py-2.5 text-center text-sm font-medium text-neutral-900"
           >
-            {log?.completed_at ? "Workout complete ✓ — view log" : "Log this workout"}
+            {cta.label}
           </Link>
         </div>
       ) : (
@@ -72,13 +102,19 @@ export default async function TodayPage() {
               Schedule today
             </Link>
             <Link
-              href={`/log/${date}`}
+              href={cta.href}
               className="rounded-lg bg-white px-4 py-2.5 text-sm font-medium text-neutral-900"
             >
-              {log ? "Continue today's log" : "Log a freeform workout"}
+              {log ? cta.label : "Log a freeform workout"}
             </Link>
           </div>
         </div>
+      )}
+
+      {recentActivity && (
+        <p className="mb-4 text-center text-xs text-neutral-500">
+          Last workout: {recentActivity.title ?? "Freeform workout"} · {formatDate(recentActivity.date)}
+        </p>
       )}
 
       <Link

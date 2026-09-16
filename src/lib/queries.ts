@@ -284,6 +284,34 @@ export async function getLogHistory(exerciseId?: string): Promise<WorkoutLog[]> 
   return logs;
 }
 
+export type LastCompletedLog = {
+  date: string;
+  title: string | null;
+};
+
+// Narrow, Home-specific lookup — avoids pulling the full nested history just to find one row.
+export async function getLastCompletedLog(): Promise<LastCompletedLog | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data, error } = await supabase
+    .from("workout_logs")
+    .select("date, plan:workout_plans(title)")
+    .eq("user_id", user.id)
+    .not("completed_at", "is", null)
+    .order("date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  const row = data as unknown as { date: string; plan: { title: string | null } | null };
+  return { date: row.date, title: row.plan?.title ?? null };
+}
+
 export async function getLogForDate(date: string): Promise<WorkoutLog | null> {
   const supabase = await createClient();
   const {

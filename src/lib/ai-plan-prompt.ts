@@ -19,7 +19,7 @@ export type AiPlanProfile = {
   training_days_per_week: number | null;
 };
 
-const PRIMARY_GOAL_LABELS: Record<string, string> = {
+export const PRIMARY_GOAL_LABELS: Record<string, string> = {
   build_muscle: "Build muscle",
   lose_fat: "Lose fat",
   maintain: "Maintain",
