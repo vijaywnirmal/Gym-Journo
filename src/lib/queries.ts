@@ -276,28 +276,61 @@ export async function getWeekOverview(dates: string[]) {
   return overview;
 }
 
-export async function getLogHistory(exerciseId?: string): Promise<WorkoutLog[]> {
+// A workout_log with its plan's title attached (via the log's own plan_id — not a live lookup
+// by date), for identifying/labelling a day without pulling in target_sets/target_reps.
+export type WorkoutLogWithContext = WorkoutLog & { planTitle: string | null };
+
+const DEFAULT_HISTORY_PAGE_SIZE = 30;
+
+export type LogHistoryPage = {
+  logs: WorkoutLogWithContext[];
+  hasMore: boolean;
+};
+
+// Server-rendered, cursor-paginated history — same searchParam-driven pattern as Calendar's
+// week paging, so no client-side accumulation/infinite-scroll infrastructure is needed. `before`
+// is an exclusive date cursor (workout_logs has at most one row per user per date, so date is a
+// safe, stable cursor). The exercise filter is applied at the query level (not post-fetch), so a
+// page's row count and the "is there another page" check stay accurate even when filtered.
+export async function getLogHistory(options: {
+  exerciseId?: string;
+  before?: string;
+  pageSize?: number;
+} = {}): Promise<LogHistoryPage> {
+  const { exerciseId, before, pageSize = DEFAULT_HISTORY_PAGE_SIZE } = options;
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return [];
+  if (!user) return { logs: [], hasMore: false };
 
-  const { data, error } = await supabase
+  const loggedExercisesEmbed = exerciseId ? "logged_exercises!inner" : "logged_exercises";
+
+  let query = supabase
     .from("workout_logs")
     .select(
-      "*, logged_exercises(*, exercise:exercises(id, name, equipment), logged_sets(*))"
+      `*, plan:workout_plans(title), ${loggedExercisesEmbed}(*, exercise:exercises(id, name, equipment), logged_sets(*))`
     )
     .eq("user_id", user.id)
     .order("date", { ascending: false })
-    .limit(60);
+    // Fetch one extra row past the page size to know whether another page exists, without a
+    // separate count query.
+    .limit(pageSize + 1);
 
-  if (error) return [];
+  if (exerciseId) query = query.eq("logged_exercises.exercise_id", exerciseId);
+  if (before) query = query.lt("date", before);
 
-  let logs = (data ?? []) as unknown as WorkoutLog[];
-  logs = logs.map((log) => ({
-    ...log,
-    logged_exercises: (log.logged_exercises ?? [])
+  const { data, error } = await query;
+  if (error) return { logs: [], hasMore: false };
+
+  type Row = WorkoutLog & { plan: { title: string | null } | null };
+  const rows = (data ?? []) as unknown as Row[];
+  const hasMore = rows.length > pageSize;
+
+  const logs = rows.slice(0, pageSize).map((row) => ({
+    ...row,
+    planTitle: row.plan?.title ?? null,
+    logged_exercises: (row.logged_exercises ?? [])
       .sort((a, b) => a.position - b.position)
       .map((le) => ({
         ...le,
@@ -305,16 +338,7 @@ export async function getLogHistory(exerciseId?: string): Promise<WorkoutLog[]> 
       })),
   }));
 
-  if (exerciseId) {
-    logs = logs
-      .map((log) => ({
-        ...log,
-        logged_exercises: log.logged_exercises?.filter((le) => le.exercise_id === exerciseId),
-      }))
-      .filter((log) => log.logged_exercises && log.logged_exercises.length > 0);
-  }
-
-  return logs;
+  return { logs, hasMore };
 }
 
 export type LastCompletedLog = {
@@ -391,7 +415,7 @@ export async function getPreviousPerformance(
   };
 }
 
-export async function getLogForDate(date: string): Promise<WorkoutLog | null> {
+export async function getLogForDate(date: string): Promise<WorkoutLogWithContext | null> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -401,7 +425,7 @@ export async function getLogForDate(date: string): Promise<WorkoutLog | null> {
   const { data, error } = await supabase
     .from("workout_logs")
     .select(
-      "*, logged_exercises(*, exercise:exercises(id, name, equipment), logged_sets(*))"
+      "*, plan:workout_plans(title), logged_exercises(*, exercise:exercises(id, name, equipment), logged_sets(*))"
     )
     .eq("user_id", user.id)
     .eq("date", date)
@@ -409,9 +433,10 @@ export async function getLogForDate(date: string): Promise<WorkoutLog | null> {
 
   if (error || !data) return null;
 
-  const row = data as unknown as WorkoutLog;
+  const row = data as unknown as WorkoutLog & { plan: { title: string | null } | null };
   return {
     ...row,
+    planTitle: row.plan?.title ?? null,
     logged_exercises: (row.logged_exercises ?? [])
       .sort((a, b) => a.position - b.position)
       .map((le) => ({

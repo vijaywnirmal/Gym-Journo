@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { getExercises, getLogForDate, getPlanForDate, getPreviousPerformance } from "@/lib/queries";
-import { formatDate } from "@/lib/date";
+import { formatDate, today } from "@/lib/date";
 import type { PreviousPerformance } from "@/lib/queries";
 import LogForm from "./LogForm";
+import HistoricalLogView from "./HistoricalLogView";
 
 export default async function LogPage({
   params,
@@ -15,6 +16,12 @@ export default async function LogPage({
     getPlanForDate(date),
     getLogForDate(date),
   ]);
+
+  // A previously-logged day (any date other than today that already has a log) defaults to the
+  // read-first summary view instead of the active-execution stepper — see HistoricalLogView.
+  // Today always gets the normal execution experience regardless of completion state, and any
+  // date with no log yet has nothing to review, so it also gets the normal starting flow.
+  const isHistorical = date !== today() && log !== null;
 
   // Preload "last time" context for every exercise already on the page, so it's available the
   // moment the execution UI renders. Exercises added later in the session (unplanned) are
@@ -36,16 +43,28 @@ export default async function LogPage({
       <Link href="/calendar" className="mb-1 inline-block text-sm text-neutral-500">
         ← Calendar
       </Link>
-      <h1 className="mb-1 text-xl font-bold">Log for {formatDate(date)}</h1>
-      {plan?.title && <p className="mb-4 text-sm text-neutral-500">Scheduled: {plan.title}</p>}
-      {!plan?.title && <div className="mb-4" />}
-      <LogForm
-        date={date}
-        exercises={exercises}
-        plan={plan}
-        existingLog={log}
-        initialPreviousPerformance={initialPreviousPerformance}
-      />
+      {isHistorical ? (
+        <HistoricalLogView
+          date={date}
+          exercises={exercises}
+          plan={plan}
+          existingLog={log!}
+          initialPreviousPerformance={initialPreviousPerformance}
+        />
+      ) : (
+        <>
+          <h1 className="mb-1 text-xl font-bold">Log for {formatDate(date)}</h1>
+          {plan?.title && <p className="mb-4 text-sm text-neutral-500">Scheduled: {plan.title}</p>}
+          {!plan?.title && <div className="mb-4" />}
+          <LogForm
+            date={date}
+            exercises={exercises}
+            plan={plan}
+            existingLog={log}
+            initialPreviousPerformance={initialPreviousPerformance}
+          />
+        </>
+      )}
     </main>
   );
 }

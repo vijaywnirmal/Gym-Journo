@@ -13,6 +13,11 @@ type Props = {
   plan: WorkoutPlan | null;
   existingLog: WorkoutLog | null;
   initialPreviousPerformance: Record<string, PreviousPerformance | null>;
+  // False when editing an already-logged historical day: the plan's current targets are not
+  // shown, since they may have changed or been deleted since this workout was actually
+  // performed (see HistoricalLogView). Defaults to true — today's/in-progress logging is
+  // unaffected.
+  showTargets?: boolean;
 };
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -23,9 +28,18 @@ function emptySet(carryForward?: SetRow): SetRow {
   return { reps: "", weight: carryForward?.weight ?? "", weightUnit: carryForward?.weightUnit ?? "kg" };
 }
 
-export default function LogForm({ date, exercises, plan, existingLog, initialPreviousPerformance }: Props) {
+export default function LogForm({
+  date,
+  exercises,
+  plan,
+  existingLog,
+  initialPreviousPerformance,
+  showTargets = true,
+}: Props) {
   const targetByExerciseId = new Map(
-    plan?.planned_exercises?.map((pe) => [pe.exercise_id, { sets: pe.target_sets, reps: pe.target_reps }]) ?? []
+    showTargets
+      ? plan?.planned_exercises?.map((pe) => [pe.exercise_id, { sets: pe.target_sets, reps: pe.target_reps }]) ?? []
+      : []
   );
 
   // The persisted log always wins over the plan seed once it exists — reopening/resuming a
@@ -47,7 +61,7 @@ export default function LogForm({ date, exercises, plan, existingLog, initialPre
     : plan?.planned_exercises?.map((pe) => ({
         exerciseId: pe.exercise_id,
         name: pe.exercise?.name ?? "Exercise",
-        target: { sets: pe.target_sets, reps: pe.target_reps },
+        target: showTargets ? { sets: pe.target_sets, reps: pe.target_reps } : null,
         sets: Array.from({ length: pe.target_sets ?? 3 }, () => emptySet()),
         done: false,
       })) ?? [];
