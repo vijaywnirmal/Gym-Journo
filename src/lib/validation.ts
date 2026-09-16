@@ -61,3 +61,13 @@ export function validateTargetWeightKg(value: number): string | null {
   }
   return null;
 }
+
+export const MAX_EXERCISE_NAME_LENGTH = 100;
+
+export function validateExerciseName(name: string): string | null {
+  if (typeof name !== "string" || !name.trim()) return "Enter an exercise name.";
+  if (name.trim().length > MAX_EXERCISE_NAME_LENGTH) {
+    return `Exercise name must be ${MAX_EXERCISE_NAME_LENGTH} characters or fewer.`;
+  }
+  return null;
+}

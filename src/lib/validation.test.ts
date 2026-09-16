@@ -3,11 +3,13 @@ import {
   isValidEmail,
   safeRedirectPath,
   validateDateOfBirth,
+  validateExerciseName,
   validateExperienceLevel,
   validatePassword,
   validatePrimaryGoal,
   validateTargetWeightKg,
   validateTrainingDaysPerWeek,
+  MAX_EXERCISE_NAME_LENGTH,
   MIN_PASSWORD_LENGTH,
 } from "./validation";
 
@@ -126,6 +128,28 @@ describe("validateTargetWeightKg", () => {
 
   it("accepts a reasonable value", () => {
     expect(validateTargetWeightKg(70)).toBeNull();
+  });
+});
+
+describe("validateExerciseName", () => {
+  it("rejects an empty name", () => {
+    expect(validateExerciseName("")).not.toBeNull();
+  });
+
+  it("rejects a whitespace-only name", () => {
+    expect(validateExerciseName("   ")).not.toBeNull();
+  });
+
+  it("accepts a valid name with surrounding whitespace trimmed", () => {
+    expect(validateExerciseName("  Bench Press  ")).toBeNull();
+  });
+
+  it("rejects a name longer than the maximum length", () => {
+    expect(validateExerciseName("a".repeat(MAX_EXERCISE_NAME_LENGTH + 1))).not.toBeNull();
+  });
+
+  it("accepts a name at exactly the maximum length", () => {
+    expect(validateExerciseName("a".repeat(MAX_EXERCISE_NAME_LENGTH))).toBeNull();
   });
 });
 
