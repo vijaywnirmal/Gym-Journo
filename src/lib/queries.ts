@@ -1,6 +1,132 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Exercise, MuscleGroup, WorkoutPlan, WorkoutLog, Profile } from "@/lib/types";
 
+export type AiPlan = {
+  id: string;
+  activity_level: string | null;
+  dietary_preference: string | null;
+  notes: string | null;
+  plan_markdown: string;
+  created_at: string;
+};
+
+export async function getAiPlans(): Promise<AiPlan[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data } = await supabase
+    .from("ai_plans")
+    .select("id, activity_level, dietary_preference, notes, plan_markdown, created_at")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  return data ?? [];
+}
+
+export async function getNutritionForDate(date: string): Promise<string | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data } = await supabase
+    .from("nutrition_logs")
+    .select("meals_text")
+    .eq("user_id", user.id)
+    .eq("date", date)
+    .maybeSingle();
+
+  return data?.meals_text ?? null;
+}
+
+// Compact text summary of the last N days of actual workout activity, for feeding into an AI prompt.
+export async function getRecentTrainingSummary(days: number): Promise<string> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return "No training history available.";
+
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+  const sinceStr = since.toISOString().slice(0, 10);
+
+  const { data } = await supabase
+    .from("workout_logs")
+    .select(
+      "date, completed_at, logged_exercises(exercise:exercises(name), logged_sets(id))"
+    )
+    .eq("user_id", user.id)
+    .gte("date", sinceStr)
+    .order("date", { ascending: false });
+
+  type Row = {
+    date: string;
+    completed_at: string | null;
+    logged_exercises: { exercise: { name: string } | null; logged_sets: { id: string }[] }[];
+  };
+  const rows = (data ?? []) as unknown as Row[];
+
+  if (rows.length === 0) return "No workouts logged in the last " + days + " days.";
+
+  return rows
+    .map((row) => {
+      const exSummary = row.logged_exercises
+        .map((le) => `${le.exercise?.name ?? "Exercise"} (${le.logged_sets.length} sets)`)
+        .join(", ");
+      return `${row.date}${row.completed_at ? "" : " (incomplete)"}: ${exSummary || "no exercises logged"}`;
+    })
+    .join("\n");
+}
+
+// Compact text summary of the next N days of scheduled workouts/rest days, for feeding into an AI prompt.
+export async function getUpcomingScheduleSummary(days: number): Promise<string> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return "No schedule available.";
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const until = new Date();
+  until.setDate(until.getDate() + days);
+  const untilStr = until.toISOString().slice(0, 10);
+
+  const { data } = await supabase
+    .from("workout_plans")
+    .select("date, title, is_rest_day, workout_plan_muscle_groups(muscle_group:muscle_groups(name))")
+    .eq("user_id", user.id)
+    .gte("date", todayStr)
+    .lte("date", untilStr)
+    .order("date", { ascending: true });
+
+  type Row = {
+    date: string;
+    title: string | null;
+    is_rest_day: boolean;
+    workout_plan_muscle_groups: { muscle_group: { name: string } | null }[];
+  };
+  const rows = (data ?? []) as unknown as Row[];
+
+  if (rows.length === 0) return "Nothing scheduled for the next " + days + " days.";
+
+  return rows
+    .map((row) => {
+      if (row.is_rest_day) return `${row.date}: Rest day${row.title ? ` (${row.title})` : ""}`;
+      const muscles = row.workout_plan_muscle_groups
+        .map((m) => m.muscle_group?.name)
+        .filter(Boolean)
+        .join(", ");
+      return `${row.date}: ${row.title ?? "Workout"}${muscles ? ` — ${muscles}` : ""}`;
+    })
+    .join("\n");
+}
+
 export async function getProfile(): Promise<Profile | null> {
   const supabase = await createClient();
   const {

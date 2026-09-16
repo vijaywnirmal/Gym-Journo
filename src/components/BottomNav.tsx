@@ -17,7 +17,9 @@ export default function BottomNav() {
   if (
     pathname.startsWith("/login") ||
     pathname.startsWith("/auth") ||
-    pathname.startsWith("/onboarding")
+    pathname.startsWith("/onboarding") ||
+    pathname.startsWith("/forgot-password") ||
+    pathname.startsWith("/reset-password")
   )
     return null;
 

@@ -26,7 +26,7 @@ export default function ProfileEditForm({ initial }: { initial: ProfileFieldsVal
     startTransition(async () => {
       const result = await updateProfile({
         fullName: fields.fullName,
-        age: fields.age ? parseInt(fields.age, 10) : null,
+        dateOfBirth: fields.dateOfBirth || null,
         heightCm: fields.heightCm ? parseFloat(fields.heightCm) : null,
         weightKg: fields.weightKg ? parseFloat(fields.weightKg) : null,
         sex: fields.sex,

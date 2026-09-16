@@ -80,6 +80,14 @@ export default async function TodayPage() {
           </div>
         </div>
       )}
+
+      <Link
+        href="/ai-plan"
+        className="mb-4 flex items-center justify-between rounded-xl border border-neutral-800 bg-neutral-900 p-4"
+      >
+        <span className="text-sm font-medium text-neutral-100">✨ Get an AI diet & workout plan</span>
+        <span className="text-neutral-500">→</span>
+      </Link>
     </main>
   );
 }

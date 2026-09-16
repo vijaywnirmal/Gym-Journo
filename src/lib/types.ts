@@ -6,7 +6,7 @@ export type MuscleGroup = {
 export type Profile = {
   id: string;
   full_name: string | null;
-  age: number | null;
+  date_of_birth: string | null;
   height_cm: number | null;
   weight_kg: number | null;
   sex: string | null;

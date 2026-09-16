@@ -1,4 +1,4 @@
-import { format, addDays, parseISO } from "date-fns";
+import { format, addDays, parseISO, differenceInYears } from "date-fns";
 
 export const DATE_FMT = "yyyy-MM-dd";
 
@@ -6,8 +6,17 @@ export function today(): string {
   return format(new Date(), DATE_FMT);
 }
 
+export function calculateAge(dateOfBirth: string): number {
+  return differenceInYears(new Date(), parseISO(dateOfBirth));
+}
+
 export function formatDate(date: string): string {
   return format(parseISO(date), "EEE, MMM d");
+}
+
+// Deterministic date+time formatting (unlike toLocaleString, doesn't depend on server/client locale)
+export function formatDateTime(isoString: string): string {
+  return format(new Date(isoString), "MMM d, yyyy 'at' h:mm a");
 }
 
 export function shiftDate(date: string, days: number): string {

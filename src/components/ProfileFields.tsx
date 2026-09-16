@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { ProfileFieldsValue } from "@/lib/profile-fields";
+import { MIN_PASSWORD_LENGTH } from "@/lib/validation";
 
 export type { ProfileFieldsValue };
 
@@ -32,18 +33,17 @@ export default function ProfileFields({
         />
       </div>
 
+      <div>
+        <label className={labelClass}>Date of birth</label>
+        <input
+          type="date"
+          value={value.dateOfBirth}
+          onChange={(e) => set("dateOfBirth", e.target.value)}
+          className={`${inputClass} w-full`}
+        />
+      </div>
+
       <div className="flex gap-3">
-        <div className="flex-1">
-          <label className={labelClass}>Age</label>
-          <input
-            type="number"
-            min={0}
-            value={value.age}
-            onChange={(e) => set("age", e.target.value)}
-            placeholder="28"
-            className={`${inputClass} w-full`}
-          />
-        </div>
         <div className="flex-1">
           <label className={labelClass}>Height (cm)</label>
           <input
@@ -127,7 +127,7 @@ export function PasswordFields({
             type={show ? "text" : "password"}
             value={password}
             onChange={(e) => onPasswordChange(e.target.value)}
-            placeholder="At least 6 characters"
+            placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
             className={`${inputClass} flex-1`}
           />
           <button
