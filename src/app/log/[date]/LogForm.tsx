@@ -1,32 +1,40 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import type { Exercise, WorkoutLog, WorkoutPlan } from "@/lib/types";
-import { saveLog } from "./actions";
-
-type SetRow = { reps: string; weight: string; weightUnit: string };
-type ExerciseEntry = { exerciseId: string; name: string; sets: SetRow[] };
+import type { PreviousPerformance } from "@/lib/queries";
+import { saveLog, fetchPreviousPerformance } from "./actions";
+import ExerciseLogPanel, { type ExerciseEntry, type SetRow } from "./ExerciseLogPanel";
+import LogExercisePicker from "./LogExercisePicker";
 
 type Props = {
   date: string;
   exercises: Exercise[];
   plan: WorkoutPlan | null;
   existingLog: WorkoutLog | null;
+  initialPreviousPerformance: Record<string, PreviousPerformance | null>;
 };
 
-function emptySet(): SetRow {
-  return { reps: "", weight: "", weightUnit: "kg" };
+type SaveState = "idle" | "saving" | "saved" | "error";
+
+const AUTOSAVE_DEBOUNCE_MS = 900;
+
+function emptySet(carryForward?: SetRow): SetRow {
+  return { reps: "", weight: carryForward?.weight ?? "", weightUnit: carryForward?.weightUnit ?? "kg" };
 }
 
-export default function LogForm({ date, exercises, plan, existingLog }: Props) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
+export default function LogForm({ date, exercises, plan, existingLog, initialPreviousPerformance }: Props) {
+  const targetByExerciseId = new Map(
+    plan?.planned_exercises?.map((pe) => [pe.exercise_id, { sets: pe.target_sets, reps: pe.target_reps }]) ?? []
+  );
 
+  // The persisted log always wins over the plan seed once it exists — reopening/resuming a
+  // session must never quietly revert to the original plan and discard logged progress.
   const initialEntries: ExerciseEntry[] = existingLog?.logged_exercises?.length
     ? existingLog.logged_exercises.map((le) => ({
         exerciseId: le.exercise_id,
         name: le.exercise?.name ?? "Exercise",
+        target: targetByExerciseId.get(le.exercise_id) ?? null,
         sets: le.logged_sets?.length
           ? le.logged_sets.map((s) => ({
               reps: s.reps?.toString() ?? "",
@@ -34,207 +42,382 @@ export default function LogForm({ date, exercises, plan, existingLog }: Props) {
               weightUnit: s.weight_unit,
             }))
           : [emptySet()],
+        done: false,
       }))
     : plan?.planned_exercises?.map((pe) => ({
         exerciseId: pe.exercise_id,
         name: pe.exercise?.name ?? "Exercise",
-        sets: Array.from({ length: pe.target_sets ?? 3 }, () => ({
-          reps: pe.target_reps?.toString() ?? "",
-          weight: "",
-          weightUnit: "kg",
-        })),
+        target: { sets: pe.target_sets, reps: pe.target_reps },
+        sets: Array.from({ length: pe.target_sets ?? 3 }, () => emptySet()),
+        done: false,
       })) ?? [];
 
   const [entries, setEntries] = useState<ExerciseEntry[]>(initialEntries);
   const [notes, setNotes] = useState(existingLog?.notes ?? "");
-  const [completed, setCompleted] = useState(!!existingLog?.completed_at);
-  const [addingExerciseId, setAddingExerciseId] = useState("");
-  const [saved, setSaved] = useState(false);
+  const [workoutCompleted, setWorkoutCompleted] = useState(!!existingLog?.completed_at);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [previousPerformance, setPreviousPerformance] =
+    useState<Record<string, PreviousPerformance | null>>(initialPreviousPerformance);
 
-  function addExercise() {
-    if (!addingExerciseId) return;
-    const ex = exercises.find((e) => e.id === addingExerciseId);
-    if (!ex) return;
-    setEntries((prev) => [...prev, { exerciseId: ex.id, name: ex.name, sets: [emptySet()] }]);
-    setAddingExerciseId("");
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Always-current snapshot for the save routine to read. Updated synchronously by the
+  // update* helpers below (never via a useEffect keyed on state) — an effect only runs after
+  // React commits the render, which is too late for scheduleSave(true) called in the same
+  // handler right after setState: it would read the previous, stale value.
+  const stateRef = useRef({ entries, notes, workoutCompleted });
+
+  function updateEntries(updater: (prev: ExerciseEntry[]) => ExerciseEntry[]) {
+    const next = updater(stateRef.current.entries);
+    stateRef.current = { ...stateRef.current, entries: next };
+    setEntries(next);
+    return next;
   }
 
-  function removeExercise(exerciseId: string) {
-    setEntries((prev) => prev.filter((e) => e.exerciseId !== exerciseId));
+  function updateNotesValue(value: string) {
+    stateRef.current = { ...stateRef.current, notes: value };
+    setNotes(value);
   }
 
-  function addSet(exerciseId: string) {
-    setEntries((prev) =>
-      prev.map((e) =>
-        e.exerciseId === exerciseId ? { ...e, sets: [...e.sets, emptySet()] } : e
-      )
-    );
+  function updateCompleted(value: boolean) {
+    stateRef.current = { ...stateRef.current, workoutCompleted: value };
+    setWorkoutCompleted(value);
   }
 
-  function removeSet(exerciseId: string, index: number) {
-    setEntries((prev) =>
-      prev.map((e) =>
-        e.exerciseId === exerciseId
-          ? { ...e, sets: e.sets.filter((_, i) => i !== index) }
-          : e
-      )
-    );
-  }
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savingRef = useRef(false);
+  const dirtyRef = useRef(false);
+  // True whenever a real edit hasn't been confirmed persisted yet — lets the visibility/pagehide
+  // flush skip doing any work at all when there's nothing to save (e.g. just viewing the page).
+  const hasUnsavedRef = useRef(false);
 
-  function updateSet(exerciseId: string, index: number, field: keyof SetRow, value: string) {
-    setEntries((prev) =>
-      prev.map((e) =>
-        e.exerciseId === exerciseId
-          ? {
-              ...e,
-              sets: e.sets.map((s, i) => (i === index ? { ...s, [field]: value } : s)),
-            }
-          : e
-      )
-    );
-  }
+  async function doSave() {
+    if (savingRef.current) {
+      dirtyRef.current = true;
+      return;
+    }
+    savingRef.current = true;
+    setSaveState("saving");
+    setSaveError(null);
 
-  function handleSubmit() {
-    setSaved(false);
-    startTransition(async () => {
-      const result = await saveLog({
-        date,
-        planId: plan?.id ?? null,
-        notes,
-        completed,
-        exercises: entries.map((e) => ({
-          exerciseId: e.exerciseId,
-          sets: e.sets.map((s) => ({
-            reps: s.reps ? parseInt(s.reps, 10) : null,
-            weight: s.weight ? parseFloat(s.weight) : null,
-            weightUnit: s.weightUnit,
-          })),
+    const snapshot = stateRef.current;
+    const result = await saveLog({
+      date,
+      planId: plan?.id ?? null,
+      notes: snapshot.notes,
+      completed: snapshot.workoutCompleted,
+      exercises: snapshot.entries.map((e) => ({
+        exerciseId: e.exerciseId,
+        sets: e.sets.map((s) => ({
+          reps: s.reps ? parseInt(s.reps, 10) : null,
+          weight: s.weight ? parseFloat(s.weight) : null,
+          weightUnit: s.weightUnit,
         })),
-      });
-      if (result.success) {
-        setSaved(true);
-        router.refresh();
-      }
+      })),
     });
+
+    savingRef.current = false;
+
+    if (result.error) {
+      setSaveState("error");
+      setSaveError(result.error);
+      return;
+    }
+
+    if (dirtyRef.current) {
+      // Newer edits arrived while this request was in flight — persist those too, and only
+      // report "Saved" once nothing newer is left to send.
+      dirtyRef.current = false;
+      void doSave();
+      return;
+    }
+    hasUnsavedRef.current = false;
+    setSaveState("saved");
   }
+
+  // Every real edit routes through here (called directly from the mutation handlers below —
+  // never from a generic effect watching state, which would also fire on mount/re-render and
+  // double-fire under React Strict Mode's dev-only double-invoke).
+  function scheduleSave(immediate: boolean) {
+    hasUnsavedRef.current = true;
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+      debounceTimer.current = null;
+    }
+    if (immediate) {
+      void doSave();
+    } else {
+      debounceTimer.current = setTimeout(() => void doSave(), AUTOSAVE_DEBOUNCE_MS);
+    }
+  }
+
+  // Flush on visibilitychange (phone lock, app switch, tab switch) — the page is still alive at
+  // that point, just hidden, so the in-flight fetch has a real chance to complete. This is the
+  // primary defense against losing an unsaved edit and is what the debounce window is backstopped
+  // by. No-ops if nothing is actually unsaved, so merely backgrounding the tab never triggers a
+  // redundant write.
+  //
+  // pagehide (actual tab close / navigation away) is best-effort only, not a guarantee: the
+  // browser can abort an in-flight, non-keepalive fetch mid-unload, so this attempt may not
+  // finish. It's kept as an opportunistic extra chance, not something the save model depends on —
+  // visibilitychange already covers the cases that matter (lock/background), since a page is
+  // reliably hidden before it can be closed.
+  useEffect(() => {
+    function flushIfHidden() {
+      if (document.hidden && hasUnsavedRef.current) scheduleSave(true);
+    }
+    function bestEffortFlushOnUnload() {
+      if (hasUnsavedRef.current) scheduleSave(true);
+    }
+    document.addEventListener("visibilitychange", flushIfHidden);
+    window.addEventListener("pagehide", bestEffortFlushOnUnload);
+    return () => {
+      document.removeEventListener("visibilitychange", flushIfHidden);
+      window.removeEventListener("pagehide", bestEffortFlushOnUnload);
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function updateSet(index: number, field: keyof SetRow, value: string) {
+    updateEntries((prev) =>
+      prev.map((e, i) =>
+        i === currentIndex
+          ? { ...e, sets: e.sets.map((s, si) => (si === index ? { ...s, [field]: value } : s)) }
+          : e
+      )
+    );
+    scheduleSave(false);
+  }
+
+  function addSet() {
+    updateEntries((prev) =>
+      prev.map((e, i) =>
+        i === currentIndex ? { ...e, sets: [...e.sets, emptySet(e.sets[e.sets.length - 1])] } : e
+      )
+    );
+    scheduleSave(true);
+  }
+
+  function removeSet(index: number) {
+    updateEntries((prev) =>
+      prev.map((e, i) => (i === currentIndex ? { ...e, sets: e.sets.filter((_, si) => si !== index) } : e))
+    );
+    scheduleSave(true);
+  }
+
+  function toggleDone() {
+    const wasDone = entries[currentIndex]?.done;
+    updateEntries((prev) => prev.map((e, i) => (i === currentIndex ? { ...e, done: !e.done } : e)));
+    scheduleSave(true);
+    if (!wasDone && currentIndex < entries.length - 1) {
+      setCurrentIndex((i) => i + 1);
+    }
+  }
+
+  function removeExercise(index: number) {
+    updateEntries((prev) => prev.filter((_, i) => i !== index));
+    setCurrentIndex((i) => Math.max(0, Math.min(i, entries.length - 2)));
+    scheduleSave(true);
+  }
+
+  async function addExercise(exerciseId: string) {
+    const ex = exercises.find((e) => e.id === exerciseId);
+    if (!ex || entries.some((e) => e.exerciseId === exerciseId)) return;
+    updateEntries((prev) => [
+      ...prev,
+      {
+        exerciseId: ex.id,
+        name: ex.name,
+        target: targetByExerciseId.get(exerciseId) ?? null,
+        sets: [emptySet()],
+        done: false,
+      },
+    ]);
+    setCurrentIndex(entries.length);
+    setPickerOpen(false);
+    scheduleSave(true);
+
+    if (!(exerciseId in previousPerformance)) {
+      const prev = await fetchPreviousPerformance(exerciseId, date);
+      setPreviousPerformance((p) => ({ ...p, [exerciseId]: prev }));
+    }
+  }
+
+  function goTo(index: number) {
+    if (hasUnsavedRef.current) scheduleSave(true);
+    setCurrentIndex(index);
+  }
+
+  function updateNotes(value: string) {
+    updateNotesValue(value);
+    scheduleSave(false);
+  }
+
+  function finishWorkout() {
+    updateCompleted(true);
+    scheduleSave(true);
+  }
+
+  function reopenWorkout() {
+    updateCompleted(false);
+    scheduleSave(true);
+  }
+
+  const current = entries[currentIndex];
+  const completedCount = entries.filter((e) => e.done).length;
 
   return (
-    <div className="flex flex-col gap-5 pb-6">
-      {entries.length === 0 && (
+    <div className="flex flex-col gap-4 pb-6">
+      <SaveStatus state={saveState} error={saveError} onRetry={() => scheduleSave(true)} />
+
+      {workoutCompleted && (
+        <div className="rounded-xl border border-green-900 bg-green-950/40 px-4 py-2.5">
+          <p className="text-sm font-medium text-green-400">Workout completed ✓</p>
+        </div>
+      )}
+
+      {entries.length > 0 && (
+        <>
+          <div className="flex items-center justify-between text-sm text-neutral-400">
+            <span>
+              {completedCount} of {entries.length} exercise{entries.length === 1 ? "" : "s"} done
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            {entries.map((e, i) => (
+              <button
+                key={e.exerciseId}
+                type="button"
+                onClick={() => goTo(i)}
+                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm ${
+                  i === currentIndex ? "bg-neutral-800 text-neutral-100" : "text-neutral-400"
+                }`}
+              >
+                <span className="w-4">{e.done ? "✓" : i === currentIndex ? "→" : ""}</span>
+                {e.name}
+              </button>
+            ))}
+          </div>
+
+          {current && (
+            <ExerciseLogPanel
+              entry={current}
+              positionLabel={`Exercise ${currentIndex + 1} of ${entries.length}`}
+              previous={previousPerformance[current.exerciseId]}
+              onUpdateSet={updateSet}
+              onAddSet={addSet}
+              onRemoveSet={removeSet}
+              onToggleDone={toggleDone}
+              onRemoveExercise={() => removeExercise(currentIndex)}
+            />
+          )}
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => goTo(Math.max(0, currentIndex - 1))}
+              disabled={currentIndex === 0}
+              className="flex-1 rounded-lg border border-neutral-700 px-4 py-2.5 text-sm font-medium text-neutral-100 disabled:opacity-40"
+            >
+              ← Previous
+            </button>
+            <button
+              type="button"
+              onClick={() => goTo(Math.min(entries.length - 1, currentIndex + 1))}
+              disabled={currentIndex === entries.length - 1}
+              className="flex-1 rounded-lg border border-neutral-700 px-4 py-2.5 text-sm font-medium text-neutral-100 disabled:opacity-40"
+            >
+              Next →
+            </button>
+          </div>
+        </>
+      )}
+
+      {entries.length === 0 && !pickerOpen && (
         <p className="text-sm text-neutral-500">
           No exercises yet — add one below, or set up a schedule for this day first.
         </p>
       )}
 
-      {entries.map((entry) => (
-        <div key={entry.exerciseId} className="rounded-xl border border-neutral-800 p-3">
-          <div className="mb-2 flex items-center justify-between">
-            <p className="font-semibold text-neutral-100">{entry.name}</p>
-            <button
-              type="button"
-              onClick={() => removeExercise(entry.exerciseId)}
-              className="text-xs text-red-400"
-            >
-              Remove
-            </button>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            {entry.sets.map((set, i) => (
-              <div key={i} className="flex items-center gap-2 text-sm text-neutral-100">
-                <span className="w-5 text-neutral-500">{i + 1}</span>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  placeholder="reps"
-                  value={set.reps}
-                  onChange={(e) => updateSet(entry.exerciseId, i, "reps", e.target.value)}
-                  className="w-16 rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-neutral-100"
-                />
-                <span className="text-neutral-500">×</span>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  placeholder="weight"
-                  value={set.weight}
-                  onChange={(e) => updateSet(entry.exerciseId, i, "weight", e.target.value)}
-                  className="w-20 rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-neutral-100"
-                />
-                <select
-                  value={set.weightUnit}
-                  onChange={(e) => updateSet(entry.exerciseId, i, "weightUnit", e.target.value)}
-                  className="rounded-lg border border-neutral-700 bg-neutral-900 px-1.5 py-1.5 text-neutral-100"
-                >
-                  <option value="kg">kg</option>
-                  <option value="lb">lb</option>
-                </select>
-                <button
-                  type="button"
-                  onClick={() => removeSet(entry.exerciseId, i)}
-                  className="ml-auto text-neutral-500"
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={() => addSet(entry.exerciseId)}
-              className="self-start text-sm text-neutral-300 underline"
-            >
-              + Add set
-            </button>
-          </div>
-        </div>
-      ))}
-
-      <div className="flex gap-2">
-        <select
-          value={addingExerciseId}
-          onChange={(e) => setAddingExerciseId(e.target.value)}
-          className="flex-1 rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-base text-neutral-100"
-        >
-          <option value="">Add an exercise...</option>
-          {exercises
-            .filter((ex) => !entries.some((e) => e.exerciseId === ex.id))
-            .map((ex) => (
-              <option key={ex.id} value={ex.id}>
-                {ex.name}
-              </option>
-            ))}
-        </select>
+      {pickerOpen ? (
+        <LogExercisePicker
+          exercises={exercises}
+          alreadyAdded={new Set(entries.map((e) => e.exerciseId))}
+          onAdd={addExercise}
+          onCancel={() => setPickerOpen(false)}
+        />
+      ) : (
         <button
           type="button"
-          onClick={addExercise}
-          className="rounded-lg border border-neutral-700 px-4 py-2 text-sm font-medium text-neutral-100"
+          onClick={() => setPickerOpen(true)}
+          className="rounded-lg border border-neutral-700 px-4 py-2.5 text-sm font-medium text-neutral-100"
         >
-          Add
+          + Add exercise
         </button>
-      </div>
+      )}
 
       <textarea
         value={notes}
-        onChange={(e) => setNotes(e.target.value)}
+        onChange={(e) => updateNotes(e.target.value)}
         placeholder="Notes (how did it feel?)"
         rows={3}
         className="rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-base text-neutral-100 placeholder-neutral-500"
       />
 
-      <label className="flex items-center gap-2 text-sm text-neutral-100">
-        <input type="checkbox" checked={completed} onChange={(e) => setCompleted(e.target.checked)} />
-        Mark workout complete
-      </label>
-
-      {saved && <p className="text-sm text-green-400">Saved!</p>}
-
-      <button
-        type="button"
-        onClick={handleSubmit}
-        disabled={pending}
-        className="rounded-xl bg-white px-4 py-3 font-medium text-neutral-900 disabled:opacity-50"
-      >
-        {pending ? "Saving..." : "Save workout log"}
-      </button>
+      {workoutCompleted ? (
+        <button
+          type="button"
+          onClick={reopenWorkout}
+          className="rounded-xl border border-neutral-700 px-4 py-3 font-medium text-neutral-100"
+        >
+          Reopen workout
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={finishWorkout}
+          className="rounded-xl bg-white px-4 py-3 font-medium text-neutral-900"
+        >
+          Finish workout
+        </button>
+      )}
     </div>
+  );
+}
+
+function SaveStatus({
+  state,
+  error,
+  onRetry,
+}: {
+  state: SaveState;
+  error: string | null;
+  onRetry: () => void;
+}) {
+  if (state === "idle") return null;
+
+  if (state === "error") {
+    return (
+      <div className="flex items-center justify-between rounded-lg border border-red-900 bg-red-950/40 px-3 py-2">
+        <p className="text-sm text-red-400">{error ?? "Couldn't save — your changes are kept here."}</p>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="rounded-lg border border-red-800 px-3 py-1 text-xs font-medium text-red-300"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <p className="text-xs text-neutral-500">
+      {state === "saving" ? "Saving…" : "Saved"}
+    </p>
   );
 }

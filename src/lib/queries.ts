@@ -4,6 +4,7 @@ import type {
   MuscleGroup,
   WorkoutPlan,
   WorkoutLog,
+  LoggedSet,
   Profile,
   WorkoutTemplate,
 } from "@/lib/types";
@@ -342,6 +343,52 @@ export async function getLastCompletedLog(): Promise<LastCompletedLog | null> {
 
   const row = data as unknown as { date: string; plan: { title: string | null } | null };
   return { date: row.date, title: row.plan?.title ?? null };
+}
+
+export type PreviousPerformance = {
+  date: string;
+  sets: { reps: number | null; weight: number | null; weightUnit: string }[];
+};
+
+// The most recent previously-logged sets for one exercise, strictly before `beforeDate` — "what
+// did I do last time?" context for the logger. Not filtered by completed_at: History already
+// treats incomplete logs as real logged data, so this matches that existing semantics.
+export async function getPreviousPerformance(
+  exerciseId: string,
+  beforeDate: string
+): Promise<PreviousPerformance | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data, error } = await supabase
+    .from("workout_logs")
+    .select("date, logged_exercises!inner(exercise_id, logged_sets(*))")
+    .eq("user_id", user.id)
+    .eq("logged_exercises.exercise_id", exerciseId)
+    .lt("date", beforeDate)
+    .order("date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  type Row = {
+    date: string;
+    logged_exercises: { logged_sets: LoggedSet[] }[];
+  };
+  const row = data as unknown as Row;
+  const sets = (row.logged_exercises[0]?.logged_sets ?? []).sort(
+    (a, b) => a.set_number - b.set_number
+  );
+  if (sets.length === 0) return null;
+
+  return {
+    date: row.date,
+    sets: sets.map((s) => ({ reps: s.reps, weight: s.weight, weightUnit: s.weight_unit })),
+  };
 }
 
 export async function getLogForDate(date: string): Promise<WorkoutLog | null> {
