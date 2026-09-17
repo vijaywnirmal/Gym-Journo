@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getExercises, getLogHistory } from "@/lib/queries";
 import { formatDate } from "@/lib/date";
 import ExerciseFilter from "./ExerciseFilter";
+import { formatSessionSummary, summarizeVisibleSessions } from "./sessionSummary";
 
 const PAGE_SIZE = 30;
 
@@ -24,6 +25,11 @@ export default async function HistoryPage({
   const selectedExerciseName = exerciseId
     ? exercises.find((ex) => ex.id === exerciseId)?.name ?? "Exercise"
     : null;
+  // Only meaningful in the exercise-filtered view — describes exactly the sessions on this page,
+  // never a lifetime total (see sessionSummary.ts).
+  const sessionSummaryText = selectedExerciseName
+    ? formatSessionSummary(summarizeVisibleSessions(logs.map((log) => log.date)))
+    : null;
 
   return (
     <main className="px-4 pt-6">
@@ -34,7 +40,11 @@ export default async function HistoryPage({
       </div>
 
       {selectedExerciseName && (
-        <h2 className="mb-3 text-lg font-semibold text-neutral-100">{selectedExerciseName}</h2>
+        <h2 className="mb-1 text-lg font-semibold text-neutral-100">{selectedExerciseName}</h2>
+      )}
+
+      {sessionSummaryText && (
+        <p className="mb-3 text-xs text-neutral-500">{sessionSummaryText}</p>
       )}
 
       <div className="flex flex-col gap-3 pb-4">
