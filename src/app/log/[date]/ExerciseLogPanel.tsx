@@ -112,6 +112,34 @@ function targetLabel(target: ExerciseEntry["target"]): string | null {
   return `${sets} × ${reps}`;
 }
 
+// A set counts as logged once it has recorded content (reps or weight) — a freshly plan-seeded
+// row present in the array but still blank does not count. Mirrors LogForm's isExerciseEntryLogged
+// at set granularity, so a plan targeting 3 sets doesn't read as "3 logged" the moment the stepper
+// pre-populates 3 empty rows, before the user has entered anything.
+export function countLoggedSets(sets: SetRow[]): number {
+  return sets.filter((s) => s.reps.trim() !== "" || s.weight.trim() !== "").length;
+}
+
+// Purely descriptive: how many more planned sets remain unlogged, based only on the literal
+// count of sets with recorded content vs. target_sets — never reps/weight magnitude, never a
+// judgment. Returns null (nothing to show) when there's no usable target, or once the logged
+// count meets or exceeds it — extra sets beyond the target are never flagged.
+export function getRemainingPlannedSetCount(
+  targetSets: number | null | undefined,
+  loggedSetCount: number
+): number | null {
+  if (targetSets === null || targetSets === undefined) return null;
+  if (!Number.isFinite(targetSets) || targetSets <= 0) return null;
+  const remaining = targetSets - loggedSetCount;
+  return remaining > 0 ? remaining : null;
+}
+
+// Descriptive-only wording, deliberately not "X of Y" / fraction / percentage — see Phase 15 scope.
+export function formatRemainingPlannedSets(remaining: number | null): string | null {
+  if (remaining === null) return null;
+  return `${remaining} planned set${remaining === 1 ? "" : "s"} not yet logged`;
+}
+
 export default function ExerciseLogPanel({
   entry,
   positionLabel,
@@ -124,6 +152,9 @@ export default function ExerciseLogPanel({
 }: Props) {
   const target = targetLabel(entry.target);
   const comparisons = compareSets(entry.sets, previous);
+  const remainingPlannedSets = formatRemainingPlannedSets(
+    getRemainingPlannedSetCount(entry.target?.sets, countLoggedSets(entry.sets))
+  );
 
   return (
     <div className="rounded-xl border border-neutral-800 p-4">
@@ -144,6 +175,10 @@ export default function ExerciseLogPanel({
         <p className="mb-1 text-sm text-neutral-400">
           Target: <span className="text-neutral-200">{target}</span>
         </p>
+      )}
+
+      {remainingPlannedSets && (
+        <p className="mb-3 text-xs text-neutral-500">{remainingPlannedSets}</p>
       )}
 
       {previous === undefined ? (

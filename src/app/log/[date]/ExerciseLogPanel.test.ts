@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { compareSets, exerciseHistoryHref, formatSetComparison, type SetRow } from "./ExerciseLogPanel";
+import {
+  compareSets,
+  countLoggedSets,
+  exerciseHistoryHref,
+  formatRemainingPlannedSets,
+  formatSetComparison,
+  getRemainingPlannedSetCount,
+  type SetRow,
+} from "./ExerciseLogPanel";
 import type { PreviousPerformance } from "@/lib/queries";
 
 function set(weight: string, reps: string, weightUnit = "kg"): SetRow {
@@ -151,5 +159,150 @@ describe("compareSets / formatSetComparison", () => {
 describe("exerciseHistoryHref", () => {
   it("links to the existing exercise-filtered History view with the correct exercise ID", () => {
     expect(exerciseHistoryHref("ex-123")).toBe("/history?exercise=ex-123");
+  });
+});
+
+function blankSets(n: number): SetRow[] {
+  return Array.from({ length: n }, () => set("", ""));
+}
+
+describe("countLoggedSets (Phase 15)", () => {
+  it("does not count freshly plan-seeded blank rows as logged", () => {
+    expect(countLoggedSets(blankSets(3))).toBe(0);
+  });
+
+  it("counts a set with only reps filled as logged", () => {
+    expect(countLoggedSets([set("", "5")])).toBe(1);
+  });
+
+  it("counts a set with only weight filled as logged", () => {
+    expect(countLoggedSets([set("80", "")])).toBe(1);
+  });
+
+  it("treats whitespace-only values as not logged", () => {
+    expect(countLoggedSets([set("  ", " ")])).toBe(0);
+  });
+
+  it("counts a mix of filled and blank rows correctly, regardless of order", () => {
+    expect(countLoggedSets([set("80", "5"), set("", ""), set("", "3")])).toBe(2);
+  });
+
+  it("counts duplicate identical rows independently (no dedup)", () => {
+    expect(countLoggedSets([set("80", "5"), set("80", "5")])).toBe(2);
+  });
+
+  it("returns 0 for an empty sets array", () => {
+    expect(countLoggedSets([])).toBe(0);
+  });
+});
+
+describe("getRemainingPlannedSetCount (Phase 15)", () => {
+  it("1. target 3, zero logged sets: all 3 remain", () => {
+    expect(getRemainingPlannedSetCount(3, 0)).toBe(3);
+  });
+
+  it("2. target 3, one logged set: 2 remain", () => {
+    expect(getRemainingPlannedSetCount(3, 1)).toBe(2);
+  });
+
+  it("3. target 3, two logged sets: 1 remains", () => {
+    expect(getRemainingPlannedSetCount(3, 2)).toBe(1);
+  });
+
+  it("4. target 3, exactly three logged sets: none remain (null)", () => {
+    expect(getRemainingPlannedSetCount(3, 3)).toBeNull();
+  });
+
+  it("5. target 3, four logged sets: none remain, not an error (null)", () => {
+    expect(getRemainingPlannedSetCount(3, 4)).toBeNull();
+  });
+
+  it("6. target missing/null: no awareness (null)", () => {
+    expect(getRemainingPlannedSetCount(null, 0)).toBeNull();
+    expect(getRemainingPlannedSetCount(undefined, 0)).toBeNull();
+  });
+
+  it("7. target zero: no awareness (null)", () => {
+    expect(getRemainingPlannedSetCount(0, 0)).toBeNull();
+  });
+
+  it("8. target negative/invalid: no awareness (null)", () => {
+    expect(getRemainingPlannedSetCount(-1, 0)).toBeNull();
+    expect(getRemainingPlannedSetCount(Number.NaN, 0)).toBeNull();
+  });
+
+  it("9. no target at all (unplanned/freeform exercise): no awareness (null)", () => {
+    expect(getRemainingPlannedSetCount(undefined, 5)).toBeNull();
+  });
+
+  it("11. does not produce invalid output for an unusual logged count (more than target, or zero target with zero logged)", () => {
+    expect(getRemainingPlannedSetCount(3, 100)).toBeNull();
+    expect(Number.isNaN(getRemainingPlannedSetCount(3, 0))).toBe(false);
+  });
+});
+
+describe("countLoggedSets + getRemainingPlannedSetCount integration (Phase 15)", () => {
+  it("10. a planned exercise entry pre-seeded with blank sets shows the full target as remaining", () => {
+    // Mirrors LogForm's initial seeding: sets.length === target_sets from the very first render,
+    // but none of them have content yet.
+    const targetSets = 3;
+    const seededSets = blankSets(3);
+    expect(getRemainingPlannedSetCount(targetSets, countLoggedSets(seededSets))).toBe(3);
+  });
+
+  it("reflects each set becoming logged one at a time", () => {
+    const targetSets = 3;
+    let sets = blankSets(3);
+    expect(getRemainingPlannedSetCount(targetSets, countLoggedSets(sets))).toBe(3);
+
+    sets = [set("80", "5"), sets[1], sets[2]];
+    expect(getRemainingPlannedSetCount(targetSets, countLoggedSets(sets))).toBe(2);
+
+    sets = [sets[0], set("80", "5"), sets[2]];
+    expect(getRemainingPlannedSetCount(targetSets, countLoggedSets(sets))).toBe(1);
+
+    sets = [sets[0], sets[1], set("80", "5")];
+    expect(getRemainingPlannedSetCount(targetSets, countLoggedSets(sets))).toBeNull();
+
+    sets = [...sets, set("80", "5")];
+    expect(getRemainingPlannedSetCount(targetSets, countLoggedSets(sets))).toBeNull();
+  });
+});
+
+describe("formatRemainingPlannedSets (Phase 15)", () => {
+  it("returns null (nothing rendered) when there's nothing remaining", () => {
+    expect(formatRemainingPlannedSets(null)).toBeNull();
+  });
+
+  it("uses singular wording for exactly 1 remaining", () => {
+    expect(formatRemainingPlannedSets(1)).toBe("1 planned set not yet logged");
+  });
+
+  it("uses plural wording for more than 1 remaining", () => {
+    expect(formatRemainingPlannedSets(2)).toBe("2 planned sets not yet logged");
+    expect(formatRemainingPlannedSets(3)).toBe("3 planned sets not yet logged");
+  });
+
+  it("never uses fraction, percentage, or evaluative wording", () => {
+    const text = formatRemainingPlannedSets(2) ?? "";
+    for (const forbidden of [
+      "/",
+      "%",
+      "completed",
+      "incomplete",
+      "missed",
+      "skipped",
+      "behind",
+      "failed",
+      "short",
+      "adherence",
+      "compliance",
+      "score",
+      "progress",
+      "on track",
+      "off track",
+    ]) {
+      expect(text.toLowerCase()).not.toContain(forbidden.toLowerCase());
+    }
   });
 });
