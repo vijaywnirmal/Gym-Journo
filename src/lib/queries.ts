@@ -332,7 +332,12 @@ export async function getLogHistory(options: {
   const logs = rows.slice(0, pageSize).map((row) => ({
     ...row,
     planTitle: row.plan?.title ?? null,
+    // The `!inner` join above only decides which days (parent rows) are included when
+    // exerciseId is set — Supabase still embeds every sibling logged_exercise for those days.
+    // Drop siblings here so a caller filtering by exercise gets only that exercise's data, never
+    // co-logged exercises from the same day.
     logged_exercises: (row.logged_exercises ?? [])
+      .filter((le) => !exerciseId || le.exercise_id === exerciseId)
       .sort((a, b) => a.position - b.position)
       .map((le) => ({
         ...le,

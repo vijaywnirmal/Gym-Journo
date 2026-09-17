@@ -49,14 +49,54 @@ vi.mock("@/lib/supabase/server", () => ({
 
 const { getLogHistory, getLogForDate } = await import("./queries");
 
-function loggedLog(overrides: Partial<{ id: string; date: string; notes: string | null; plan: { title: string | null } | null }> = {}) {
+function loggedLog(
+  overrides: Partial<{
+    id: string;
+    date: string;
+    notes: string | null;
+    plan: { title: string | null } | null;
+    logged_exercises: unknown[];
+  }> = {}
+) {
   return {
     id: overrides.id ?? "log-1",
     date: overrides.date ?? "2026-09-10",
     notes: overrides.notes ?? null,
     completed_at: null,
     plan: overrides.plan ?? null,
-    logged_exercises: [],
+    logged_exercises: overrides.logged_exercises ?? [],
+  };
+}
+
+function loggedExercise(
+  overrides: Partial<{
+    id: string;
+    exercise_id: string;
+    position: number;
+    exercise: { id: string; name: string };
+    logged_sets: unknown[];
+  }> = {}
+) {
+  return {
+    id: overrides.id ?? "le-1",
+    exercise_id: overrides.exercise_id ?? "ex-1",
+    position: overrides.position ?? 0,
+    exercise: overrides.exercise ?? { id: overrides.exercise_id ?? "ex-1", name: "Bench Press" },
+    logged_sets: overrides.logged_sets ?? [],
+  };
+}
+
+function loggedSet(
+  overrides: Partial<{ id: string; set_number: number; reps: number | null; weight: number | null; weight_unit: string }> = {}
+) {
+  return {
+    id: overrides.id ?? "set-1",
+    set_number: overrides.set_number ?? 1,
+    // `?? default` would silently replace an explicit `null` (a real, meaningful "no value
+    // recorded" state) with the default — use `in` so tests can assert null is passed through.
+    reps: "reps" in overrides ? overrides.reps! : 5,
+    weight: "weight" in overrides ? overrides.weight! : 80,
+    weight_unit: overrides.weight_unit ?? "kg",
   };
 }
 
@@ -122,6 +162,157 @@ describe("getLogHistory exercise filter + pagination interaction", () => {
     expect(lastBuilder!.calls.lt).toEqual([["date", "2026-09-05"]]);
     // The limit(pageSize + 1) trick must still be used for accurate hasMore under a filter.
     expect(lastBuilder!.calls.limit).toEqual([[31]]);
+  });
+});
+
+describe("getLogHistory per-exercise session isolation (Phase 12)", () => {
+  beforeEach(() => {
+    getUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
+  });
+
+  it("keeps only the selected exercise's logged_exercises entry, dropping same-day siblings", async () => {
+    nextResult = {
+      data: [
+        loggedLog({
+          id: "log-1",
+          date: "2026-09-10",
+          logged_exercises: [
+            loggedExercise({
+              id: "le-bench",
+              exercise_id: "ex-bench",
+              position: 0,
+              exercise: { id: "ex-bench", name: "Bench Press" },
+              logged_sets: [loggedSet({ id: "s1", set_number: 1, weight: 80, reps: 5 })],
+            }),
+            loggedExercise({
+              id: "le-row",
+              exercise_id: "ex-row",
+              position: 1,
+              exercise: { id: "ex-row", name: "Barbell Row" },
+              logged_sets: [loggedSet({ id: "s2", set_number: 1, weight: 60, reps: 8 })],
+            }),
+          ],
+        }),
+      ],
+      error: null,
+    };
+
+    const result = await getLogHistory({ exerciseId: "ex-bench" });
+    expect(result.logs).toHaveLength(1);
+    expect(result.logs[0].logged_exercises).toHaveLength(1);
+    expect(result.logs[0].logged_exercises?.[0].exercise_id).toBe("ex-bench");
+    expect(result.logs[0].logged_exercises?.some((le) => le.exercise_id === "ex-row")).toBe(false);
+  });
+
+  it("preserves set order (by set_number) within the isolated exercise", async () => {
+    nextResult = {
+      data: [
+        loggedLog({
+          logged_exercises: [
+            loggedExercise({
+              exercise_id: "ex-bench",
+              logged_sets: [
+                loggedSet({ id: "s3", set_number: 3, weight: 80, reps: 5 }),
+                loggedSet({ id: "s1", set_number: 1, weight: 82.5, reps: 5 }),
+                loggedSet({ id: "s2", set_number: 2, weight: 80, reps: 6 }),
+              ],
+            }),
+          ],
+        }),
+      ],
+      error: null,
+    };
+
+    const result = await getLogHistory({ exerciseId: "ex-bench" });
+    const setNumbers = result.logs[0].logged_exercises?.[0].logged_sets?.map((s) => s.set_number);
+    expect(setNumbers).toEqual([1, 2, 3]);
+  });
+
+  it("preserves weight, weight_unit, and reps values exactly, without inventing missing ones", async () => {
+    nextResult = {
+      data: [
+        loggedLog({
+          logged_exercises: [
+            loggedExercise({
+              exercise_id: "ex-bench",
+              logged_sets: [
+                loggedSet({ id: "s1", set_number: 1, weight: 82.5, reps: 5, weight_unit: "kg" }),
+                loggedSet({ id: "s2", set_number: 2, weight: null, reps: null, weight_unit: "kg" }),
+              ],
+            }),
+          ],
+        }),
+      ],
+      error: null,
+    };
+
+    const result = await getLogHistory({ exerciseId: "ex-bench" });
+    const sets = result.logs[0].logged_exercises?.[0].logged_sets;
+    expect(sets?.[0]).toMatchObject({ weight: 82.5, reps: 5, weight_unit: "kg" });
+    expect(sets?.[1]).toMatchObject({ weight: null, reps: null, weight_unit: "kg" });
+  });
+
+  it("renders multiple sessions, each isolated to the selected exercise", async () => {
+    nextResult = {
+      data: [
+        loggedLog({
+          id: "log-recent",
+          date: "2026-09-17",
+          logged_exercises: [
+            loggedExercise({
+              exercise_id: "ex-bench",
+              logged_sets: [
+                loggedSet({ id: "a1", set_number: 1, weight: 82.5, reps: 5 }),
+                loggedSet({ id: "a2", set_number: 2, weight: 80, reps: 6 }),
+                loggedSet({ id: "a3", set_number: 3, weight: 80, reps: 5 }),
+              ],
+            }),
+          ],
+        }),
+        loggedLog({
+          id: "log-older",
+          date: "2026-09-10",
+          logged_exercises: [
+            loggedExercise({
+              exercise_id: "ex-bench",
+              logged_sets: [
+                loggedSet({ id: "b1", set_number: 1, weight: 80, reps: 5 }),
+                loggedSet({ id: "b2", set_number: 2, weight: 80, reps: 5 }),
+              ],
+            }),
+          ],
+        }),
+      ],
+      error: null,
+    };
+
+    const result = await getLogHistory({ exerciseId: "ex-bench" });
+    expect(result.logs.map((l) => l.date)).toEqual(["2026-09-17", "2026-09-10"]);
+    expect(result.logs[0].logged_exercises?.[0].logged_sets).toHaveLength(3);
+    expect(result.logs[1].logged_exercises?.[0].logged_sets).toHaveLength(2);
+  });
+
+  it("does not filter logged_exercises when no exerciseId is given (unfiltered History unchanged)", async () => {
+    nextResult = {
+      data: [
+        loggedLog({
+          logged_exercises: [
+            loggedExercise({ exercise_id: "ex-bench" }),
+            loggedExercise({ exercise_id: "ex-row" }),
+          ],
+        }),
+      ],
+      error: null,
+    };
+
+    const result = await getLogHistory({});
+    expect(result.logs[0].logged_exercises).toHaveLength(2);
+  });
+
+  it("returns an empty page (not an error) when the exercise has no matching sessions", async () => {
+    nextResult = { data: [], error: null };
+    const result = await getLogHistory({ exerciseId: "ex-never-logged" });
+    expect(result).toEqual({ logs: [], hasMore: false });
   });
 });
 
