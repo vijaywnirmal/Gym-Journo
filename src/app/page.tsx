@@ -1,19 +1,33 @@
 import Link from "next/link";
-import { getLastCompletedLog, getLogForDate, getPlanForDate, getProfile } from "@/lib/queries";
+import {
+  getLastCompletedLog,
+  getLogForDate,
+  getPlanForDate,
+  getProfile,
+  getTrainingConsistency,
+} from "@/lib/queries";
 import { formatDate, today } from "@/lib/date";
-import { formatGoalSummary, getGreeting, getWorkoutCta } from "@/lib/home";
+import { formatGoalSummary, formatTrainingFrequency, getGreeting, getWorkoutCta } from "@/lib/home";
 import SignOutButton from "@/components/SignOutButton";
+
+const TRAINING_FREQUENCY_WINDOW_DAYS = 7;
 
 export default async function TodayPage() {
   const date = today();
-  const [profile, plan, log] = await Promise.all([
+  const [profile, plan, log, trainingConsistency] = await Promise.all([
     getProfile(),
     getPlanForDate(date),
     getLogForDate(date),
+    getTrainingConsistency(TRAINING_FREQUENCY_WINDOW_DAYS),
   ]);
 
   const greeting = getGreeting(profile?.full_name ?? null, new Date().getHours());
   const goalSummary = profile ? formatGoalSummary(profile) : null;
+  const trainingFrequency = formatTrainingFrequency(
+    profile?.training_days_per_week ?? null,
+    trainingConsistency.daysLogged,
+    trainingConsistency.windowDays
+  );
   const cta = getWorkoutCta(date, !!log, !!log?.completed_at);
 
   const hasNothingToday = !plan && !log;
@@ -35,6 +49,14 @@ export default async function TodayPage() {
           {goalSummary.targetLine && (
             <p className="text-xs text-neutral-400">{goalSummary.targetLine}</p>
           )}
+        </div>
+      )}
+
+      {trainingFrequency && (
+        <div className="mb-4 rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3">
+          <p className="text-xs font-medium text-neutral-500">Training frequency</p>
+          <p className="text-sm text-neutral-100">{trainingFrequency.actualLine}</p>
+          <p className="text-xs text-neutral-400">{trainingFrequency.goalLine}</p>
         </div>
       )}
 

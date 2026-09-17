@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatGoalSummary, getGreeting, getWorkoutCta } from "./home";
+import { formatGoalSummary, formatTrainingFrequency, getGreeting, getWorkoutCta } from "./home";
 
 describe("getGreeting", () => {
   it("greets a named user by first name, varying by hour", () => {
@@ -68,6 +68,52 @@ describe("formatGoalSummary", () => {
       target_weight_kg: null,
     });
     expect(summary?.targetLine).toBeNull();
+  });
+});
+
+describe("formatTrainingFrequency (Phase 13)", () => {
+  it("shows the observed count below the weekly goal (goal=4, actual=3)", () => {
+    const result = formatTrainingFrequency(4, 3, 7);
+    expect(result).toEqual({
+      actualLine: "3 workouts in the last 7 days",
+      goalLine: "Goal: 4 days/week",
+    });
+  });
+
+  it("shows the observed count matching the weekly goal (goal=4, actual=4)", () => {
+    const result = formatTrainingFrequency(4, 4, 7);
+    expect(result).toEqual({
+      actualLine: "4 workouts in the last 7 days",
+      goalLine: "Goal: 4 days/week",
+    });
+  });
+
+  it("shows a zero count without crashing or implying judgment (goal=4, actual=0)", () => {
+    const result = formatTrainingFrequency(4, 0, 7);
+    expect(result).toEqual({
+      actualLine: "0 workouts in the last 7 days",
+      goalLine: "Goal: 4 days/week",
+    });
+  });
+
+  it("returns null when no weekly-frequency goal is set (goal=null)", () => {
+    expect(formatTrainingFrequency(null, 5, 7)).toBeNull();
+  });
+
+  it("renders normally with singular wording for 1 workout / 1 day per week", () => {
+    const result = formatTrainingFrequency(1, 1, 7);
+    expect(result).toEqual({
+      actualLine: "1 workout in the last 7 days",
+      goalLine: "Goal: 1 day/week",
+    });
+  });
+
+  it("never includes evaluative language (on track / behind / ahead / score / %)", () => {
+    const result = formatTrainingFrequency(4, 3, 7);
+    const combined = `${result?.actualLine} ${result?.goalLine}`.toLowerCase();
+    for (const forbidden of ["on track", "behind", "ahead", "missed", "adherence", "compliance", "score", "%"]) {
+      expect(combined).not.toContain(forbidden);
+    }
   });
 });
 
