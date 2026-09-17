@@ -1,5 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { today, shiftDate } from "@/lib/date";
+import {
+  summarizeExerciseRecurrence,
+  type ExerciseRecurrence,
+} from "@/app/history/exerciseRecurrence";
 import type {
   Exercise,
   MuscleGroup,
@@ -10,6 +14,8 @@ import type {
   WorkoutTemplate,
   BodyMeasurement,
 } from "@/lib/types";
+
+export type { ExerciseRecurrence };
 
 export type AiPlan = {
   id: string;
@@ -346,6 +352,30 @@ export async function getLogHistory(options: {
   }));
 
   return { logs, hasMore };
+}
+
+// Full logged-history recurrence for one exercise — every matching log date, not a History page.
+// Same isolation as getLogHistory's exercise filter: a workout_logs row that contains this
+// exercise_id counts as one session, including incomplete logs. Duplicate rows for the same
+// exercise on one log collapse via summarizeExerciseRecurrence. No before-cursor, no limit.
+export async function getExerciseRecurrence(
+  exerciseId: string
+): Promise<ExerciseRecurrence | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data, error } = await supabase
+    .from("workout_logs")
+    .select("date, logged_exercises!inner(exercise_id)")
+    .eq("user_id", user.id)
+    .eq("logged_exercises.exercise_id", exerciseId);
+
+  if (error || !data) return null;
+
+  return summarizeExerciseRecurrence((data as { date: string }[]).map((row) => row.date));
 }
 
 export type LastCompletedLog = {

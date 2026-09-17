@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { getExercises, getLogHistory } from "@/lib/queries";
+import { getExerciseRecurrence, getExercises, getLogHistory } from "@/lib/queries";
 import { formatDate } from "@/lib/date";
 import ExerciseFilter from "./ExerciseFilter";
 import { formatSessionSummary, summarizeVisibleSessions } from "./sessionSummary";
+import { formatExerciseRecurrence } from "./exerciseRecurrence";
 
 const PAGE_SIZE = 30;
 
@@ -12,9 +13,11 @@ export default async function HistoryPage({
   searchParams: Promise<{ exercise?: string; before?: string }>;
 }) {
   const { exercise: exerciseId, before } = await searchParams;
-  const [{ logs, hasMore }, exercises] = await Promise.all([
+  const [{ logs, hasMore }, exercises, recurrence] = await Promise.all([
     getLogHistory({ exerciseId, before, pageSize: PAGE_SIZE }),
     getExercises(),
+    // Full-history facts for the selected exercise — independent of this page's `before` cursor.
+    exerciseId ? getExerciseRecurrence(exerciseId) : Promise.resolve(null),
   ]);
 
   const oldestDateOnPage = logs.length > 0 ? logs[logs.length - 1].date : null;
@@ -30,6 +33,8 @@ export default async function HistoryPage({
   const sessionSummaryText = selectedExerciseName
     ? formatSessionSummary(summarizeVisibleSessions(logs.map((log) => log.date)))
     : null;
+  // Filtered view only — never shown on unfiltered History. Null when this exercise has no logs.
+  const recurrenceText = selectedExerciseName ? formatExerciseRecurrence(recurrence) : null;
 
   return (
     <main className="px-4 pt-6">
@@ -43,8 +48,15 @@ export default async function HistoryPage({
         <h2 className="mb-1 text-lg font-semibold text-neutral-100">{selectedExerciseName}</h2>
       )}
 
-      {sessionSummaryText && (
-        <p className="mb-3 text-xs text-neutral-500">{sessionSummaryText}</p>
+      {(sessionSummaryText || recurrenceText) && (
+        <div className="mb-3">
+          {sessionSummaryText && (
+            <p className="text-xs text-neutral-500">{sessionSummaryText}</p>
+          )}
+          {recurrenceText && (
+            <p className="text-xs text-neutral-500">{recurrenceText}</p>
+          )}
+        </div>
       )}
 
       <div className="flex flex-col gap-3 pb-4">

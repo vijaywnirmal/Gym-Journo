@@ -47,7 +47,7 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({ auth: { getUser }, from }),
 }));
 
-const { getLogHistory, getLogForDate } = await import("./queries");
+const { getLogHistory, getLogForDate, getExerciseRecurrence } = await import("./queries");
 
 function loggedLog(
   overrides: Partial<{
@@ -345,6 +345,68 @@ describe("getLogHistory notes visibility", () => {
     getUser.mockResolvedValueOnce({ data: { user: null } });
     const result = await getLogHistory({});
     expect(result).toEqual({ logs: [], hasMore: false });
+  });
+});
+
+describe("getExerciseRecurrence (Phase 17)", () => {
+  beforeEach(() => {
+    getUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
+    from.mockClear();
+  });
+
+  it("inner-joins logged_exercises and filters by exercise_id, with no page cursor or limit", async () => {
+    nextResult = { data: [], error: null };
+    await getExerciseRecurrence("ex-bench");
+    expect(lastSelectArg).toContain("logged_exercises!inner");
+    expect(lastBuilder!.calls.eq).toContainEqual(["user_id", "user-1"]);
+    expect(lastBuilder!.calls.eq).toContainEqual(["logged_exercises.exercise_id", "ex-bench"]);
+    expect(lastBuilder!.calls.lt).toEqual([]);
+    expect(lastBuilder!.calls.limit).toEqual([]);
+  });
+
+  it("6. does not apply a before cursor — full history, not the current History page", async () => {
+    nextResult = {
+      data: [{ date: "2026-09-17" }, { date: "2026-09-10" }, { date: "2026-08-12" }],
+      error: null,
+    };
+    const result = await getExerciseRecurrence("ex-bench");
+    expect(result).toEqual({ count: 3, lastDate: "2026-09-17" });
+    expect(lastBuilder!.calls.lt).toEqual([]);
+    expect(lastBuilder!.calls.limit).toEqual([]);
+  });
+
+  it("4. duplicate dates on the query result count as one session", async () => {
+    nextResult = {
+      data: [{ date: "2026-09-17" }, { date: "2026-09-17" }, { date: "2026-09-10" }],
+      error: null,
+    };
+    const result = await getExerciseRecurrence("ex-bench");
+    expect(result).toEqual({ count: 2, lastDate: "2026-09-17" });
+  });
+
+  it("does not filter by completed_at", async () => {
+    nextResult = { data: [{ date: "2026-09-17" }], error: null };
+    await getExerciseRecurrence("ex-bench");
+    const filteredColumns = lastBuilder!.calls.eq.map((c) => c[0]);
+    expect(filteredColumns).not.toContain("completed_at");
+  });
+
+  it("1. returns null when the exercise has no sessions", async () => {
+    nextResult = { data: [], error: null };
+    expect(await getExerciseRecurrence("ex-never-logged")).toBeNull();
+  });
+
+  it("returns null when signed out without querying", async () => {
+    getUser.mockResolvedValue({ data: { user: null } });
+    const result = await getExerciseRecurrence("ex-bench");
+    expect(result).toBeNull();
+    expect(from).not.toHaveBeenCalled();
+  });
+
+  it("8. unfiltered History query path is unchanged (plain embed, not inner join)", async () => {
+    nextResult = { data: [], error: null };
+    await getLogHistory({});
+    expect(lastSelectArg).not.toContain("logged_exercises!inner");
   });
 });
 
