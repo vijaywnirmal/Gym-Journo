@@ -373,7 +373,7 @@ export async function getLastCompletedLog(): Promise<LastCompletedLog | null> {
 
 export type PreviousPerformance = {
   date: string;
-  sets: { reps: number | null; weight: number | null; weightUnit: string }[];
+  sets: { setNumber: number; reps: number | null; weight: number | null; weightUnit: string }[];
 };
 
 // The most recent previously-logged sets for one exercise, strictly before `beforeDate` — "what
@@ -413,7 +413,12 @@ export async function getPreviousPerformance(
 
   return {
     date: row.date,
-    sets: sets.map((s) => ({ reps: s.reps, weight: s.weight, weightUnit: s.weight_unit })),
+    sets: sets.map((s) => ({
+      setNumber: s.set_number,
+      reps: s.reps,
+      weight: s.weight,
+      weightUnit: s.weight_unit,
+    })),
   };
 }
 

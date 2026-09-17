@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { PreviousPerformance } from "@/lib/queries";
 
 export type SetRow = { reps: string; weight: string; weightUnit: string };
@@ -11,6 +12,82 @@ export type ExerciseEntry = {
   done: boolean;
 };
 
+export type ValueComparison =
+  | { type: "delta"; delta: number; unit?: string }
+  | { type: "same" }
+  | { type: "unavailable" };
+
+export type SetComparison = { weight: ValueComparison; reps: ValueComparison };
+
+// Strict same-set-number matching only: a current set is compared against the previous session's
+// set with the identical set_number, never by array position. Weight and reps are evaluated
+// independently so a missing/mismatched value on one never suppresses a valid comparison on the
+// other. Current sets aren't persisted yet, so their eventual set_number is derived the same way
+// save_workout_log assigns it — array index + 1 (see log/[date]/actions.ts's saveLog mapping).
+export function compareSets(
+  currentSets: SetRow[],
+  previous: PreviousPerformance | null | undefined
+): (SetComparison | null)[] {
+  return currentSets.map((set, index) => {
+    const setNumber = index + 1;
+    const previousSet = previous?.sets.find((s) => s.setNumber === setNumber);
+    if (!previousSet) return null;
+
+    const currentWeight = set.weight ? parseFloat(set.weight) : null;
+    const currentReps = set.reps ? parseInt(set.reps, 10) : null;
+
+    return {
+      weight: compareWeight(currentWeight, set.weightUnit, previousSet.weight, previousSet.weightUnit),
+      reps: compareReps(currentReps, previousSet.reps),
+    };
+  });
+}
+
+function compareWeight(
+  currentWeight: number | null,
+  currentUnit: string,
+  previousWeight: number | null,
+  previousUnit: string
+): ValueComparison {
+  if (currentWeight === null || previousWeight === null) return { type: "unavailable" };
+  if (currentUnit !== previousUnit) return { type: "unavailable" };
+  const delta = currentWeight - previousWeight;
+  if (delta === 0) return { type: "same" };
+  return { type: "delta", delta, unit: currentUnit };
+}
+
+function compareReps(currentReps: number | null, previousReps: number | null): ValueComparison {
+  if (currentReps === null || previousReps === null) return { type: "unavailable" };
+  const delta = currentReps - previousReps;
+  if (delta === 0) return { type: "same" };
+  return { type: "delta", delta };
+}
+
+function formatWeightComparison(c: ValueComparison): string | null {
+  if (c.type === "unavailable") return null;
+  if (c.type === "same") return "same weight as last time";
+  const sign = c.delta > 0 ? "+" : "−";
+  return `${sign}${Math.abs(c.delta)} ${c.unit} vs last time`;
+}
+
+function formatRepsComparison(c: ValueComparison): string | null {
+  if (c.type === "unavailable") return null;
+  if (c.type === "same") return "same reps as last time";
+  const sign = c.delta > 0 ? "+" : "−";
+  const n = Math.abs(c.delta);
+  return `${sign}${n} rep${n === 1 ? "" : "s"} vs last time`;
+}
+
+// Descriptive only — reports the arithmetic difference, never a judgment. Returns null when
+// there's nothing to say (no matching previous set, or both values unavailable/mismatched).
+export function formatSetComparison(comparison: SetComparison | null): string | null {
+  if (comparison === null) return null;
+  const parts = [formatWeightComparison(comparison.weight), formatRepsComparison(comparison.reps)].filter(
+    (p): p is string => p !== null
+  );
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
 type Props = {
   entry: ExerciseEntry;
   positionLabel: string;
@@ -21,6 +98,12 @@ type Props = {
   onToggleDone: () => void;
   onRemoveExercise: () => void;
 };
+
+// Reuses the existing exercise-filtered History view (see history/page.tsx + ExerciseFilter) —
+// no new route, no redesign, just a contextual link into what's already there.
+export function exerciseHistoryHref(exerciseId: string): string {
+  return `/history?exercise=${exerciseId}`;
+}
 
 function targetLabel(target: ExerciseEntry["target"]): string | null {
   if (!target || (!target.sets && !target.reps)) return null;
@@ -40,6 +123,7 @@ export default function ExerciseLogPanel({
   onRemoveExercise,
 }: Props) {
   const target = targetLabel(entry.target);
+  const comparisons = compareSets(entry.sets, previous);
 
   return (
     <div className="rounded-xl border border-neutral-800 p-4">
@@ -47,6 +131,9 @@ export default function ExerciseLogPanel({
         <div>
           <p className="text-xs text-neutral-500">{positionLabel}</p>
           <h2 className="text-lg font-semibold text-neutral-100">{entry.name}</h2>
+          <Link href={exerciseHistoryHref(entry.exerciseId)} className="text-xs text-neutral-500 underline">
+            View history
+          </Link>
         </div>
         <button type="button" onClick={onRemoveExercise} className="text-xs text-red-400">
           Remove
@@ -75,44 +162,52 @@ export default function ExerciseLogPanel({
       )}
 
       <div className="flex flex-col gap-2">
-        {entry.sets.map((set, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <span className="w-5 text-sm text-neutral-500">{i + 1}</span>
-            <input
-              type="number"
-              inputMode="decimal"
-              placeholder="weight"
-              value={set.weight}
-              onChange={(e) => onUpdateSet(i, "weight", e.target.value)}
-              className="w-20 rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-2.5 text-base text-neutral-100"
-            />
-            <select
-              value={set.weightUnit}
-              onChange={(e) => onUpdateSet(i, "weightUnit", e.target.value)}
-              className="rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-2.5 text-base text-neutral-100"
-            >
-              <option value="kg">kg</option>
-              <option value="lb">lb</option>
-            </select>
-            <span className="text-neutral-500">×</span>
-            <input
-              type="number"
-              inputMode="numeric"
-              placeholder="reps"
-              value={set.reps}
-              onChange={(e) => onUpdateSet(i, "reps", e.target.value)}
-              className="w-16 rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-2.5 text-base text-neutral-100"
-            />
-            <button
-              type="button"
-              onClick={() => onRemoveSet(i)}
-              aria-label={`Remove set ${i + 1}`}
-              className="ml-auto flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-700 text-neutral-400"
-            >
-              ✕
-            </button>
-          </div>
-        ))}
+        {entry.sets.map((set, i) => {
+          const comparisonText = formatSetComparison(comparisons[i]);
+          return (
+            <div key={i} className="flex flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <span className="w-5 text-sm text-neutral-500">{i + 1}</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  placeholder="weight"
+                  value={set.weight}
+                  onChange={(e) => onUpdateSet(i, "weight", e.target.value)}
+                  className="w-20 rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-2.5 text-base text-neutral-100"
+                />
+                <select
+                  value={set.weightUnit}
+                  onChange={(e) => onUpdateSet(i, "weightUnit", e.target.value)}
+                  className="rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-2.5 text-base text-neutral-100"
+                >
+                  <option value="kg">kg</option>
+                  <option value="lb">lb</option>
+                </select>
+                <span className="text-neutral-500">×</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  placeholder="reps"
+                  value={set.reps}
+                  onChange={(e) => onUpdateSet(i, "reps", e.target.value)}
+                  className="w-16 rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-2.5 text-base text-neutral-100"
+                />
+                <button
+                  type="button"
+                  onClick={() => onRemoveSet(i)}
+                  aria-label={`Remove set ${i + 1}`}
+                  className="ml-auto flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-700 text-neutral-400"
+                >
+                  ✕
+                </button>
+              </div>
+              {comparisonText && (
+                <p className="pl-7 text-xs text-neutral-500">{comparisonText}</p>
+              )}
+            </div>
+          );
+        })}
 
         <button
           type="button"

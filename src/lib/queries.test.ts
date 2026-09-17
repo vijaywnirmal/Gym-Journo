@@ -82,8 +82,8 @@ describe("getPreviousPerformance", () => {
     expect(result).toEqual({
       date: "2026-09-10",
       sets: [
-        { reps: 10, weight: 60, weightUnit: "kg" },
-        { reps: 9, weight: 60, weightUnit: "kg" },
+        { setNumber: 1, reps: 10, weight: 60, weightUnit: "kg" },
+        { setNumber: 2, reps: 9, weight: 60, weightUnit: "kg" },
       ],
     });
     expect(eq).toHaveBeenCalledWith("logged_exercises.exercise_id", "ex-1");
