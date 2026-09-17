@@ -28,6 +28,35 @@ function emptySet(carryForward?: SetRow): SetRow {
   return { reps: "", weight: carryForward?.weight ?? "", weightUnit: carryForward?.weightUnit ?? "kg" };
 }
 
+export type PlannedExerciseRef = { exerciseId: string; name: string };
+
+// A planned exercise is "logged" once it has actual recorded content, not merely because it's
+// present in `entries` — a plan with no existing log pre-seeds `entries` with every planned
+// exercise (empty sets) before the user has touched anything, so entry membership alone would
+// never show anything as outstanding. Marking a set done also counts, even with blank values,
+// since that's an explicit user action on the exercise.
+export function isExerciseEntryLogged(entry: ExerciseEntry): boolean {
+  return entry.done || entry.sets.some((s) => s.reps.trim() !== "" || s.weight.trim() !== "");
+}
+
+// Purely descriptive set difference: which planned exercises have no corresponding logged
+// content yet. Order-independent, tolerant of duplicate ids on either side, and silent about
+// logged exercises that were never planned (those are never surfaced — see Phase 14 scope).
+export function getUnloggedPlannedExercises(
+  plannedExercises: PlannedExerciseRef[],
+  loggedExerciseIds: string[]
+): PlannedExerciseRef[] {
+  const loggedSet = new Set(loggedExerciseIds);
+  const seen = new Set<string>();
+  const result: PlannedExerciseRef[] = [];
+  for (const pe of plannedExercises) {
+    if (loggedSet.has(pe.exerciseId) || seen.has(pe.exerciseId)) continue;
+    seen.add(pe.exerciseId);
+    result.push(pe);
+  }
+  return result;
+}
+
 export default function LogForm({
   date,
   exercises,
@@ -283,6 +312,18 @@ export default function LogForm({
   const current = entries[currentIndex];
   const completedCount = entries.filter((e) => e.done).length;
 
+  // Live-only: showTargets is false for HistoricalLogView's edit mode, where the plan may have
+  // changed or been deleted since the workout actually happened — this feature must never present
+  // a planned-vs-logged comparison as historical truth (workout_plans has no version history).
+  const plannedExerciseRefs: PlannedExerciseRef[] = showTargets
+    ? (plan?.planned_exercises ?? []).map((pe) => ({
+        exerciseId: pe.exercise_id,
+        name: pe.exercise?.name ?? "Exercise",
+      }))
+    : [];
+  const loggedExerciseIds = entries.filter(isExerciseEntryLogged).map((e) => e.exerciseId);
+  const unloggedPlanned = getUnloggedPlannedExercises(plannedExerciseRefs, loggedExerciseIds);
+
   return (
     <div className="flex flex-col gap-4 pb-6">
       <SaveStatus state={saveState} error={saveError} onRetry={() => scheduleSave(true)} />
@@ -290,6 +331,20 @@ export default function LogForm({
       {workoutCompleted && (
         <div className="rounded-xl border border-green-900 bg-green-950/40 px-4 py-2.5">
           <p className="text-sm font-medium text-green-400">Workout completed ✓</p>
+        </div>
+      )}
+
+      {unloggedPlanned.length > 0 && (
+        <div className="rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3">
+          <p className="mb-1 text-xs font-medium text-neutral-500">Not yet logged</p>
+          <ul className="flex flex-col gap-1 text-sm text-neutral-300">
+            {unloggedPlanned.map((pe) => (
+              <li key={pe.exerciseId} className="flex items-center justify-between">
+                <span>{pe.name}</span>
+                <span className="text-xs text-neutral-500">Planned</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
