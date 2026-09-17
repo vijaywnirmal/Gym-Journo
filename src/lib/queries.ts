@@ -444,6 +444,29 @@ export async function getTrainingConsistency(windowDays = 28): Promise<TrainingC
   return { windowDays, daysLogged: data?.length ?? 0 };
 }
 
+export type LastWorkoutDate = { date: string | null };
+
+// The most recent date with a workout_logs row — existence only, not completed_at — for a purely
+// factual "when did you last log a workout" observation. No plan/rest-day inference.
+export async function getLastWorkoutDate(): Promise<LastWorkoutDate> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { date: null };
+
+  const { data, error } = await supabase
+    .from("workout_logs")
+    .select("date")
+    .eq("user_id", user.id)
+    .order("date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) return { date: null };
+  return { date: data.date };
+}
+
 export type BodyWeightWindowPoint = { date: string; weightKg: number };
 
 export type BodyWeightWindow = {

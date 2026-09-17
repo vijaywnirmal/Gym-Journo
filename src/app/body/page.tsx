@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   getBodyMeasurements,
   getBodyWeightWindow,
+  getLastWorkoutDate,
   getProfile,
   getTrainingConsistency,
 } from "@/lib/queries";
@@ -9,11 +10,12 @@ import BodyMeasurementsSection from "./BodyMeasurementsSection";
 import BodyProgressSummary from "./BodyProgressSummary";
 
 export default async function BodyPage() {
-  const [measurements, training, weightWindow, profile] = await Promise.all([
+  const [measurements, training, weightWindow, profile, lastWorkout] = await Promise.all([
     getBodyMeasurements(),
     getTrainingConsistency(),
     getBodyWeightWindow(),
     getProfile(),
+    getLastWorkoutDate(),
   ]);
 
   return (
@@ -31,6 +33,7 @@ export default async function BodyPage() {
             weightWindow={weightWindow}
             primaryGoal={profile?.primary_goal ?? null}
             targetWeightKg={profile?.target_weight_kg ?? null}
+            lastWorkoutDate={lastWorkout.date}
           />
         }
       />

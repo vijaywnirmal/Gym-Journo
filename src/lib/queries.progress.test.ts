@@ -9,7 +9,7 @@ type QueryResult = { data: unknown; error: unknown };
 // .single()/.maybeSingle()), so the builder itself must be thenable — same shape as the mock
 // already used in queries.history.test.ts.
 function makeBuilder(result: QueryResult) {
-  const calls: Record<string, unknown[][]> = { eq: [], gte: [], order: [] };
+  const calls: Record<string, unknown[][]> = { eq: [], gte: [], order: [], limit: [] };
   const builder = {
     calls,
     eq: vi.fn((...args: unknown[]) => {
@@ -24,6 +24,11 @@ function makeBuilder(result: QueryResult) {
       calls.order.push(args);
       return builder;
     }),
+    limit: vi.fn((...args: unknown[]) => {
+      calls.limit.push(args);
+      return builder;
+    }),
+    maybeSingle: vi.fn(() => Promise.resolve(result)),
     then: (resolve: (v: QueryResult) => unknown) => Promise.resolve(result).then(resolve),
   };
   return builder;
@@ -41,7 +46,9 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({ auth: { getUser }, from }),
 }));
 
-const { getTrainingConsistency, getBodyWeightWindow } = await import("./queries");
+const { getTrainingConsistency, getBodyWeightWindow, getLastWorkoutDate } = await import(
+  "./queries"
+);
 
 describe("getTrainingConsistency", () => {
   beforeEach(() => {
@@ -139,5 +146,51 @@ describe("getBodyWeightWindow", () => {
     const result = await getBodyWeightWindow(28);
     expect(result).toEqual({ windowDays: 28, measurementCount: 0, earliest: null, latest: null });
     expect(from).not.toHaveBeenCalled();
+  });
+});
+
+describe("getLastWorkoutDate", () => {
+  beforeEach(() => {
+    getUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
+    from.mockClear();
+  });
+
+  it("orders by date descending and takes the single most recent row", async () => {
+    nextResult = { data: { date: "2026-09-10" }, error: null };
+    await getLastWorkoutDate();
+    expect(lastBuilder!.calls.order).toEqual([["date", { ascending: false }]]);
+    expect(lastBuilder!.calls.limit).toEqual([[1]]);
+  });
+
+  it("does not filter by completed_at — log existence alone determines the last workout date", async () => {
+    nextResult = { data: { date: "2026-09-10" }, error: null };
+    await getLastWorkoutDate();
+    const filteredColumns = lastBuilder!.calls.eq.map((c) => c[0]);
+    expect(filteredColumns).not.toContain("completed_at");
+  });
+
+  it("returns the most recent date when a log exists", async () => {
+    nextResult = { data: { date: "2026-09-10" }, error: null };
+    const result = await getLastWorkoutDate();
+    expect(result).toEqual({ date: "2026-09-10" });
+  });
+
+  it("returns null when no workout has ever been logged", async () => {
+    nextResult = { data: null, error: null };
+    const result = await getLastWorkoutDate();
+    expect(result).toEqual({ date: null });
+  });
+
+  it("returns null for a signed-out user without querying", async () => {
+    getUser.mockResolvedValue({ data: { user: null } });
+    const result = await getLastWorkoutDate();
+    expect(result).toEqual({ date: null });
+    expect(from).not.toHaveBeenCalled();
+  });
+
+  it("is scoped to the authenticated user", async () => {
+    nextResult = { data: { date: "2026-09-10" }, error: null };
+    await getLastWorkoutDate();
+    expect(lastBuilder!.calls.eq).toEqual([["user_id", "user-1"]]);
   });
 });

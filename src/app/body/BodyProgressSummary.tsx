@@ -1,4 +1,5 @@
 import type { BodyWeightWindow, TrainingConsistency } from "@/lib/queries";
+import { daysSince } from "@/lib/date";
 
 export type GoalDirection = "toward" | "away" | null;
 
@@ -28,16 +29,27 @@ export function formatDeltaKg(deltaKg: number): string {
   return `${sign}${Math.abs(deltaKg).toFixed(1)} kg`;
 }
 
+// Purely factual — "when," never "how you're doing." No fatigue/readiness/rest-day claim.
+export function formatLastWorkout(lastWorkoutDate: string | null): string {
+  if (lastWorkoutDate === null) return "No workouts logged yet.";
+  const diff = daysSince(lastWorkoutDate);
+  if (diff === 0) return "Last workout: today.";
+  if (diff === 1) return "Last workout: yesterday.";
+  return `Last workout: ${diff} days ago.`;
+}
+
 export default function BodyProgressSummary({
   training,
   weightWindow,
   primaryGoal,
   targetWeightKg,
+  lastWorkoutDate,
 }: {
   training: TrainingConsistency;
   weightWindow: BodyWeightWindow;
   primaryGoal: string | null;
   targetWeightKg: number | null;
+  lastWorkoutDate: string | null;
 }) {
   const delta =
     weightWindow.measurementCount >= 2 && weightWindow.earliest && weightWindow.latest
@@ -65,6 +77,13 @@ export default function BodyProgressSummary({
               last {training.windowDays} days.
             </p>
           )}
+          <p
+            className={
+              lastWorkoutDate === null ? "mt-1 text-sm text-neutral-500" : "mt-1 text-sm text-neutral-300"
+            }
+          >
+            {formatLastWorkout(lastWorkoutDate)}
+          </p>
         </div>
 
         <div>

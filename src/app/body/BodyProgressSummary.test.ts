@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { getGoalDirection, formatWeightKg, formatDeltaKg } from "./BodyProgressSummary";
+import { getGoalDirection, formatWeightKg, formatDeltaKg, formatLastWorkout } from "./BodyProgressSummary";
+import { today, shiftDate } from "@/lib/date";
 
 describe("getGoalDirection", () => {
   it("lose_fat: a weight decrease moves toward the target", () => {
@@ -61,5 +62,27 @@ describe("formatDeltaKg", () => {
 
   it("formats no change with no sign", () => {
     expect(formatDeltaKg(0)).toBe("0.0 kg");
+  });
+});
+
+describe("formatLastWorkout", () => {
+  it("shows a neutral empty state when no workout has ever been logged", () => {
+    expect(formatLastWorkout(null)).toBe("No workouts logged yet.");
+  });
+
+  it("shows 'today' when the last workout was logged today", () => {
+    expect(formatLastWorkout(today())).toBe("Last workout: today.");
+  });
+
+  it("shows 'yesterday' when the last workout was logged yesterday", () => {
+    expect(formatLastWorkout(shiftDate(today(), -1))).toBe("Last workout: yesterday.");
+  });
+
+  it("shows a day count for an older workout", () => {
+    expect(formatLastWorkout(shiftDate(today(), -5))).toBe("Last workout: 5 days ago.");
+  });
+
+  it("uses canonical local date semantics, not UTC arithmetic, at the day boundary", () => {
+    expect(formatLastWorkout(shiftDate(today(), -28))).toBe("Last workout: 28 days ago.");
   });
 });

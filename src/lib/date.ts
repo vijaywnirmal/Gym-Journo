@@ -1,4 +1,4 @@
-import { format, addDays, parseISO, differenceInYears } from "date-fns";
+import { format, addDays, parseISO, differenceInYears, differenceInCalendarDays } from "date-fns";
 
 export const DATE_FMT = "yyyy-MM-dd";
 
@@ -8,6 +8,12 @@ export function today(): string {
 
 export function calculateAge(dateOfBirth: string): number {
   return differenceInYears(new Date(), parseISO(dateOfBirth));
+}
+
+// Whole calendar days between the given date and today() — anchored to the same local "today"
+// used everywhere else, not a UTC-derived diff.
+export function daysSince(date: string): number {
+  return differenceInCalendarDays(parseISO(today()), parseISO(date));
 }
 
 export function formatDate(date: string): string {
