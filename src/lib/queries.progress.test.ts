@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { today, shiftDate } from "./date";
+import { today, shiftDate, weekDates } from "./date";
 
 const getUser = vi.fn().mockResolvedValue({ data: { user: { id: "user-1" } } });
 
@@ -60,8 +60,13 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({ auth: { getUser }, from }),
 }));
 
-const { getTrainingConsistency, getBodyWeightWindow, getLastPerformedWorkoutDate, getWeekOverview } =
-  await import("./queries");
+const {
+  getTrainingConsistency,
+  getBodyWeightWindow,
+  getLastPerformedWorkoutDate,
+  getWeekOverview,
+  getWeeklyTrainingDays,
+} = await import("./queries");
 
 const set = (reps: number | null, weight: number | null) => ({ reps, weight });
 const performedLog = (date: string) => ({
@@ -343,5 +348,92 @@ describe("getWeekOverview — performed and completed are separate facts", () =>
     getUser.mockResolvedValue({ data: { user: null } });
     expect((await getWeekOverview(dates)).size).toBe(0);
     expect(from).not.toHaveBeenCalled();
+  });
+});
+
+describe("getWeeklyTrainingDays", () => {
+  beforeEach(() => {
+    getUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
+    from.mockClear();
+  });
+
+  const currentStart = () => weekDates(today())[0];
+  const previousStart = () => shiftDate(currentStart(), -7);
+
+  it("queries from the Sunday starting the oldest completed week through today, scoped to the user", async () => {
+    setResults({ data: [], error: null });
+    await getWeeklyTrainingDays();
+    expect(builders[0].calls.gte).toEqual([["date", shiftDate(currentStart(), -56)]]);
+    expect(builders[0].calls.lte).toEqual([["date", today()]]);
+    expect(builders[0].calls.eq).toEqual([["user_id", "user-1"]]);
+    expect(lastSelectArg).toContain("logged_sets(reps, weight)");
+  });
+
+  it("returns the current week plus 8 completed weeks, newest first", async () => {
+    setResults({ data: [], error: null });
+    const result = await getWeeklyTrainingDays();
+    expect(result).toHaveLength(9);
+    expect(result[0]).toMatchObject({ weekStart: currentStart(), isCurrentWeek: true });
+    expect(result[1].weekStart).toBe(previousStart());
+  });
+
+  it("counts performed days per week and ignores blank, empty and future logs", async () => {
+    setResults({
+      data: [
+        performedLog(today()),
+        performedLog(shiftDate(previousStart(), 1)),
+        performedLog(shiftDate(previousStart(), 3)),
+        blankLog(shiftDate(previousStart(), 5)),
+        emptyLog(shiftDate(previousStart(), 6)),
+        performedLog(shiftDate(today(), 1)), // future
+      ],
+      error: null,
+    });
+    const result = await getWeeklyTrainingDays();
+    expect(result[0].daysPerformed).toBe(1);
+    expect(result[1].daysPerformed).toBe(2);
+    expect(result.slice(2).every((w) => w.daysPerformed === 0)).toBe(true);
+  });
+
+  it("counts a date once however many exercises it has", async () => {
+    setResults({
+      data: [
+        {
+          date: shiftDate(previousStart(), 2),
+          logged_exercises: [
+            { logged_sets: [set(5, 80)] },
+            { logged_sets: [set(8, 60)] },
+            { logged_sets: [set(null, null)] },
+          ],
+        },
+      ],
+      error: null,
+    });
+    expect((await getWeeklyTrainingDays())[1].daysPerformed).toBe(1);
+  });
+
+  it("does not depend on completed_at", async () => {
+    setResults({
+      data: [{ ...performedLog(shiftDate(previousStart(), 2)), completed_at: null }],
+      error: null,
+    });
+    expect((await getWeeklyTrainingDays())[1].daysPerformed).toBe(1);
+    expect(builders[0].calls.eq.map((c) => c[0])).not.toContain("completed_at");
+  });
+
+  it("returns nothing for a signed-out user without querying", async () => {
+    getUser.mockResolvedValue({ data: { user: null } });
+    expect(await getWeeklyTrainingDays()).toEqual([]);
+    expect(from).not.toHaveBeenCalled();
+  });
+
+  it("returns nothing on a query error", async () => {
+    setResults({ data: null, error: { message: "boom" } });
+    expect(await getWeeklyTrainingDays()).toEqual([]);
+  });
+
+  it("15. the rolling 7-day count agrees with the same canonical definition", async () => {
+    setResults({ data: [performedLog(today()), blankLog(shiftDate(today(), -1))], error: null });
+    expect((await getTrainingConsistency(7)).daysPerformed).toBe(1);
   });
 });

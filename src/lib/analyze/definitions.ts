@@ -36,6 +36,16 @@ export function isWorkoutDay(log: WorkoutLogLike, todayStr: string = today()): b
   return (log.logged_exercises ?? []).some(isPerformedExercise);
 }
 
+// The distinct dates that are workout days — several logs or exercises can never make one date
+// count twice. The single place "which dates were performed workout days" is decided, shared by the
+// rolling-window count and the weekly breakdown.
+export function performedWorkoutDates(
+  logs: WorkoutLogLike[],
+  todayStr: string = today()
+): Set<string> {
+  return new Set(logs.filter((log) => isWorkoutDay(log, todayStr)).map((log) => log.date));
+}
+
 export type ExerciseSessionLike = {
   date: string;
   logged_exercises?: (LoggedExerciseLike & { exercise_id: string })[] | null;

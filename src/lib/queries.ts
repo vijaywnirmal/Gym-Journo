@@ -1,6 +1,17 @@
 import { createClient } from "@/lib/supabase/server";
 import { today } from "@/lib/date";
-import { isWorkoutDay, windowStart, type WorkoutLogLike } from "@/lib/analyze/definitions";
+import {
+  isWorkoutDay,
+  performedWorkoutDates,
+  windowStart,
+  type WorkoutLogLike,
+} from "@/lib/analyze/definitions";
+import {
+  buildWeeklyTrainingDays,
+  COMPLETED_WEEKS,
+  oldestWeekStart,
+  type WeeklyTrainingDays,
+} from "@/lib/analyze/weeklyTraining";
 import {
   buildExerciseSessions,
   performedSetsOf,
@@ -495,12 +506,34 @@ export async function getTrainingConsistency(windowDays = 28): Promise<TrainingC
 
   if (error) return { windowDays, daysPerformed: 0 };
 
-  const performedDates = new Set(
-    ((data ?? []) as unknown as WorkoutLogLike[])
-      .filter((row) => isWorkoutDay(row, todayStr))
-      .map((row) => row.date)
-  );
+  const performedDates = performedWorkoutDates((data ?? []) as unknown as WorkoutLogLike[], todayStr);
   return { windowDays, daysPerformed: performedDates.size };
+}
+
+// Workout days per Sunday–Saturday calendar week for the current (in-progress) week and the most
+// recent completed weeks, newest first — see analyze/weeklyTraining.ts. Same canonical workout-day
+// definition as getTrainingConsistency; empty when signed out or on a query error.
+export async function getWeeklyTrainingDays(
+  completedWeeks = COMPLETED_WEEKS
+): Promise<WeeklyTrainingDays[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const todayStr = today();
+  const { data, error } = await supabase
+    .from("workout_logs")
+    .select("date, logged_exercises(logged_sets(reps, weight))")
+    .eq("user_id", user.id)
+    .gte("date", oldestWeekStart(todayStr, completedWeeks))
+    .lte("date", todayStr);
+
+  if (error) return [];
+
+  const performedDates = performedWorkoutDates((data ?? []) as unknown as WorkoutLogLike[], todayStr);
+  return buildWeeklyTrainingDays(performedDates, todayStr, completedWeeks);
 }
 
 export type LastPerformedWorkout = { date: string | null };
