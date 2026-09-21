@@ -80,15 +80,6 @@ describe("runCoach", () => {
     expect(JSON.stringify(result)).not.toContain("exceeded your current quota");
   });
 
-  it("a gateway's 402 (its budget or credit is used up) is treated as a usage limit too", async () => {
-    const result = await run(async () => {
-      throw new Error("AgentRouter request failed (402): Budget pool quota has been exhausted");
-    });
-    expect(result).toMatchObject({ status: "rejected", reply: null, message: QUOTA_MESSAGE });
-    expect(result.record.issues[0].detail).toBe("the model call failed (http 402)");
-    expect(JSON.stringify(result)).not.toContain("Budget pool");
-  });
-
   it("records a coarse failure category: timeout, HTTP status, or generic — and nothing else", async () => {
     const detail = async (error: Error) =>
       (await run(async () => {

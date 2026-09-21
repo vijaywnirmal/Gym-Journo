@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { getProfile } from "@/lib/queries";
 import { hasCoachConsent } from "@/lib/coach/consent";
-import { providerLabel } from "@/lib/ai";
 import CoachChat from "./CoachChat";
 
 export default async function CoachPage() {
@@ -24,7 +23,7 @@ export default async function CoachPage() {
       ) : (
         <div className="rounded-xl border border-dashed border-neutral-700 p-4">
           <p className="mb-3 text-sm text-neutral-300">
-            To ask Coach a question, your training data is sent to {providerLabel()}. You
+            To ask Coach a question, your training data is sent to Google&apos;s Gemini model. You
             choose whether to allow that, and you can withdraw at any time.
           </p>
           <Link

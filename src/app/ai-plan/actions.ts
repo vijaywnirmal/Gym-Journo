@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { generateText } from "@/lib/ai";
+import { generateWithGemini } from "@/lib/gemini";
 import { getRecentTrainingSummary, getUpcomingScheduleSummary } from "@/lib/queries";
 import { startOfDayIn, todayIn } from "@/lib/date";
 import { getUserTimeZone } from "@/lib/userDate";
@@ -59,7 +59,7 @@ export async function generatePlan(input: GeneratePlanInput) {
 
   let planMarkdown: string;
   try {
-    planMarkdown = await generateText(
+    planMarkdown = await generateWithGemini(
       buildPrompt(
         profile ?? {
           full_name: null,

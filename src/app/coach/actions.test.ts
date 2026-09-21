@@ -28,10 +28,9 @@ vi.mock("@/lib/queries", () => ({
 }));
 
 const generateWithGemini = vi.fn();
-let providerModelIdImpl: () => string = () => "test-model";
-vi.mock("@/lib/ai", () => ({
-  providerModelId: () => providerModelIdImpl(),
-  generateText: (...args: unknown[]) => generateWithGemini(...args),
+vi.mock("@/lib/gemini", () => ({
+  GEMINI_MODEL: "test-model",
+  generateWithGemini: (...args: unknown[]) => generateWithGemini(...args),
 }));
 
 const saveCoachRecord = vi.fn();
@@ -51,7 +50,6 @@ beforeEach(() => {
   getProfile.mockReset().mockResolvedValue({ coach_consent_at: "2026-09-01T10:00:00Z" });
   getTrainingEvidence.mockReset().mockResolvedValue(coachEvidence());
   generateWithGemini.mockReset().mockResolvedValue(goodReply);
-  providerModelIdImpl = () => "test-model";
   saveCoachRecord.mockReset().mockResolvedValue({ success: true });
   countResult = { count: 0, error: null };
   countCalls.eq = [];
@@ -162,19 +160,7 @@ describe("askCoach — an exchange", () => {
     });
   });
 
-  it("a misconfigured AI provider turns Coach off before fetching evidence or calling any model", async () => {
-    providerModelIdImpl = () => {
-      throw new Error('Unknown AI_PROVIDER "gemin".');
-    };
-    const result = await askCoach("What changed?");
-    expect(result.status).toBe("error");
-    expect(JSON.stringify(result)).not.toContain("AI_PROVIDER");
-    expect(getTrainingEvidence).not.toHaveBeenCalled();
-    expect(generateWithGemini).not.toHaveBeenCalled();
-    expect(saveCoachRecord).not.toHaveBeenCalled();
-  });
-
-  it("asks the model for JSON with minimal thinking, a timeout and retries, and sends only the evidence prompt", async () => {
+  it("asks Gemini for JSON with minimal thinking, a timeout and retries, and sends only the evidence prompt", async () => {
     await askCoach("What changed?");
     const [prompt, options] = generateWithGemini.mock.calls[0];
     expect(options).toEqual({

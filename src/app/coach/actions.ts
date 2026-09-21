@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { generateText, providerModelId } from "@/lib/ai";
+import { generateWithGemini, GEMINI_MODEL } from "@/lib/gemini";
 import { getProfile, getTrainingEvidence } from "@/lib/queries";
 import { hasCoachConsent } from "@/lib/coach/consent";
 import { COACH_LIMIT_PER_DAY, COACH_WINDOW_MS } from "@/lib/coach/limits";
@@ -14,9 +14,8 @@ import type { CoachReply } from "@/lib/coach/contract";
 
 // Per attempt. The model's speed varies with provider load (about 4-13 seconds in testing) and it
 // sometimes returns a transient 503, so give it room and retry twice after a short pause. Minimal
-// thinking (honoured by Gemini) is enough for a strict, evidence-bound JSON answer and still passes
-// verification.
-const MODEL_TIMEOUT_MS = 40_000;
+// thinking is enough for a strict, evidence-bound JSON answer and still passes verification.
+const GEMINI_TIMEOUT_MS = 40_000;
 
 export type AskCoachResult =
   | { status: "accepted"; reply: CoachReply; sources: CoachSource[] }
@@ -63,14 +62,6 @@ export async function askCoach(question: string): Promise<AskCoachResult> {
     };
   }
 
-  // A mistyped AI_PROVIDER is a configuration fault: turn Coach off before fetching anything.
-  let model: string;
-  try {
-    model = providerModelId();
-  } catch {
-    return { status: "error", message: UNAVAILABLE };
-  }
-
   const evidence = await getTrainingEvidence();
   if (!evidence) return { status: "error", message: UNAVAILABLE };
   if (evidenceIsEmpty(evidence)) {
@@ -83,10 +74,10 @@ export async function askCoach(question: string): Promise<AskCoachResult> {
   const result = await runCoach({
     question: screened.question,
     evidence,
-    model,
-    generate: (prompt) => generateText(prompt, {
+    model: GEMINI_MODEL,
+    generate: (prompt) => generateWithGemini(prompt, {
         json: true,
-        timeoutMs: MODEL_TIMEOUT_MS,
+        timeoutMs: GEMINI_TIMEOUT_MS,
         thinkingLevel: "minimal",
         retries: 2,
         retryDelayMs: 1500,
