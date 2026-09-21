@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { generateWithGemini } from "@/lib/gemini";
 import { getRecentTrainingSummary, getUpcomingScheduleSummary } from "@/lib/queries";
-import { today } from "@/lib/date";
+import { startOfDayIn, todayIn } from "@/lib/date";
+import { getUserTimeZone } from "@/lib/userDate";
 import { buildPrompt, type AiPlanInput } from "@/lib/ai-plan-prompt";
 
 const DAILY_LIMIT = 3;
@@ -18,8 +19,9 @@ export async function generatePlan(input: GeneratePlanInput) {
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not signed in" };
 
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
+  const { timeZone } = await getUserTimeZone();
+  const todayStr = todayIn(timeZone);
+  const startOfDay = startOfDayIn(todayStr, timeZone);
 
   const { count } = await supabase
     .from("ai_plans")
@@ -47,7 +49,7 @@ export async function generatePlan(input: GeneratePlanInput) {
     await supabase.from("nutrition_logs").upsert(
       {
         user_id: user.id,
-        date: today(),
+        date: todayStr,
         meals_text: input.mealsToday.trim(),
         updated_at: new Date().toISOString(),
       },

@@ -1,4 +1,3 @@
-import { today } from "@/lib/date";
 
 // Only allow same-origin, path-relative redirect targets — prevents open redirects via a crafted `next` param.
 export function safeRedirectPath(next: string | null | undefined, fallback = "/"): string {
@@ -110,15 +109,14 @@ export function validateWeightKg(value: number): string | null {
 }
 
 // Body measurements are historical/current only — a future date isn't a meaningful entry.
-// Compared as plain yyyy-MM-dd strings against the same local-time `today()` the rest of the
-// app (Calendar, Home, the logger) already uses as its single source of truth for "today" —
-// comparing against a UTC-derived date instead could disagree with it near local midnight and
-// wrongly reject the current day's own date.
-export function validateMeasurementDate(date: string): string | null {
+// Compared as plain yyyy-MM-dd strings against `todayStr` — the person's own today (`getToday()`),
+// the same one Calendar, Home and the logger use. A UTC-derived date could disagree with it near
+// midnight and wrongly reject the current day's own date.
+export function validateMeasurementDate(date: string, todayStr: string): string | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(new Date(date).getTime())) {
     return "Enter a valid date.";
   }
-  if (date > today()) return "Date can't be in the future.";
+  if (date > todayStr) return "Date can't be in the future.";
   return null;
 }
 

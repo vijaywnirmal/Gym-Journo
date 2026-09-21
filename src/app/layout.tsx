@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
+import TimezoneSync from "@/components/TimezoneSync";
+import { getUserTimeZone } from "@/lib/userDate";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,7 +27,8 @@ export const viewport: Viewport = {
   themeColor: "#0a0a0a",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const { signedIn, timeZone } = await getUserTimeZone();
   return (
     <html
       lang="en"
@@ -34,6 +37,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col bg-neutral-950 text-neutral-100">
         <div className="mx-auto w-full max-w-md flex-1 pb-20">{children}</div>
         <BottomNav />
+        {signedIn && <TimezoneSync stored={timeZone} />}
       </body>
     </html>
   );

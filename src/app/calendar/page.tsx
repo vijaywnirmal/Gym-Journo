@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getWeekOverview } from "@/lib/queries";
-import { formatDate, shiftDate, today, weekDates } from "@/lib/date";
+import { formatDate, shiftDate, weekDates } from "@/lib/date";
+import { getToday } from "@/lib/userDate";
 import { formatDayStatus } from "./dayStatus";
 
 export default async function CalendarPage({
@@ -9,10 +10,10 @@ export default async function CalendarPage({
   searchParams: Promise<{ week?: string }>;
 }) {
   const { week } = await searchParams;
-  const centerDate = week ?? today();
+  const todayDate = await getToday();
+  const centerDate = week ?? todayDate;
   const dates = weekDates(centerDate);
   const overview = await getWeekOverview(dates);
-  const todayDate = today();
 
   return (
     <main className="px-4 pt-6">

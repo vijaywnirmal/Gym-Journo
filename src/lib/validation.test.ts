@@ -197,21 +197,21 @@ describe("validateMeasurementDate", () => {
   // of the app's canonical local-time `today()` could disagree near local midnight and wrongly
   // reject the current day's own date. This must always accept whatever `today()` itself returns.
   it("accepts the app's own canonical today() value, regardless of local timezone offset", () => {
-    expect(validateMeasurementDate(today())).toBeNull();
+    expect(validateMeasurementDate(today(), today())).toBeNull();
   });
 
   it("rejects a date one year in the future", () => {
     const future = new Date();
     future.setFullYear(future.getFullYear() + 1);
-    expect(validateMeasurementDate(future.toISOString().slice(0, 10))).not.toBeNull();
+    expect(validateMeasurementDate(future.toISOString().slice(0, 10), today())).not.toBeNull();
   });
 
   it("rejects a malformed date string", () => {
-    expect(validateMeasurementDate("not-a-date")).not.toBeNull();
+    expect(validateMeasurementDate("not-a-date", today())).not.toBeNull();
   });
 
   it("accepts a past date", () => {
-    expect(validateMeasurementDate("2020-01-01")).toBeNull();
+    expect(validateMeasurementDate("2020-01-01", today())).toBeNull();
   });
 });
 

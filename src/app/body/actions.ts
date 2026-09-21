@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getToday } from "@/lib/userDate";
 import { validateMeasurementDate, validateMeasurementNote, validateWeightKg } from "@/lib/validation";
 
 export type SaveMeasurementInput = {
@@ -17,7 +18,7 @@ export async function saveMeasurement(input: SaveMeasurementInput) {
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not signed in" };
 
-  const dateError = validateMeasurementDate(input.date);
+  const dateError = validateMeasurementDate(input.date, await getToday());
   if (dateError) return { error: dateError };
 
   const weightError = validateWeightKg(input.weightKg);

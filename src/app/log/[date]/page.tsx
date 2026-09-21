@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getExercises, getLogForDate, getPlanForDate, getPreviousPerformance } from "@/lib/queries";
-import { formatDate, today } from "@/lib/date";
+import { formatDate } from "@/lib/date";
+import { getToday } from "@/lib/userDate";
 import type { PreviousPerformance } from "@/lib/queries";
 import LogForm from "./LogForm";
 import HistoricalLogView from "./HistoricalLogView";
@@ -21,7 +22,7 @@ export default async function LogPage({
   // read-first summary view instead of the active-execution stepper — see HistoricalLogView.
   // Today always gets the normal execution experience regardless of completion state, and any
   // date with no log yet has nothing to review, so it also gets the normal starting flow.
-  const isHistorical = date !== today() && log !== null;
+  const isHistorical = date !== (await getToday()) && log !== null;
 
   // Preload "last time" context for every exercise already on the page, so it's available the
   // moment the execution UI renders. Exercises added later in the session (unplanned) are

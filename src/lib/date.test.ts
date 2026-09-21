@@ -20,15 +20,15 @@ describe("calculateAge", () => {
 
 describe("daysSince", () => {
   it("returns 0 for today", () => {
-    expect(daysSince(today())).toBe(0);
+    expect(daysSince(today(), today())).toBe(0);
   });
 
   it("returns 1 for yesterday", () => {
-    expect(daysSince(shiftDate(today(), -1))).toBe(1);
+    expect(daysSince(shiftDate(today(), -1), today())).toBe(1);
   });
 
   it("returns the whole-day count for an older date", () => {
-    expect(daysSince(shiftDate(today(), -10))).toBe(10);
+    expect(daysSince(shiftDate(today(), -10), today())).toBe(10);
   });
 });
 

@@ -30,6 +30,8 @@ export function isPerformedExercise(exercise: LoggedExerciseLike): boolean {
 }
 
 // A performed log dated on or before `todayStr`. Future-dated logs are never workout days.
+// (Throughout Analyze, the `todayStr` default is the server-local date, for tests; every production
+// caller passes the person's own today from getToday().)
 // Plain yyyy-MM-dd strings compare correctly lexicographically.
 export function isWorkoutDay(log: WorkoutLogLike, todayStr: string = today()): boolean {
   if (log.date > todayStr) return false;

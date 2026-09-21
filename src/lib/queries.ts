@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import { today } from "@/lib/date";
+import { shiftDate } from "@/lib/date";
+import { getToday } from "@/lib/userDate";
 import {
   isWorkoutDay,
   performedWorkoutDates,
@@ -87,9 +88,7 @@ export async function getRecentTrainingSummary(days: number): Promise<string> {
   } = await supabase.auth.getUser();
   if (!user) return "No training history available.";
 
-  const since = new Date();
-  since.setDate(since.getDate() - days);
-  const sinceStr = since.toISOString().slice(0, 10);
+  const sinceStr = shiftDate(await getToday(), -days);
 
   const { data } = await supabase
     .from("workout_logs")
@@ -127,10 +126,8 @@ export async function getUpcomingScheduleSummary(days: number): Promise<string> 
   } = await supabase.auth.getUser();
   if (!user) return "No schedule available.";
 
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const until = new Date();
-  until.setDate(until.getDate() + days);
-  const untilStr = until.toISOString().slice(0, 10);
+  const todayStr = await getToday();
+  const untilStr = shiftDate(todayStr, days);
 
   const { data } = await supabase
     .from("workout_plans")
@@ -302,7 +299,7 @@ export async function getWeekOverview(dates: string[]) {
       isRestDay: plan.is_rest_day,
     });
   }
-  const todayStr = today();
+  const todayStr = await getToday();
   for (const log of (logs ?? []) as unknown as (WorkoutLogLike & {
     completed_at: string | null;
   })[]) {
@@ -390,7 +387,7 @@ export async function getExerciseSessions(exerciseId: string): Promise<ExerciseS
   } = await supabase.auth.getUser();
   if (!user) return [];
 
-  const todayStr = today();
+  const todayStr = await getToday();
   const { data, error } = await supabase
     .from("workout_logs")
     .select(
@@ -426,7 +423,7 @@ export async function getLastCompletedLog(): Promise<LastCompletedLog | null> {
     .not("completed_at", "is", null)
     // A future-dated log can never be the "last" completed workout. Bounded by date only —
     // completed_at is still the sole completion signal and nothing else about it is redefined.
-    .lte("date", today())
+    .lte("date", await getToday())
     .order("date", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -503,7 +500,7 @@ export async function getTrainingConsistency(windowDays = 28): Promise<TrainingC
   } = await supabase.auth.getUser();
   if (!user) return { windowDays, daysPerformed: 0 };
 
-  const todayStr = today();
+  const todayStr = await getToday();
   const { data, error } = await supabase
     .from("workout_logs")
     .select("date, logged_exercises(logged_sets(reps, weight))")
@@ -527,7 +524,7 @@ export async function getPerformedWorkoutDates(sinceDate: string): Promise<strin
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const todayStr = today();
+  const todayStr = await getToday();
   const { data, error } = await supabase
     .from("workout_logs")
     .select("date, logged_exercises(logged_sets(reps, weight))")
@@ -546,9 +543,10 @@ export async function getPerformedWorkoutDates(sinceDate: string): Promise<strin
 export async function getWeeklyTrainingDays(
   completedWeeks = COMPLETED_WEEKS
 ): Promise<WeeklyTrainingDays[]> {
-  const dates = await getPerformedWorkoutDates(oldestWeekStart(today(), completedWeeks));
+  const todayStr = await getToday();
+  const dates = await getPerformedWorkoutDates(oldestWeekStart(todayStr, completedWeeks));
   if (dates === null) return [];
-  return buildWeeklyTrainingDays(new Set(dates), today(), completedWeeks);
+  return buildWeeklyTrainingDays(new Set(dates), todayStr, completedWeeks);
 }
 
 export type LastPerformedWorkout = { date: string | null };
@@ -566,7 +564,7 @@ export async function getLastPerformedWorkoutDate(): Promise<LastPerformedWorkou
   } = await supabase.auth.getUser();
   if (!user) return { date: null };
 
-  const todayStr = today();
+  const todayStr = await getToday();
   let before: string | null = null;
   for (;;) {
     let query = supabase
@@ -652,7 +650,7 @@ export async function getTrainingEvidence(): Promise<TrainingEvidence | null> {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const todayStr = today();
+  const todayStr = await getToday();
   const [profile, performedDates, lastPerformed, measurements, exercises, recentLogs] =
     await Promise.all([
       getProfile(),

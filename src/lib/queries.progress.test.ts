@@ -56,6 +56,16 @@ const select = vi.fn((arg: string) => {
 });
 const from = vi.fn(() => ({ select }));
 
+// These tests pin the exact queries each function sends, so the person's-today lookup (its own
+// profiles query — covered in userDate.test.ts) is stubbed to the server-local today() they assert on.
+vi.mock("@/lib/userDate", async () => {
+  const { today } = await import("./date");
+  return {
+    getToday: async () => today(),
+    getUserTimeZone: async () => ({ signedIn: true, timeZone: null }),
+  };
+});
+
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({ auth: { getUser }, from }),
 }));

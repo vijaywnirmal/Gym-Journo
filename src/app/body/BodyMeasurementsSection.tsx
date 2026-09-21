@@ -3,31 +3,34 @@
 import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type { BodyMeasurement } from "@/lib/types";
-import { formatDate, today } from "@/lib/date";
+import { formatDate } from "@/lib/date";
 import { saveMeasurement, deleteMeasurement } from "./actions";
 
 export default function BodyMeasurementsSection({
   measurements,
+  todayStr,
   progressSummary,
 }: {
   measurements: BodyMeasurement[];
+  // The person's today, computed on the server — not this browser's clock.
+  todayStr: string;
   progressSummary?: ReactNode;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [editingId, setEditingId] = useState<string | "new" | null>(null);
-  const [date, setDate] = useState(today());
+  const [date, setDate] = useState(todayStr);
   const [weightKg, setWeightKg] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   // Already ordered newest-first by the query.
   // `measurements` is newest-first; a future-dated row is never the current weight.
-  const latest = measurements.find((m) => m.date <= today()) ?? null;
+  const latest = measurements.find((m) => m.date <= todayStr) ?? null;
 
   function startAdd() {
     setEditingId("new");
-    setDate(today());
+    setDate(todayStr);
     setWeightKg("");
     setNotes("");
     setError(null);

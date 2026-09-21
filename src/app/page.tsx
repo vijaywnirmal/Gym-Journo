@@ -6,14 +6,16 @@ import {
   getProfile,
   getTrainingConsistency,
 } from "@/lib/queries";
-import { formatDate, today } from "@/lib/date";
+import { formatDate, hourIn, todayIn } from "@/lib/date";
+import { getUserTimeZone } from "@/lib/userDate";
 import { formatGoalSummary, formatTrainingFrequency, getGreeting, getWorkoutCta } from "@/lib/home";
 import SignOutButton from "@/components/SignOutButton";
 
 const TRAINING_FREQUENCY_WINDOW_DAYS = 7;
 
 export default async function TodayPage() {
-  const date = today();
+  const { timeZone } = await getUserTimeZone();
+  const date = todayIn(timeZone);
   const [profile, plan, log, trainingConsistency] = await Promise.all([
     getProfile(),
     getPlanForDate(date),
@@ -21,7 +23,7 @@ export default async function TodayPage() {
     getTrainingConsistency(TRAINING_FREQUENCY_WINDOW_DAYS),
   ]);
 
-  const greeting = getGreeting(profile?.full_name ?? null, new Date().getHours());
+  const greeting = getGreeting(profile?.full_name ?? null, hourIn(timeZone));
   const goalSummary = profile ? formatGoalSummary(profile) : null;
   const trainingFrequency = formatTrainingFrequency(
     profile?.training_days_per_week ?? null,

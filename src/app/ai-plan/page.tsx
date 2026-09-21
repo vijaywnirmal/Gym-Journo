@@ -1,12 +1,12 @@
 import { getAiPlans, getNutritionForDate, getProfile } from "@/lib/queries";
-import { today } from "@/lib/date";
+import { getToday } from "@/lib/userDate";
 import AIPlanForm from "./AIPlanForm";
 
 export default async function AIPlanPage() {
   const [profile, pastPlans, mealsToday] = await Promise.all([
     getProfile(),
     getAiPlans(),
-    getNutritionForDate(today()),
+    getNutritionForDate(await getToday()),
   ]);
 
   return (

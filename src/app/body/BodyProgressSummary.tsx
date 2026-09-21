@@ -12,9 +12,9 @@ export function formatDeltaKg(deltaKg: number): string {
 }
 
 // Purely factual — "when," never "how you're doing." No fatigue/readiness/rest-day claim.
-export function formatLastWorkout(lastWorkoutDate: string | null): string {
+export function formatLastWorkout(lastWorkoutDate: string | null, todayStr: string): string {
   if (lastWorkoutDate === null) return "No workouts logged yet.";
-  const diff = daysSince(lastWorkoutDate);
+  const diff = daysSince(lastWorkoutDate, todayStr);
   if (diff === 0) return "Last workout: today.";
   if (diff === 1) return "Last workout: yesterday.";
   return `Last workout: ${diff} days ago.`;
@@ -23,9 +23,11 @@ export function formatLastWorkout(lastWorkoutDate: string | null): string {
 export default function BodyProgressSummary({
   training,
   lastWorkoutDate,
+  todayStr,
 }: {
   training: TrainingConsistency;
   lastWorkoutDate: string | null;
+  todayStr: string;
 }) {
   return (
     <div className="rounded-xl border border-neutral-800 p-4">
@@ -50,7 +52,7 @@ export default function BodyProgressSummary({
               lastWorkoutDate === null ? "mt-1 text-sm text-neutral-500" : "mt-1 text-sm text-neutral-300"
             }
           >
-            {formatLastWorkout(lastWorkoutDate)}
+            {formatLastWorkout(lastWorkoutDate, todayStr)}
           </p>
         </div>
       </div>

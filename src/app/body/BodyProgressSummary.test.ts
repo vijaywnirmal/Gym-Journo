@@ -25,22 +25,22 @@ describe("formatDeltaKg", () => {
 
 describe("formatLastWorkout", () => {
   it("shows a neutral empty state when no workout has ever been logged", () => {
-    expect(formatLastWorkout(null)).toBe("No workouts logged yet.");
+    expect(formatLastWorkout(null, today())).toBe("No workouts logged yet.");
   });
 
   it("shows 'today' when the last workout was logged today", () => {
-    expect(formatLastWorkout(today())).toBe("Last workout: today.");
+    expect(formatLastWorkout(today(), today())).toBe("Last workout: today.");
   });
 
   it("shows 'yesterday' when the last workout was logged yesterday", () => {
-    expect(formatLastWorkout(shiftDate(today(), -1))).toBe("Last workout: yesterday.");
+    expect(formatLastWorkout(shiftDate(today(), -1), today())).toBe("Last workout: yesterday.");
   });
 
   it("shows a day count for an older workout", () => {
-    expect(formatLastWorkout(shiftDate(today(), -5))).toBe("Last workout: 5 days ago.");
+    expect(formatLastWorkout(shiftDate(today(), -5), today())).toBe("Last workout: 5 days ago.");
   });
 
   it("uses canonical local date semantics, not UTC arithmetic, at the day boundary", () => {
-    expect(formatLastWorkout(shiftDate(today(), -28))).toBe("Last workout: 28 days ago.");
+    expect(formatLastWorkout(shiftDate(today(), -28), today())).toBe("Last workout: 28 days ago.");
   });
 });

@@ -16,6 +16,8 @@ export type Profile = {
   training_days_per_week: number | null;
   // When the person opted in to sending training evidence to Coach's external model; null = no consent.
   coach_consent_at: string | null;
+  // IANA timezone from the person's device; defines their "today". Null = not known yet.
+  timezone: string | null;
   onboarded: boolean;
 };
 

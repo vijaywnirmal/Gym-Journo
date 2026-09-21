@@ -7,7 +7,8 @@ import { today } from "@/lib/date";
 //
 // Existing data semantics apply: body_measurements holds one row per user per date (an edit
 // replaces that date's row), and a measurement can't legitimately be dated in the future — any
-// that exist are ignored rather than treated as the current weight, using the app's own `today()`.
+// that exist are ignored rather than treated as the current weight, judged against `todayStr` (the
+// person's today — see getToday()).
 
 export type BodyWeightPoint = { date: string; weightKg: number };
 
