@@ -14,6 +14,8 @@ export type Profile = {
   target_weight_kg: number | null;
   experience_level: string | null;
   training_days_per_week: number | null;
+  // When the person opted in to sending training evidence to Coach's external model; null = no consent.
+  coach_consent_at: string | null;
   onboarded: boolean;
 };
 

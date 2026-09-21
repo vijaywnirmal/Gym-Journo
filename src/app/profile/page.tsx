@@ -4,6 +4,7 @@ import { profileFieldsFromProfile } from "@/lib/profile-fields";
 import SignOutButton from "@/components/SignOutButton";
 import ProfileEditForm from "./ProfileEditForm";
 import DeleteAccountSection from "./DeleteAccountSection";
+import CoachConsentSection from "./CoachConsentSection";
 
 export default async function ProfilePage() {
   const profile = await getProfile();
@@ -15,6 +16,7 @@ export default async function ProfilePage() {
         <SignOutButton />
       </div>
       <ProfileEditForm initial={profileFieldsFromProfile(profile)} />
+      <CoachConsentSection consentedAt={profile?.coach_consent_at ?? null} />
       <Link
         href="/body"
         className="mt-5 mb-1 flex items-center justify-between rounded-xl border border-neutral-800 bg-neutral-900 p-4"

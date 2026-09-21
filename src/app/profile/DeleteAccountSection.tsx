@@ -28,8 +28,8 @@ export default function DeleteAccountSection() {
     <div className="border-t border-red-950 pt-5">
       <h2 className="mb-1 text-sm font-semibold text-red-400">Danger zone</h2>
       <p className="mb-3 text-xs text-neutral-500">
-        Permanently delete your account and all your data — exercises, workout plans, logs, and
-        AI plans. This cannot be undone.
+        Permanently delete your account and all your data — exercises, workout plans, logs, AI
+        plans, and Coach history. This cannot be undone.
       </p>
 
       {!confirming ? (

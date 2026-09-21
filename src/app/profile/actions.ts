@@ -88,6 +88,30 @@ export async function updateProfile(input: UpdateProfileInput) {
   return { success: true };
 }
 
+// Opt in to (or withdraw from) sending training evidence to Coach's external model. Enforced again
+// on the server for every Coach request; this only records the person's choice.
+export async function setCoachConsent(enabled: boolean) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in" };
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({ coach_consent_at: enabled ? new Date().toISOString() : null })
+    .eq("id", user.id)
+    .select("id");
+
+  if (error || !data || data.length === 0) {
+    return { error: "Couldn't update your Coach setting. Please try again." };
+  }
+
+  revalidatePath("/profile");
+  revalidatePath("/coach");
+  return { success: true };
+}
+
 // Deletes all data owned by the current user, then (if a service-role key is configured) the
 // Supabase Auth user itself. The owned-row cleanup below is required even in the admin path:
 // `exercises` cascades directly from auth.users, but `planned_exercises`/`logged_exercises`
@@ -133,6 +157,7 @@ export async function deleteAccount() {
   if (exercisesError) return genericError;
 
   await supabase.from("ai_plans").delete().eq("user_id", user.id);
+  await supabase.from("coach_replies").delete().eq("user_id", user.id);
   await supabase.from("nutrition_logs").delete().eq("user_id", user.id);
   await supabase.from("body_measurements").delete().eq("user_id", user.id);
 

@@ -1,6 +1,13 @@
 const MODEL = "gemini-3.6-flash";
+export const GEMINI_MODEL = MODEL;
 
-export async function generateWithGemini(prompt: string): Promise<string> {
+export type GeminiOptions = {
+  // Ask for a JSON response (Coach's contract is JSON). Off by default: AI Plan wants markdown.
+  json?: boolean;
+  timeoutMs?: number;
+};
+
+export async function generateWithGemini(prompt: string, options: GeminiOptions = {}): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY is not configured.");
 
@@ -14,7 +21,9 @@ export async function generateWithGemini(prompt: string): Promise<string> {
       },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
+        ...(options.json ? { generationConfig: { responseMimeType: "application/json" } } : {}),
       }),
+      signal: options.timeoutMs ? AbortSignal.timeout(options.timeoutMs) : undefined,
     }
   );
 
