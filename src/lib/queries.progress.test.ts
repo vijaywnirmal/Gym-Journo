@@ -62,7 +62,6 @@ vi.mock("@/lib/supabase/server", () => ({
 
 const {
   getTrainingConsistency,
-  getBodyWeightWindow,
   getLastPerformedWorkoutDate,
   getWeekOverview,
   getWeeklyTrainingDays,
@@ -182,56 +181,6 @@ describe("getTrainingConsistency", () => {
   it("returns zero when no logs fall in the window", async () => {
     setResults({ data: [], error: null });
     expect((await getTrainingConsistency(28)).daysPerformed).toBe(0);
-  });
-});
-
-describe("getBodyWeightWindow", () => {
-  beforeEach(() => {
-    getUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
-    from.mockClear();
-  });
-
-  it("uses the inclusive N-calendar-day window — 28 days is today − 27", async () => {
-    setResults({ data: [], error: null });
-    await getBodyWeightWindow(28);
-    expect(builders[0].calls.gte).toEqual([["date", shiftDate(today(), -27)]]);
-    expect(builders[0].calls.order).toEqual([["date", { ascending: true }]]);
-  });
-
-  it("picks the first row as earliest and the last row as latest", async () => {
-    setResults({
-      data: [
-        { date: "2026-09-01", weight_kg: 80 },
-        { date: "2026-09-10", weight_kg: 79 },
-        { date: "2026-09-20", weight_kg: 78.5 },
-      ],
-      error: null,
-    });
-    const result = await getBodyWeightWindow(28);
-    expect(result.measurementCount).toBe(3);
-    expect(result.earliest).toEqual({ date: "2026-09-01", weightKg: 80 });
-    expect(result.latest).toEqual({ date: "2026-09-20", weightKg: 78.5 });
-  });
-
-  it("returns the same row as both earliest and latest when exactly one measurement exists", async () => {
-    setResults({ data: [{ date: "2026-09-15", weight_kg: 79 }], error: null });
-    const result = await getBodyWeightWindow(28);
-    expect(result.measurementCount).toBe(1);
-    expect(result.earliest).toEqual({ date: "2026-09-15", weightKg: 79 });
-    expect(result.latest).toEqual({ date: "2026-09-15", weightKg: 79 });
-  });
-
-  it("returns nulls and a zero count when no measurements fall in the window", async () => {
-    setResults({ data: [], error: null });
-    const result = await getBodyWeightWindow(28);
-    expect(result).toEqual({ windowDays: 28, measurementCount: 0, earliest: null, latest: null });
-  });
-
-  it("returns nulls for a signed-out user without querying", async () => {
-    getUser.mockResolvedValue({ data: { user: null } });
-    const result = await getBodyWeightWindow(28);
-    expect(result).toEqual({ windowDays: 28, measurementCount: 0, earliest: null, latest: null });
-    expect(from).not.toHaveBeenCalled();
   });
 });
 

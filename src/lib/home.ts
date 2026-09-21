@@ -3,6 +3,16 @@ import { PRIMARY_GOAL_LABELS } from "@/lib/ai-plan-prompt";
 // Goals for which a target weight is a meaningful thing to show (mirrors ProfileFields.tsx).
 const TARGET_WEIGHT_GOALS = new Set(["build_muscle", "lose_fat"]);
 
+// The stated target weight, but only for goals where one is meaningful — the single rule shared by
+// the Home goal line and Body & Progress. Null when the goal doesn't use a target or none is set.
+export function getTargetWeightKg(
+  primaryGoal: string | null,
+  targetWeightKg: number | null
+): number | null {
+  if (!primaryGoal || !TARGET_WEIGHT_GOALS.has(primaryGoal)) return null;
+  return targetWeightKg ? targetWeightKg : null;
+}
+
 export function getGreeting(fullName: string | null, hour: number): string {
   const firstName = fullName?.trim().split(/\s+/)[0];
   if (!firstName) return "Welcome back";
@@ -26,8 +36,8 @@ export function formatGoalSummary(profile: {
   const days = profile.training_days_per_week;
   const goalLine = days ? `${label} · ${days} training day${days === 1 ? "" : "s"}/week` : label;
 
-  const showTarget = TARGET_WEIGHT_GOALS.has(profile.primary_goal) && !!profile.target_weight_kg;
-  const targetLine = showTarget ? `Target: ${profile.target_weight_kg} kg` : null;
+  const targetWeightKg = getTargetWeightKg(profile.primary_goal, profile.target_weight_kg);
+  const targetLine = targetWeightKg !== null ? `Target: ${targetWeightKg} kg` : null;
 
   return { goalLine, targetLine };
 }

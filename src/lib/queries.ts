@@ -575,47 +575,6 @@ export async function getLastPerformedWorkoutDate(): Promise<LastPerformedWorkou
   }
 }
 
-export type BodyWeightWindowPoint = { date: string; weightKg: number };
-
-export type BodyWeightWindow = {
-  windowDays: number;
-  measurementCount: number;
-  earliest: BodyWeightWindowPoint | null;
-  latest: BodyWeightWindowPoint | null;
-};
-
-// The earliest and latest body_measurements rows within the inclusive N-day window ending today, for a
-// simple raw-delta comparison — no interpolation, no rate, no percentage. When only one
-// measurement falls in the window, earliest and latest are the same row (the caller decides
-// not to show a delta when measurementCount < 2).
-export async function getBodyWeightWindow(windowDays = 28): Promise<BodyWeightWindow> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { windowDays, measurementCount: 0, earliest: null, latest: null };
-
-  const { data, error } = await supabase
-    .from("body_measurements")
-    .select("date, weight_kg")
-    .eq("user_id", user.id)
-    .gte("date", windowStart(windowDays))
-    .order("date", { ascending: true });
-
-  if (error || !data || data.length === 0) {
-    return { windowDays, measurementCount: 0, earliest: null, latest: null };
-  }
-
-  const earliest = data[0];
-  const latest = data[data.length - 1];
-  return {
-    windowDays,
-    measurementCount: data.length,
-    earliest: { date: earliest.date, weightKg: earliest.weight_kg },
-    latest: { date: latest.date, weightKg: latest.weight_kg },
-  };
-}
-
 // All of a user's historical weight entries, newest first. Small, unpaginated data volume (at
 // most one row per day) — no cap/pagination is warranted here, unlike workout history.
 export async function getBodyMeasurements(): Promise<BodyMeasurement[]> {

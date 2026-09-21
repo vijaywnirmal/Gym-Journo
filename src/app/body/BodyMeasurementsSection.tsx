@@ -22,7 +22,8 @@ export default function BodyMeasurementsSection({
   const [error, setError] = useState<string | null>(null);
 
   // Already ordered newest-first by the query.
-  const latest = measurements[0] ?? null;
+  // `measurements` is newest-first; a future-dated row is never the current weight.
+  const latest = measurements.find((m) => m.date <= today()) ?? null;
 
   function startAdd() {
     setEditingId("new");

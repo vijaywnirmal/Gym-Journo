@@ -1,7 +1,6 @@
 import Link from "next/link";
 import {
   getBodyMeasurements,
-  getBodyWeightWindow,
   getLastPerformedWorkoutDate,
   getProfile,
   getTrainingConsistency,
@@ -9,13 +8,15 @@ import {
 } from "@/lib/queries";
 import BodyMeasurementsSection from "./BodyMeasurementsSection";
 import BodyProgressSummary from "./BodyProgressSummary";
+import BodyWeightFacts from "./BodyWeightFacts";
+import { summarizeBodyWeight } from "@/lib/analyze/bodyWeight";
+import { getTargetWeightKg } from "@/lib/home";
 import WeeklyTrainingDays from "./WeeklyTrainingDays";
 
 export default async function BodyPage() {
-  const [measurements, training, weightWindow, profile, lastWorkout, weeklyTraining] = await Promise.all([
+  const [measurements, training, profile, lastWorkout, weeklyTraining] = await Promise.all([
     getBodyMeasurements(),
     getTrainingConsistency(),
-    getBodyWeightWindow(),
     getProfile(),
     getLastPerformedWorkoutDate(),
     getWeeklyTrainingDays(),
@@ -32,13 +33,14 @@ export default async function BodyPage() {
         measurements={measurements}
         progressSummary={
           <>
-            <BodyProgressSummary
-              training={training}
-              weightWindow={weightWindow}
-              primaryGoal={profile?.primary_goal ?? null}
-              targetWeightKg={profile?.target_weight_kg ?? null}
-              lastWorkoutDate={lastWorkout.date}
+            <BodyWeightFacts
+              facts={summarizeBodyWeight(measurements)}
+              targetWeightKg={getTargetWeightKg(
+                profile?.primary_goal ?? null,
+                profile?.target_weight_kg ?? null
+              )}
             />
+            <BodyProgressSummary training={training} lastWorkoutDate={lastWorkout.date} />
             {weeklyTraining.length > 0 && (
               <WeeklyTrainingDays
                 weeks={weeklyTraining}
