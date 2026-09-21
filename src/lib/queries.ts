@@ -1,5 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
-import { today, shiftDate } from "@/lib/date";
+import { today } from "@/lib/date";
+import {
+  isPerformedExerciseSession,
+  isPerformedSet,
+  isWorkoutDay,
+  windowStart,
+  type ExerciseSessionLike,
+  type WorkoutLogLike,
+} from "@/lib/analyze/definitions";
 import {
   summarizeExerciseRecurrence,
   type ExerciseRecurrence,
@@ -242,16 +250,22 @@ export async function getPlanForDate(date: string): Promise<WorkoutPlan | null> 
   };
 }
 
+// Per-day Calendar state. `performed` (a canonical workout day — see analyze/definitions.ts) and
+// `completed` (the user explicitly marked the workout complete) are separate facts: a day can be
+// either, both, or neither, and neither is derived from the other.
+export type WeekDayOverview = {
+  title: string | null;
+  performed: boolean;
+  completed: boolean;
+  isRestDay: boolean;
+};
+
 export async function getWeekOverview(dates: string[]) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user)
-    return new Map<
-      string,
-      { title: string | null; completed: boolean; isRestDay: boolean }
-    >();
+  if (!user) return new Map<string, WeekDayOverview>();
 
   const [{ data: plans }, { data: logs }] = await Promise.all([
     supabase
@@ -261,16 +275,15 @@ export async function getWeekOverview(dates: string[]) {
       .in("date", dates),
     supabase
       .from("workout_logs")
-      .select("date, completed_at")
+      .select("date, completed_at, logged_exercises(logged_sets(reps, weight))")
       .eq("user_id", user.id)
       .in("date", dates),
   ]);
 
-  const overview = new Map<
-    string,
-    { title: string | null; completed: boolean; isRestDay: boolean }
-  >();
-  for (const date of dates) overview.set(date, { title: null, completed: false, isRestDay: false });
+  const overview = new Map<string, WeekDayOverview>();
+  for (const date of dates) {
+    overview.set(date, { title: null, performed: false, completed: false, isRestDay: false });
+  }
   for (const plan of plans ?? []) {
     overview.set(plan.date, {
       ...overview.get(plan.date)!,
@@ -278,8 +291,15 @@ export async function getWeekOverview(dates: string[]) {
       isRestDay: plan.is_rest_day,
     });
   }
-  for (const log of logs ?? []) {
-    overview.set(log.date, { ...overview.get(log.date)!, completed: !!log.completed_at });
+  const todayStr = today();
+  for (const log of (logs ?? []) as unknown as (WorkoutLogLike & {
+    completed_at: string | null;
+  })[]) {
+    overview.set(log.date, {
+      ...overview.get(log.date)!,
+      performed: isWorkoutDay(log, todayStr),
+      completed: !!log.completed_at,
+    });
   }
   return overview;
 }
@@ -354,10 +374,12 @@ export async function getLogHistory(options: {
   return { logs, hasMore };
 }
 
-// Full logged-history recurrence for one exercise — every matching log date, not a History page.
-// Same isolation as getLogHistory's exercise filter: a workout_logs row that contains this
-// exercise_id counts as one session, including incomplete logs. Duplicate rows for the same
-// exercise on one log collapse via summarizeExerciseRecurrence. No before-cursor, no limit.
+// Full-history recurrence for one exercise — every performed session date, not a History page.
+// A session counts only when the selected exercise has at least one performed set on that log
+// (blank placeholder sets and planned-but-skipped exercises don't), and only for dates on or
+// before today. Incomplete logs still count (completed_at is a separate concept). Duplicate rows
+// for the same exercise on one log collapse via summarizeExerciseRecurrence. No before-cursor,
+// no limit.
 export async function getExerciseRecurrence(
   exerciseId: string
 ): Promise<ExerciseRecurrence | null> {
@@ -367,15 +389,21 @@ export async function getExerciseRecurrence(
   } = await supabase.auth.getUser();
   if (!user) return null;
 
+  const todayStr = today();
   const { data, error } = await supabase
     .from("workout_logs")
-    .select("date, logged_exercises!inner(exercise_id)")
+    .select("date, logged_exercises!inner(exercise_id, logged_sets(reps, weight))")
     .eq("user_id", user.id)
-    .eq("logged_exercises.exercise_id", exerciseId);
+    .eq("logged_exercises.exercise_id", exerciseId)
+    .lte("date", todayStr);
 
   if (error || !data) return null;
 
-  return summarizeExerciseRecurrence((data as { date: string }[]).map((row) => row.date));
+  const dates = (data as unknown as ExerciseSessionLike[])
+    .filter((row) => isPerformedExerciseSession(row, exerciseId, todayStr))
+    .map((row) => row.date);
+
+  return summarizeExerciseRecurrence(dates);
 }
 
 export type LastCompletedLog = {
@@ -396,6 +424,9 @@ export async function getLastCompletedLog(): Promise<LastCompletedLog | null> {
     .select("date, plan:workout_plans(title)")
     .eq("user_id", user.id)
     .not("completed_at", "is", null)
+    // A future-dated log can never be the "last" completed workout. Bounded by date only —
+    // completed_at is still the sole completion signal and nothing else about it is redefined.
+    .lte("date", today())
     .order("date", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -411,9 +442,13 @@ export type PreviousPerformance = {
   sets: { setNumber: number; reps: number | null; weight: number | null; weightUnit: string }[];
 };
 
-// The most recent previously-logged sets for one exercise, strictly before `beforeDate` — "what
-// did I do last time?" context for the logger. Not filtered by completed_at: History already
-// treats incomplete logs as real logged data, so this matches that existing semantics.
+const PREVIOUS_PERFORMANCE_PAGE_SIZE = 20;
+
+// The most recent previously-performed session for one exercise, strictly before `beforeDate` —
+// "what did I do last time?" context for the logger. A session where the exercise only holds
+// blank placeholder sets is skipped in favour of the earlier real one, and only performed sets
+// are returned (each keeps its own set_number, so same-set-number comparison is unaffected). Not
+// filtered by completed_at: History already treats incomplete logs as real logged data.
 export async function getPreviousPerformance(
   exerciseId: string,
   beforeDate: string
@@ -424,87 +459,123 @@ export async function getPreviousPerformance(
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data, error } = await supabase
-    .from("workout_logs")
-    .select("date, logged_exercises!inner(exercise_id, logged_sets(*))")
-    .eq("user_id", user.id)
-    .eq("logged_exercises.exercise_id", exerciseId)
-    .lt("date", beforeDate)
-    .order("date", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error || !data) return null;
-
   type Row = {
     date: string;
-    logged_exercises: { logged_sets: LoggedSet[] }[];
+    logged_exercises: { exercise_id: string; logged_sets: LoggedSet[] | null }[];
   };
-  const row = data as unknown as Row;
-  const sets = (row.logged_exercises[0]?.logged_sets ?? []).sort(
-    (a, b) => a.set_number - b.set_number
-  );
-  if (sets.length === 0) return null;
 
-  return {
-    date: row.date,
-    sets: sets.map((s) => ({
-      setNumber: s.set_number,
-      reps: s.reps,
-      weight: s.weight,
-      weightUnit: s.weight_unit,
-    })),
-  };
+  // Walks back through matching logs a page at a time until one contains performed sets — blank
+  // sessions are rare, so this is normally a single query.
+  let cursor = beforeDate;
+  for (;;) {
+    const { data, error } = await supabase
+      .from("workout_logs")
+      .select("date, logged_exercises!inner(exercise_id, logged_sets(*))")
+      .eq("user_id", user.id)
+      .eq("logged_exercises.exercise_id", exerciseId)
+      .lt("date", cursor)
+      .order("date", { ascending: false })
+      .limit(PREVIOUS_PERFORMANCE_PAGE_SIZE);
+
+    if (error || !data) return null;
+    const rows = data as unknown as Row[];
+
+    for (const row of rows) {
+      const sets = row.logged_exercises
+        .filter((le) => le.exercise_id === exerciseId)
+        .flatMap((le) => le.logged_sets ?? [])
+        .filter(isPerformedSet)
+        .sort((a, b) => a.set_number - b.set_number);
+      if (sets.length === 0) continue;
+
+      return {
+        date: row.date,
+        sets: sets.map((s) => ({
+          setNumber: s.set_number,
+          reps: s.reps,
+          weight: s.weight,
+          weightUnit: s.weight_unit,
+        })),
+      };
+    }
+
+    if (rows.length < PREVIOUS_PERFORMANCE_PAGE_SIZE) return null;
+    cursor = rows[rows.length - 1].date;
+  }
 }
 
 export type TrainingConsistency = {
   windowDays: number;
-  daysLogged: number;
+  daysPerformed: number;
 };
 
-// Count of distinct days with a workout_logs row in the rolling window ending today — a purely
-// descriptive activity count. Every day counts equally regardless of planned/freeform,
-// completed_at, or how many exercises/sets it has; workout_logs.date is already unique per user
-// (see 0001_init.sql), so no separate de-duplication step is needed.
+// Count of distinct workout days (see analyze/definitions.ts: a performed, non-future log) in the
+// inclusive N-calendar-day window ending today. A log row that exists but holds no performed set
+// — empty, or only blank planned sets — is not a workout day. completed_at and planned/freeform
+// are irrelevant. workout_logs.date is already unique per user (0001_init.sql); the Set keeps the
+// result a count of dates regardless.
 export async function getTrainingConsistency(windowDays = 28): Promise<TrainingConsistency> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { windowDays, daysLogged: 0 };
+  if (!user) return { windowDays, daysPerformed: 0 };
 
-  const sinceStr = shiftDate(today(), -windowDays);
+  const todayStr = today();
   const { data, error } = await supabase
     .from("workout_logs")
-    .select("date")
+    .select("date, logged_exercises(logged_sets(reps, weight))")
     .eq("user_id", user.id)
-    .gte("date", sinceStr);
+    .gte("date", windowStart(windowDays, todayStr))
+    .lte("date", todayStr);
 
-  if (error) return { windowDays, daysLogged: 0 };
-  return { windowDays, daysLogged: data?.length ?? 0 };
+  if (error) return { windowDays, daysPerformed: 0 };
+
+  const performedDates = new Set(
+    ((data ?? []) as unknown as WorkoutLogLike[])
+      .filter((row) => isWorkoutDay(row, todayStr))
+      .map((row) => row.date)
+  );
+  return { windowDays, daysPerformed: performedDates.size };
 }
 
-export type LastWorkoutDate = { date: string | null };
+export type LastPerformedWorkout = { date: string | null };
 
-// The most recent date with a workout_logs row — existence only, not completed_at — for a purely
-// factual "when did you last log a workout" observation. No plan/rest-day inference.
-export async function getLastWorkoutDate(): Promise<LastWorkoutDate> {
+const LAST_WORKOUT_PAGE_SIZE = 30;
+
+// The most recent workout day — a performed, non-future log — for a purely factual "when did you
+// last work out" observation. Not "last completed workout" (that is getLastCompletedLog, which
+// keys off completed_at): a performed but never-completed session counts here. Walks back a page
+// at a time past any blank/empty logs.
+export async function getLastPerformedWorkoutDate(): Promise<LastPerformedWorkout> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { date: null };
 
-  const { data, error } = await supabase
-    .from("workout_logs")
-    .select("date")
-    .eq("user_id", user.id)
-    .order("date", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const todayStr = today();
+  let before: string | null = null;
+  for (;;) {
+    let query = supabase
+      .from("workout_logs")
+      .select("date, logged_exercises(logged_sets(reps, weight))")
+      .eq("user_id", user.id)
+      .lte("date", todayStr)
+      .order("date", { ascending: false })
+      .limit(LAST_WORKOUT_PAGE_SIZE);
+    if (before) query = query.lt("date", before);
 
-  if (error || !data) return { date: null };
-  return { date: data.date };
+    const { data, error } = await query;
+    if (error || !data) return { date: null };
+    const rows = data as unknown as WorkoutLogLike[];
+
+    const latest = rows.find((row) => isWorkoutDay(row, todayStr));
+    if (latest) return { date: latest.date };
+
+    if (rows.length < LAST_WORKOUT_PAGE_SIZE) return { date: null };
+    before = rows[rows.length - 1].date;
+  }
 }
 
 export type BodyWeightWindowPoint = { date: string; weightKg: number };
@@ -516,7 +587,7 @@ export type BodyWeightWindow = {
   latest: BodyWeightWindowPoint | null;
 };
 
-// The earliest and latest body_measurements rows within the rolling window ending today, for a
+// The earliest and latest body_measurements rows within the inclusive N-day window ending today, for a
 // simple raw-delta comparison — no interpolation, no rate, no percentage. When only one
 // measurement falls in the window, earliest and latest are the same row (the caller decides
 // not to show a delta when measurementCount < 2).
@@ -527,12 +598,11 @@ export async function getBodyWeightWindow(windowDays = 28): Promise<BodyWeightWi
   } = await supabase.auth.getUser();
   if (!user) return { windowDays, measurementCount: 0, earliest: null, latest: null };
 
-  const sinceStr = shiftDate(today(), -windowDays);
   const { data, error } = await supabase
     .from("body_measurements")
     .select("date, weight_kg")
     .eq("user_id", user.id)
-    .gte("date", sinceStr)
+    .gte("date", windowStart(windowDays))
     .order("date", { ascending: true });
 
   if (error || !data || data.length === 0) {

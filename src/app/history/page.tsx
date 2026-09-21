@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getExerciseRecurrence, getExercises, getLogHistory } from "@/lib/queries";
 import { formatDate } from "@/lib/date";
 import ExerciseFilter from "./ExerciseFilter";
-import { formatSessionSummary, summarizeVisibleSessions } from "./sessionSummary";
+import { formatSessionSummary, summarizePerformedSessions } from "./sessionSummary";
 import { formatExerciseRecurrence } from "./exerciseRecurrence";
 
 const PAGE_SIZE = 30;
@@ -28,11 +28,13 @@ export default async function HistoryPage({
   const selectedExerciseName = exerciseId
     ? exercises.find((ex) => ex.id === exerciseId)?.name ?? "Exercise"
     : null;
-  // Only meaningful in the exercise-filtered view — describes exactly the sessions on this page,
-  // never a lifetime total (see sessionSummary.ts).
-  const sessionSummaryText = selectedExerciseName
-    ? formatSessionSummary(summarizeVisibleSessions(logs.map((log) => log.date)))
-    : null;
+  // Only meaningful in the exercise-filtered view — describes the performed sessions on this page
+  // (same canonical definition as the recurrence line below), never a lifetime total. See
+  // sessionSummary.ts.
+  const sessionSummaryText =
+    exerciseId && selectedExerciseName
+      ? formatSessionSummary(summarizePerformedSessions(logs, exerciseId))
+      : null;
   // Filtered view only — never shown on unfiltered History. Null when this exercise has no logs.
   const recurrenceText = selectedExerciseName ? formatExerciseRecurrence(recurrence) : null;
 

@@ -37,18 +37,18 @@ export type TrainingFrequencySummary = {
   goalLine: string;
 };
 
-// Purely descriptive — states the stated goal and the observed count from
-// getTrainingConsistency() side by side, with no judgment (no "on track"/"behind"/score) of any
-// kind. Returns null when no weekly-frequency goal is set, so the section can be omitted cleanly.
+// Purely descriptive — states the stated goal and the observed count of performed workout days
+// from getTrainingConsistency() side by side, with no judgment (no "on track"/"behind"/score) of
+// any kind. Returns null when no weekly-frequency goal is set, so the section can be omitted cleanly.
 export function formatTrainingFrequency(
   trainingDaysPerWeek: number | null,
-  daysLogged: number,
+  daysPerformed: number,
   windowDays: number
 ): TrainingFrequencySummary | null {
   if (trainingDaysPerWeek === null) return null;
 
   return {
-    actualLine: `${daysLogged} workout${daysLogged === 1 ? "" : "s"} in the last ${windowDays} days`,
+    actualLine: `${daysPerformed} workout${daysPerformed === 1 ? "" : "s"} in the last ${windowDays} days`,
     goalLine: `Goal: ${trainingDaysPerWeek} day${trainingDaysPerWeek === 1 ? "" : "s"}/week`,
   };
 }

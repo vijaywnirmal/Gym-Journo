@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { today, shiftDate } from "./date";
 
 const getUser = vi.fn().mockResolvedValue({ data: { user: { id: "user-1" } } });
 
@@ -8,7 +9,7 @@ type QueryResult = { data: unknown; error: unknown };
 // itself must be thenable. getLogForDate still terminates with .maybeSingle(). This mock
 // supports both shapes and records every filter call so tests can assert on them.
 function makeBuilder(result: QueryResult) {
-  const calls: Record<string, unknown[][]> = { eq: [], order: [], limit: [], lt: [] };
+  const calls: Record<string, unknown[][]> = { eq: [], order: [], limit: [], lt: [], lte: [] };
   const builder = {
     calls,
     eq: vi.fn((...args: unknown[]) => {
@@ -25,6 +26,10 @@ function makeBuilder(result: QueryResult) {
     }),
     lt: vi.fn((...args: unknown[]) => {
       calls.lt.push(args);
+      return builder;
+    }),
+    lte: vi.fn((...args: unknown[]) => {
+      calls.lte.push(args);
       return builder;
     }),
     maybeSingle: vi.fn().mockResolvedValue(result),
@@ -348,25 +353,42 @@ describe("getLogHistory notes visibility", () => {
   });
 });
 
-describe("getExerciseRecurrence (Phase 17)", () => {
+describe("getExerciseRecurrence (Phase 17, performed-session semantics)", () => {
   beforeEach(() => {
     getUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
     from.mockClear();
   });
 
-  it("inner-joins logged_exercises and filters by exercise_id, with no page cursor or limit", async () => {
+  const performedSets = [{ reps: 5, weight: 80 }];
+  const blankSets = [
+    { reps: null, weight: null },
+    { reps: null, weight: null },
+  ];
+  const session = (
+    date: string,
+    logged_sets: { reps: number | null; weight: number | null }[],
+    exercise_id = "ex-bench"
+  ) => ({ date, logged_exercises: [{ exercise_id, logged_sets }] });
+
+  it("inner-joins logged_exercises, filters by exercise_id, and is bounded above by today — no page cursor or limit", async () => {
     nextResult = { data: [], error: null };
     await getExerciseRecurrence("ex-bench");
     expect(lastSelectArg).toContain("logged_exercises!inner");
+    expect(lastSelectArg).toContain("logged_sets(reps, weight)");
     expect(lastBuilder!.calls.eq).toContainEqual(["user_id", "user-1"]);
     expect(lastBuilder!.calls.eq).toContainEqual(["logged_exercises.exercise_id", "ex-bench"]);
+    expect(lastBuilder!.calls.lte).toEqual([["date", today()]]);
     expect(lastBuilder!.calls.lt).toEqual([]);
     expect(lastBuilder!.calls.limit).toEqual([]);
   });
 
   it("6. does not apply a before cursor — full history, not the current History page", async () => {
     nextResult = {
-      data: [{ date: "2026-09-17" }, { date: "2026-09-10" }, { date: "2026-08-12" }],
+      data: [
+        session("2026-09-17", performedSets),
+        session("2026-09-10", performedSets),
+        session("2026-08-12", performedSets),
+      ],
       error: null,
     };
     const result = await getExerciseRecurrence("ex-bench");
@@ -375,18 +397,86 @@ describe("getExerciseRecurrence (Phase 17)", () => {
     expect(lastBuilder!.calls.limit).toEqual([]);
   });
 
-  it("4. duplicate dates on the query result count as one session", async () => {
+  it("15. duplicate exercise rows on one date count as one session", async () => {
     nextResult = {
-      data: [{ date: "2026-09-17" }, { date: "2026-09-17" }, { date: "2026-09-10" }],
+      data: [
+        {
+          date: "2026-09-17",
+          logged_exercises: [
+            { exercise_id: "ex-bench", logged_sets: performedSets },
+            { exercise_id: "ex-bench", logged_sets: performedSets },
+          ],
+        },
+        session("2026-09-10", performedSets),
+      ],
       error: null,
     };
-    const result = await getExerciseRecurrence("ex-bench");
-    expect(result).toEqual({ count: 2, lastDate: "2026-09-17" });
+    expect(await getExerciseRecurrence("ex-bench")).toEqual({ count: 2, lastDate: "2026-09-17" });
   });
 
-  it("does not filter by completed_at", async () => {
-    nextResult = { data: [{ date: "2026-09-17" }], error: null };
-    await getExerciseRecurrence("ex-bench");
+  it("duplicate dates on the query result count as one session", async () => {
+    nextResult = {
+      data: [session("2026-09-17", performedSets), session("2026-09-17", performedSets), session("2026-09-10", performedSets)],
+      error: null,
+    };
+    expect(await getExerciseRecurrence("ex-bench")).toEqual({ count: 2, lastDate: "2026-09-17" });
+  });
+
+  it("16. ignores blank sessions — an exercise present with only blank placeholder sets is not a session", async () => {
+    nextResult = {
+      data: [session("2026-09-17", blankSets), session("2026-09-10", performedSets)],
+      error: null,
+    };
+    expect(await getExerciseRecurrence("ex-bench")).toEqual({ count: 1, lastDate: "2026-09-10" });
+  });
+
+  it("16. an exercise with no sets at all is not a session", async () => {
+    nextResult = { data: [session("2026-09-17", [])], error: null };
+    expect(await getExerciseRecurrence("ex-bench")).toBeNull();
+  });
+
+  it("16. returns null when every appearance is blank", async () => {
+    nextResult = { data: [session("2026-09-17", blankSets), session("2026-09-10", blankSets)], error: null };
+    expect(await getExerciseRecurrence("ex-bench")).toBeNull();
+  });
+
+  it("a set with reps only, or weight only, makes the session performed", async () => {
+    nextResult = {
+      data: [session("2026-09-17", [{ reps: 12, weight: null }]), session("2026-09-10", [{ reps: null, weight: 20 }])],
+      error: null,
+    };
+    expect(await getExerciseRecurrence("ex-bench")).toEqual({ count: 2, lastDate: "2026-09-17" });
+  });
+
+  it("7. excludes future-dated logs even if they come back from the query", async () => {
+    const future = shiftDate(today(), 3);
+    nextResult = {
+      data: [session(future, performedSets), session("2026-09-10", performedSets)],
+      error: null,
+    };
+    expect(await getExerciseRecurrence("ex-bench")).toEqual({ count: 1, lastDate: "2026-09-10" });
+  });
+
+  it("only counts the selected exercise's own sets, not a same-day sibling's", async () => {
+    nextResult = {
+      data: [
+        {
+          date: "2026-09-17",
+          logged_exercises: [
+            { exercise_id: "ex-other", logged_sets: performedSets },
+            { exercise_id: "ex-bench", logged_sets: blankSets },
+          ],
+        },
+      ],
+      error: null,
+    };
+    expect(await getExerciseRecurrence("ex-bench")).toBeNull();
+  });
+
+  it("20. does not filter by completed_at — an incomplete performed session still counts", async () => {
+    nextResult = { data: [{ ...session("2026-09-17", performedSets), completed_at: null }], error: null };
+    const result = await getExerciseRecurrence("ex-bench");
+    expect(result).toEqual({ count: 1, lastDate: "2026-09-17" });
     const filteredColumns = lastBuilder!.calls.eq.map((c) => c[0]);
     expect(filteredColumns).not.toContain("completed_at");
   });

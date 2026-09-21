@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getWeekOverview } from "@/lib/queries";
 import { formatDate, shiftDate, today, weekDates } from "@/lib/date";
+import { formatDayStatus } from "./dayStatus";
 
 export default async function CalendarPage({
   searchParams,
@@ -56,7 +57,7 @@ export default async function CalendarPage({
                     : info?.title
                       ? info.title
                       : "Not scheduled"}
-                  {info?.completed ? " · logged ✓" : ""}
+                  {info ? formatDayStatus(info) : ""}
                 </p>
               </div>
               <div className="flex gap-2">

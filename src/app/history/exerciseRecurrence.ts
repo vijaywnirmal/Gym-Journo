@@ -22,10 +22,12 @@ export function summarizeExerciseRecurrence(dates: string[]): ExerciseRecurrence
   return { count: unique.size, lastDate };
 }
 
-// Descriptive-only wording — full logged count and the single latest date, nothing evaluative.
+// Descriptive-only wording — full count of performed sessions and the single latest date, nothing
+// evaluative. "performed", not "logged": a logged-but-blank session is not counted (see
+// getExerciseRecurrence).
 export function formatExerciseRecurrence(recurrence: ExerciseRecurrence | null): string | null {
   if (recurrence === null) return null;
 
   const sessionWord = recurrence.count === 1 ? "session" : "sessions";
-  return `${recurrence.count} ${sessionWord} logged · last on ${formatDate(recurrence.lastDate)}`;
+  return `${recurrence.count} ${sessionWord} performed · last on ${formatDate(recurrence.lastDate)}`;
 }

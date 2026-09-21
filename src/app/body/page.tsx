@@ -2,7 +2,7 @@ import Link from "next/link";
 import {
   getBodyMeasurements,
   getBodyWeightWindow,
-  getLastWorkoutDate,
+  getLastPerformedWorkoutDate,
   getProfile,
   getTrainingConsistency,
 } from "@/lib/queries";
@@ -15,7 +15,7 @@ export default async function BodyPage() {
     getTrainingConsistency(),
     getBodyWeightWindow(),
     getProfile(),
-    getLastWorkoutDate(),
+    getLastPerformedWorkoutDate(),
   ]);
 
   return (

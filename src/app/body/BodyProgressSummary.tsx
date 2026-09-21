@@ -67,13 +67,13 @@ export default function BodyProgressSummary({
 
       <div className="flex flex-col gap-3">
         <div>
-          {training.daysLogged === 0 ? (
+          {training.daysPerformed === 0 ? (
             <p className="text-sm text-neutral-500">
-              No workouts logged in the last {training.windowDays} days.
+              No workouts in the last {training.windowDays} days.
             </p>
           ) : (
             <p className="text-sm text-neutral-300">
-              {training.daysLogged} workout{training.daysLogged === 1 ? "" : "s"} logged in the
+              {training.daysPerformed} workout{training.daysPerformed === 1 ? "" : "s"} in the
               last {training.windowDays} days.
             </p>
           )}

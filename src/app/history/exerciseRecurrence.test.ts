@@ -49,14 +49,14 @@ describe("summarizeExerciseRecurrence (Phase 17)", () => {
     const pageDates = ["2026-09-17", "2026-09-10"];
     const allDates = ["2026-09-17", "2026-09-10", "2026-08-12"];
     const shown = formatSessionSummary(summarizeVisibleSessions(pageDates));
-    const logged = formatExerciseRecurrence(summarizeExerciseRecurrence(allDates));
+    const performed = formatExerciseRecurrence(summarizeExerciseRecurrence(allDates));
     expect(shown).toBe("2 sessions shown · Thu, Sep 10 – Thu, Sep 17");
-    expect(logged).toBe("3 sessions logged · last on Thu, Sep 17");
-    expect(shown).not.toEqual(logged);
+    expect(performed).toBe("3 sessions performed · last on Thu, Sep 17");
+    expect(shown).not.toEqual(performed);
     expect(shown).toContain("shown");
-    expect(shown).not.toContain("logged");
-    expect(logged).toContain("logged");
-    expect(logged).not.toContain("shown");
+    expect(shown).not.toContain("performed");
+    expect(performed).toContain("performed");
+    expect(performed).not.toContain("shown");
   });
 });
 
@@ -67,13 +67,13 @@ describe("formatExerciseRecurrence (Phase 17)", () => {
 
   it("2. singular wording for one session", () => {
     expect(formatExerciseRecurrence({ count: 1, lastDate: "2026-09-17" })).toBe(
-      "1 session logged · last on Thu, Sep 17"
+      "1 session performed · last on Thu, Sep 17"
     );
   });
 
   it("3. plural wording for multiple sessions", () => {
     expect(formatExerciseRecurrence({ count: 8, lastDate: "2026-09-17" })).toBe(
-      "8 sessions logged · last on Thu, Sep 17"
+      "8 sessions performed · last on Thu, Sep 17"
     );
   });
 

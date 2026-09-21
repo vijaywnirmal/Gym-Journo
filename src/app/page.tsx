@@ -25,7 +25,7 @@ export default async function TodayPage() {
   const goalSummary = profile ? formatGoalSummary(profile) : null;
   const trainingFrequency = formatTrainingFrequency(
     profile?.training_days_per_week ?? null,
-    trainingConsistency.daysLogged,
+    trainingConsistency.daysPerformed,
     trainingConsistency.windowDays
   );
   const cta = getWorkoutCta(date, !!log, !!log?.completed_at);
@@ -135,7 +135,7 @@ export default async function TodayPage() {
 
       {recentActivity && (
         <p className="mb-4 text-center text-xs text-neutral-500">
-          Last workout: {recentActivity.title ?? "Freeform workout"} · {formatDate(recentActivity.date)}
+          Last completed workout: {recentActivity.title ?? "Freeform workout"} · {formatDate(recentActivity.date)}
         </p>
       )}
 
