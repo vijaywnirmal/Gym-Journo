@@ -8,6 +8,7 @@ import {
 } from "@/lib/queries";
 import { formatDate, hourIn, todayIn } from "@/lib/date";
 import { getUserTimeZone } from "@/lib/userDate";
+import { namePartsOf } from "@/lib/names";
 import { formatGoalSummary, formatTrainingFrequency, getGreeting, getWorkoutCta } from "@/lib/home";
 import SignOutButton from "@/components/SignOutButton";
 
@@ -23,7 +24,7 @@ export default async function TodayPage() {
     getTrainingConsistency(TRAINING_FREQUENCY_WINDOW_DAYS),
   ]);
 
-  const greeting = getGreeting(profile?.full_name ?? null, hourIn(timeZone));
+  const greeting = getGreeting(profile ? namePartsOf(profile).firstName : null, hourIn(timeZone));
   const goalSummary = profile ? formatGoalSummary(profile) : null;
   const trainingFrequency = formatTrainingFrequency(
     profile?.training_days_per_week ?? null,

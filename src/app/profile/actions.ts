@@ -3,9 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { cleanName, joinName, validateName } from "@/lib/names";
 import {
   validateDateOfBirth,
   validateExperienceLevel,
+  validateGender,
   validatePassword,
   validatePrimaryGoal,
   validateTargetWeightKg,
@@ -13,11 +15,12 @@ import {
 } from "@/lib/validation";
 
 export type UpdateProfileInput = {
-  fullName: string;
+  firstName: string;
+  lastName: string;
   dateOfBirth: string | null;
   heightCm: number | null;
   weightKg: number | null;
-  sex: string;
+  gender: string;
   primaryGoal: string;
   targetWeightKg: number | null;
   experienceLevel: string;
@@ -31,6 +34,16 @@ export async function updateProfile(input: UpdateProfileInput) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not signed in" };
+
+  const firstNameError = validateName(input.firstName, "first name", true);
+  if (firstNameError) return { error: firstNameError };
+  const lastNameError = validateName(input.lastName, "last name", false);
+  if (lastNameError) return { error: lastNameError };
+
+  if (input.gender) {
+    const genderError = validateGender(input.gender);
+    if (genderError) return { error: genderError };
+  }
 
   if (input.dateOfBirth) {
     const dobError = validateDateOfBirth(input.dateOfBirth);
@@ -69,11 +82,13 @@ export async function updateProfile(input: UpdateProfileInput) {
   const { error } = await supabase
     .from("profiles")
     .update({
-      full_name: input.fullName || null,
+      first_name: cleanName(input.firstName) || null,
+      last_name: cleanName(input.lastName) || null,
+      full_name: joinName(input.firstName, input.lastName) || null,
       date_of_birth: input.dateOfBirth,
       height_cm: input.heightCm,
       weight_kg: input.weightKg,
-      sex: input.sex || null,
+      gender: input.gender || null,
       primary_goal: input.primaryGoal || null,
       target_weight_kg: input.targetWeightKg,
       experience_level: input.experienceLevel || null,

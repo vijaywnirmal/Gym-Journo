@@ -42,8 +42,8 @@ describe("buildCoachPrompt", () => {
     expect(p.match(/^SYSTEM:/gm)).toBeNull(); // no line of the prompt begins as an instruction
   });
 
-  it("carries no personal identifiers: no name, date of birth, height, or sex", () => {
-    for (const field of ["full_name", "fullName", "date_of_birth", "dateOfBirth", "height_cm", "sex"]) {
+  it("carries no personal identifiers: no name, date of birth, height, or gender", () => {
+    for (const field of ["full_name", "fullName", "first_name", "last_name", "date_of_birth", "dateOfBirth", "height_cm", "gender"]) {
       expect(prompt).not.toContain(field);
     }
   });

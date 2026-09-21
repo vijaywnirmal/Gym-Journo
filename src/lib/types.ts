@@ -5,11 +5,14 @@ export type MuscleGroup = {
 
 export type Profile = {
   id: string;
+  // full_name is the joined display name; first_name / last_name are what the person edits.
   full_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
   date_of_birth: string | null;
   height_cm: number | null;
   weight_kg: number | null;
-  sex: string | null;
+  gender: string | null;
   primary_goal: string | null;
   target_weight_kg: number | null;
   experience_level: string | null;

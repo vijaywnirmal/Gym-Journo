@@ -1,11 +1,16 @@
+import { format } from "date-fns";
 import { describe, expect, it } from "vitest";
-import { calculateAge, daysBetween, daysSince, formatDateLong, today, shiftDate } from "./date";
+import { calculateAge, daysBetween, daysSince, DATE_FMT, formatDateLong, today, shiftDate } from "./date";
+
+// The local calendar date, like calculateAge uses — a UTC slice is a day off for the first hours of
+// the day in timezones ahead of UTC, which made these tests fail only at certain times of day.
+const localDateString = (d: Date) => format(d, DATE_FMT);
 
 describe("calculateAge", () => {
   it("computes whole years elapsed since the date of birth", () => {
     const dob = new Date();
     dob.setFullYear(dob.getFullYear() - 30);
-    const dobStr = dob.toISOString().slice(0, 10);
+    const dobStr = localDateString(dob);
     expect(calculateAge(dobStr)).toBe(30);
   });
 
@@ -13,7 +18,7 @@ describe("calculateAge", () => {
     const dob = new Date();
     dob.setFullYear(dob.getFullYear() - 30);
     dob.setDate(dob.getDate() + 1); // birthday is tomorrow
-    const dobStr = dob.toISOString().slice(0, 10);
+    const dobStr = localDateString(dob);
     expect(calculateAge(dobStr)).toBe(29);
   });
 });

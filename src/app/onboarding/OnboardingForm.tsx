@@ -3,22 +3,13 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import ProfileFields, { PasswordFields, type ProfileFieldsValue } from "@/components/ProfileFields";
+import { EMPTY_PROFILE_FIELDS } from "@/lib/profile-fields";
 import { completeOnboarding } from "./actions";
 
 export default function OnboardingForm() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [fields, setFields] = useState<ProfileFieldsValue>({
-    fullName: "",
-    dateOfBirth: "",
-    heightCm: "",
-    weightKg: "",
-    sex: "",
-    primaryGoal: "",
-    targetWeightKg: "",
-    experienceLevel: "",
-    trainingDaysPerWeek: "",
-  });
+  const [fields, setFields] = useState<ProfileFieldsValue>(EMPTY_PROFILE_FIELDS);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -33,11 +24,12 @@ export default function OnboardingForm() {
 
     startTransition(async () => {
       const result = await completeOnboarding({
-        fullName: fields.fullName,
+        firstName: fields.firstName,
+        lastName: fields.lastName,
         dateOfBirth: fields.dateOfBirth || null,
         heightCm: fields.heightCm ? parseFloat(fields.heightCm) : null,
         weightKg: fields.weightKg ? parseFloat(fields.weightKg) : null,
-        sex: fields.sex,
+        gender: fields.gender,
         primaryGoal: fields.primaryGoal,
         targetWeightKg: fields.targetWeightKg ? parseFloat(fields.targetWeightKg) : null,
         experienceLevel: fields.experienceLevel,

@@ -12,7 +12,7 @@ export type AiPlanProfile = {
   date_of_birth: string | null;
   height_cm: number | null;
   weight_kg: number | null;
-  sex: string | null;
+  gender: string | null;
   primary_goal: string | null;
   target_weight_kg: number | null;
   experience_level: string | null;
@@ -43,7 +43,7 @@ export function buildPrompt(
 - Age: ${age ?? "N/A"}
 - Height: ${profile.height_cm ?? "N/A"} cm
 - Weight: ${profile.weight_kg ?? "N/A"} kg
-- Sex: ${profile.sex ?? "N/A"}
+- Gender: ${profile.gender && profile.gender !== "prefer_not_to_say" ? profile.gender : "N/A"}
 - Goal: ${goalLabel}${profile.target_weight_kg ? ` (target weight: ${profile.target_weight_kg} kg)` : ""}
 - Experience level: ${profile.experience_level ?? "N/A"}
 - Training days per week: ${profile.training_days_per_week ?? "N/A"}

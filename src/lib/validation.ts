@@ -23,6 +23,21 @@ export function validateDateOfBirth(dateOfBirth: string): string | null {
   return null;
 }
 
+// Gender is asked explicitly; "prefer not to say" is an answer, not a blank.
+export const GENDERS = ["male", "female", "other", "prefer_not_to_say"] as const;
+export type Gender = (typeof GENDERS)[number];
+
+export const GENDER_LABELS: Record<string, string> = {
+  male: "Male",
+  female: "Female",
+  other: "Other",
+  prefer_not_to_say: "Prefer not to say",
+};
+
+export function validateGender(value: string): string | null {
+  return (GENDERS as readonly string[]).includes(value) ? null : "Select a gender option.";
+}
+
 export const MIN_PASSWORD_LENGTH = 8;
 
 export function validatePassword(password: string): string | null {

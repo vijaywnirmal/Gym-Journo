@@ -93,10 +93,10 @@ describe("COACH_CONSENT wording matches what is really sent", () => {
   const sent = JSON.stringify(evidence);
 
   it("the evidence carries none of the fields the wording says are not sent", () => {
-    for (const field of ["full_name", "fullName", "email", "date_of_birth", "height", "sex", "notes", "meals"]) {
+    for (const field of ["full_name", "fullName", "first_name", "last_name", "email", "date_of_birth", "height", "gender", "notes", "meals"]) {
       expect(sent.toLowerCase()).not.toContain(field.toLowerCase());
     }
-    expect(COACH_CONSENT.notShared.join(" ")).toMatch(/name.*email.*date of birth.*height.*sex/i);
+    expect(COACH_CONSENT.notShared.join(" ")).toMatch(/name.*email.*date of birth.*height.*gender/i);
   });
 
   it("the evidence does carry the kinds of data the wording says are sent", () => {

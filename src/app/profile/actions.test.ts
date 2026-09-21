@@ -35,11 +35,12 @@ vi.mock("@/lib/supabase/admin", () => ({
 const { updateProfile, deleteAccount } = await import("./actions");
 
 const baseInput = {
-  fullName: "Test User",
+  firstName: "Test",
+  lastName: "User",
   dateOfBirth: null,
   heightCm: null,
   weightKg: null,
-  sex: "",
+  gender: "male",
   primaryGoal: "lose_fat",
   targetWeightKg: 65,
   experienceLevel: "intermediate",
@@ -78,6 +79,44 @@ describe("updateProfile", () => {
         training_days_per_week: 4,
       })
     );
+  });
+
+  it("stores first and last name separately, and the joined display name", async () => {
+    await updateProfile({ ...baseInput, firstName: "  Mary  ", lastName: " Ann   Smith " });
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({ first_name: "Mary", last_name: "Ann Smith", full_name: "Mary Ann Smith" })
+    );
+  });
+
+  it("allows an empty last name (single-name people) and stores it as null", async () => {
+    const result = await updateProfile({ ...baseInput, lastName: "" });
+    expect(result.error).toBeUndefined();
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({ first_name: "Test", last_name: null, full_name: "Test" })
+    );
+  });
+
+  it("requires a first name and never writes when it is blank", async () => {
+    const result = await updateProfile({ ...baseInput, firstName: "   " });
+    expect(result.error).toBe("Enter your first name.");
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("rejects a name over the length limit", async () => {
+    const result = await updateProfile({ ...baseInput, lastName: "x".repeat(51) });
+    expect(result.error).toMatch(/Last name must be 50 characters or fewer/);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("stores gender, an unset gender as null, and rejects anything else", async () => {
+    await updateProfile({ ...baseInput, gender: "prefer_not_to_say" });
+    expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ gender: "prefer_not_to_say" }));
+    await updateProfile({ ...baseInput, gender: "" });
+    expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ gender: null }));
+    update.mockClear();
+    const result = await updateProfile({ ...baseInput, gender: "attack helicopter" });
+    expect(result.error).toBe("Select a gender option.");
+    expect(update).not.toHaveBeenCalled();
   });
 
   it("persists a null target weight when omitted", async () => {

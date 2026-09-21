@@ -37,7 +37,7 @@ export async function generatePlan(input: GeneratePlanInput) {
     supabase
       .from("profiles")
       .select(
-        "full_name, date_of_birth, height_cm, weight_kg, sex, primary_goal, target_weight_kg, experience_level, training_days_per_week"
+        "full_name, date_of_birth, height_cm, weight_kg, gender, primary_goal, target_weight_kg, experience_level, training_days_per_week"
       )
       .eq("id", user.id)
       .maybeSingle(),
@@ -66,7 +66,7 @@ export async function generatePlan(input: GeneratePlanInput) {
           date_of_birth: null,
           height_cm: null,
           weight_kg: null,
-          sex: null,
+          gender: null,
           primary_goal: null,
           target_weight_kg: null,
           experience_level: null,

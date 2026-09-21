@@ -2,12 +2,16 @@ import Link from "next/link";
 import { getProfile } from "@/lib/queries";
 import { profileFieldsFromProfile } from "@/lib/profile-fields";
 import SignOutButton from "@/components/SignOutButton";
-import ProfileEditForm from "./ProfileEditForm";
+import { createClient } from "@/lib/supabase/server";
+import ProfileCard from "./ProfileCard";
 import DeleteAccountSection from "./DeleteAccountSection";
 import CoachConsentSection from "./CoachConsentSection";
 
 export default async function ProfilePage() {
-  const profile = await getProfile();
+  const [profile, supabase] = await Promise.all([getProfile(), createClient()]);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   return (
     <main className="px-4 pt-6">
@@ -15,7 +19,7 @@ export default async function ProfilePage() {
         <h1 className="text-xl font-bold text-neutral-100">Profile</h1>
         <SignOutButton />
       </div>
-      <ProfileEditForm initial={profileFieldsFromProfile(profile)} />
+      <ProfileCard initial={profileFieldsFromProfile(profile)} email={user?.email ?? null} />
       <CoachConsentSection consentedAt={profile?.coach_consent_at ?? null} />
       <Link
         href="/body"

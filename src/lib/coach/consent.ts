@@ -20,7 +20,7 @@ export const COACH_CONSENT = {
     "The question you type",
   ],
   notShared: [
-    "Your name, email, date of birth, height, or sex",
+    "Your name, email, date of birth, height, or gender",
     "Workout notes, body-measurement notes, and nutrition entries",
   ],
   kept:

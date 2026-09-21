@@ -2,9 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { cleanName, joinName, validateName } from "@/lib/names";
 import {
   validateDateOfBirth,
   validateExperienceLevel,
+  validateGender,
   validatePassword,
   validatePrimaryGoal,
   validateTargetWeightKg,
@@ -12,11 +14,12 @@ import {
 } from "@/lib/validation";
 
 export type CompleteOnboardingInput = {
-  fullName: string;
+  firstName: string;
+  lastName: string;
   dateOfBirth: string | null;
   heightCm: number | null;
   weightKg: number | null;
-  sex: string;
+  gender: string;
   primaryGoal: string;
   targetWeightKg: number | null;
   experienceLevel: string;
@@ -38,7 +41,14 @@ export async function completeOnboarding(input: CompleteOnboardingInput) {
     if (dobError) return { error: dobError };
   }
 
-  if (!input.fullName.trim()) return { error: "Enter your name." };
+  const firstNameError = validateName(input.firstName, "first name", true);
+  if (firstNameError) return { error: firstNameError };
+  const lastNameError = validateName(input.lastName, "last name", false);
+  if (lastNameError) return { error: lastNameError };
+
+  if (!input.gender) return { error: "Select your gender." };
+  const genderError = validateGender(input.gender);
+  if (genderError) return { error: genderError };
 
   if (!input.primaryGoal) return { error: "Select a primary goal." };
   const primaryGoalError = validatePrimaryGoal(input.primaryGoal);
@@ -75,11 +85,13 @@ export async function completeOnboarding(input: CompleteOnboardingInput) {
 
   const { error: profileError } = await supabase.from("profiles").upsert({
     id: user.id,
-    full_name: input.fullName || null,
+    first_name: cleanName(input.firstName) || null,
+    last_name: cleanName(input.lastName) || null,
+    full_name: joinName(input.firstName, input.lastName) || null,
     date_of_birth: input.dateOfBirth,
     height_cm: input.heightCm,
     weight_kg: input.weightKg,
-    sex: input.sex || null,
+    gender: input.gender,
     primary_goal: input.primaryGoal,
     target_weight_kg: input.targetWeightKg,
     experience_level: input.experienceLevel,
