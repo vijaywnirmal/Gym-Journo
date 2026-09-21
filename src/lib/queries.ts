@@ -13,8 +13,15 @@ import {
   type WeeklyTrainingDays,
 } from "@/lib/analyze/weeklyTraining";
 import {
+  buildTrainingEvidence,
+  MAX_EVIDENCE_EXERCISES,
+  RECENT_EXERCISE_WINDOW_DAYS,
+  type TrainingEvidence,
+} from "@/lib/analyze/evidence";
+import {
   buildExerciseSessions,
   performedSetsOf,
+  recentPerformedExerciseIds,
   type ExerciseSession,
   type PerformedSet,
   type SessionSourceLog,
@@ -510,30 +517,38 @@ export async function getTrainingConsistency(windowDays = 28): Promise<TrainingC
   return { windowDays, daysPerformed: performedDates.size };
 }
 
-// Workout days per Sunday–Saturday calendar week for the current (in-progress) week and the most
-// recent completed weeks, newest first — see analyze/weeklyTraining.ts. Same canonical workout-day
-// definition as getTrainingConsistency; empty when signed out or on a query error.
-export async function getWeeklyTrainingDays(
-  completedWeeks = COMPLETED_WEEKS
-): Promise<WeeklyTrainingDays[]> {
+// The distinct workout dates (canonical definition: performed, not in the future) from `sinceDate`
+// through today, ascending. Null when signed out or on a query error, so callers can tell "no
+// workouts" from "couldn't read".
+export async function getPerformedWorkoutDates(sinceDate: string): Promise<string[] | null> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return [];
+  if (!user) return null;
 
   const todayStr = today();
   const { data, error } = await supabase
     .from("workout_logs")
     .select("date, logged_exercises(logged_sets(reps, weight))")
     .eq("user_id", user.id)
-    .gte("date", oldestWeekStart(todayStr, completedWeeks))
+    .gte("date", sinceDate)
     .lte("date", todayStr);
 
-  if (error) return [];
+  if (error) return null;
 
-  const performedDates = performedWorkoutDates((data ?? []) as unknown as WorkoutLogLike[], todayStr);
-  return buildWeeklyTrainingDays(performedDates, todayStr, completedWeeks);
+  return [...performedWorkoutDates((data ?? []) as unknown as WorkoutLogLike[], todayStr)].sort();
+}
+
+// Workout days per Sunday–Saturday calendar week for the current (in-progress) week and the most
+// recent completed weeks, newest first — see analyze/weeklyTraining.ts. Same canonical workout-day
+// definition as getTrainingConsistency; empty when signed out or on a query error.
+export async function getWeeklyTrainingDays(
+  completedWeeks = COMPLETED_WEEKS
+): Promise<WeeklyTrainingDays[]> {
+  const dates = await getPerformedWorkoutDates(oldestWeekStart(today(), completedWeeks));
+  if (dates === null) return [];
+  return buildWeeklyTrainingDays(new Set(dates), today(), completedWeeks);
 }
 
 export type LastPerformedWorkout = { date: string | null };
@@ -623,4 +638,57 @@ export async function getLogForDate(date: string): Promise<WorkoutLogWithContext
         logged_sets: (le.logged_sets ?? []).sort((a, b) => a.set_number - b.set_number),
       })),
   };
+}
+
+// Assembles the evidence bundle a future Coach layer would read (analyze/evidence.ts): goal
+// settings, recent and weekly training, dated body weight, and the recent history of the
+// exercises performed in the last few weeks. Fetching only — every figure is computed by the pure
+// Analyze functions from canonical-definition data. Null when signed out or when the workout
+// history itself can't be read (other sources degrade to "nothing recorded", as elsewhere).
+export async function getTrainingEvidence(): Promise<TrainingEvidence | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const todayStr = today();
+  const [profile, performedDates, lastPerformed, measurements, exercises, recentLogs] =
+    await Promise.all([
+      getProfile(),
+      getPerformedWorkoutDates(oldestWeekStart(todayStr)),
+      getLastPerformedWorkoutDate(),
+      getBodyMeasurements(),
+      getExercises(),
+      supabase
+        .from("workout_logs")
+        .select("date, logged_exercises(exercise_id, logged_sets(reps, weight))")
+        .eq("user_id", user.id)
+        .gte("date", windowStart(RECENT_EXERCISE_WINDOW_DAYS, todayStr))
+        .lte("date", todayStr),
+    ]);
+
+  if (performedDates === null || recentLogs.error) return null;
+
+  const recentIds = recentPerformedExerciseIds(
+    (recentLogs.data ?? []) as unknown as Parameters<typeof recentPerformedExerciseIds>[0],
+    todayStr
+  );
+  const chosenIds = recentIds.slice(0, MAX_EVIDENCE_EXERCISES);
+  const namesById = new Map(exercises.map((ex) => [ex.id, ex.name]));
+  const sessions = await Promise.all(chosenIds.map((id) => getExerciseSessions(id)));
+
+  return buildTrainingEvidence({
+    todayStr,
+    profile,
+    performedDates,
+    lastPerformedWorkoutDate: lastPerformed.date,
+    bodyMeasurements: measurements,
+    exercises: chosenIds.map((exerciseId, i) => ({
+      exerciseId,
+      name: namesById.get(exerciseId) ?? "Exercise",
+      sessions: sessions[i],
+    })),
+    exercisesTruncated: recentIds.length > chosenIds.length,
+  });
 }

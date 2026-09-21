@@ -104,3 +104,28 @@ export function pageSessionViews(
     hasMore: eligible.length > options.pageSize,
   };
 }
+
+type RecentLog = {
+  date: string;
+  logged_exercises?: {
+    exercise_id: string;
+    logged_sets?: { reps: number | null; weight: number | null }[] | null;
+  }[] | null;
+};
+
+// The exercises with at least one performed set on or before `todayStr`, most recently performed
+// first, each once. Blank-only occurrences and future dates don't make an exercise "performed".
+export function recentPerformedExerciseIds(logs: RecentLog[], todayStr: string = today()): string[] {
+  const latestDate = new Map<string, string>();
+  for (const log of logs) {
+    if (log.date > todayStr) continue;
+    for (const le of log.logged_exercises ?? []) {
+      if (!(le.logged_sets ?? []).some(isPerformedSet)) continue;
+      const seen = latestDate.get(le.exercise_id);
+      if (seen === undefined || log.date > seen) latestDate.set(le.exercise_id, log.date);
+    }
+  }
+  return [...latestDate.entries()]
+    .sort((a, b) => (a[1] === b[1] ? (a[0] < b[0] ? -1 : 1) : a[1] < b[1] ? 1 : -1))
+    .map(([id]) => id);
+}

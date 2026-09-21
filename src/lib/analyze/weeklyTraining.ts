@@ -13,6 +13,9 @@ export type WeeklyTrainingDays = {
   weekStart: string; // Sunday
   weekEnd: string; // Saturday
   daysPerformed: number;
+  // The workout dates counted in daysPerformed (ascending) — the source records, so the count can
+  // be verified.
+  performedDates: string[];
   isCurrentWeek: boolean;
 };
 
@@ -32,10 +35,12 @@ export function buildWeeklyTrainingDays(
   return Array.from({ length: completedWeeks + 1 }, (_, i) => {
     const weekStart = shiftDate(currentWeekStart, -7 * i);
     const days = weekDates(weekStart);
+    const performed = days.filter((d) => d <= todayStr && performedDates.has(d));
     return {
       weekStart,
       weekEnd: days[6],
-      daysPerformed: days.filter((d) => d <= todayStr && performedDates.has(d)).length,
+      daysPerformed: performed.length,
+      performedDates: performed,
       isCurrentWeek: i === 0,
     };
   });

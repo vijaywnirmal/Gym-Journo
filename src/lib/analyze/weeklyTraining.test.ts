@@ -82,6 +82,13 @@ describe("buildWeeklyTrainingDays — counting", () => {
     expect(result[0]).toMatchObject({ weekStart: "2026-01-04", daysPerformed: 1 });
   });
 
+  it("each week lists the workout dates it counted, ascending", () => {
+    const result = weeks(["2026-09-17", "2026-09-14", "2026-09-22"]);
+    expect(byStart(result, "2026-09-13").performedDates).toEqual(["2026-09-14", "2026-09-17"]);
+    expect(result[0].performedDates).toEqual([]); // Sep 22 is in the future
+    expect(byStart(result, "2026-09-06").performedDates).toEqual([]);
+  });
+
   it("9. a week with no activity has zero performed days", () => {
     const result = weeks(["2026-09-15"]);
     expect(byStart(result, "2026-09-06").daysPerformed).toBe(0);

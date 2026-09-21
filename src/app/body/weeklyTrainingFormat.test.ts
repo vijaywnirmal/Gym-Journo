@@ -14,6 +14,7 @@ const week = (weekStart: string, weekEnd: string, daysPerformed: number, isCurre
   weekStart,
   weekEnd,
   daysPerformed,
+  performedDates: [],
   isCurrentWeek,
 });
 
