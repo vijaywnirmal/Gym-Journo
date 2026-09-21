@@ -78,9 +78,10 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
-const { getLastCompletedLog, getLogHistory, getExerciseRecurrence } = await import("./queries");
-const { summarizePerformedSessions, formatSessionSummary } = await import("@/app/history/sessionSummary");
-const { formatExerciseRecurrence } = await import("@/app/history/exerciseRecurrence");
+const { getLastCompletedLog, getLogHistory, getExerciseSessions, getPreviousPerformance } = await import("./queries");
+const { buildSessionViews, pageSessionViews } = await import("@/lib/analyze/exerciseSessions");
+const { formatExerciseRecurrence, summarizeExerciseRecurrence } = await import("@/app/history/exerciseRecurrence");
+const { formatSetChange } = await import("@/app/history/exerciseHistoryFormat");
 
 const BENCH = "ex-bench";
 const ROW = "ex-row";
@@ -147,67 +148,97 @@ describe("getLastCompletedLog — future-dated completed logs (correction pass)"
   });
 });
 
-describe("filtered History — Phase 16 'shown' and Phase 17 'performed' share one definition", () => {
+describe("filtered History — longitudinal facts and comparisons over performed sessions", () => {
   const dataset = () => [
     log("2026-09-25", [exercise(BENCH, sets([5, 100]))]), // future, performed
-    log("2026-09-19", [exercise(BENCH, sets([5, 80]))]), // performed
+    log("2026-09-19", [exercise(BENCH, sets([8, 82.5], [7, 82.5]))]), // performed
     log("2026-09-17", [exercise(BENCH, sets([null, null], [null, null]))]), // blank only
-    log("2026-09-15", [exercise(BENCH, sets([5, 80]), 0), exercise(BENCH, sets([6, 80]), 1)]), // duplicate rows
+    log("2026-09-15", [exercise(BENCH, sets([6, 80], [null, null], [5, 80]))]), // performed + blank rows
     log("2026-09-10", [exercise(BENCH, sets([5, 77.5])), exercise(ROW, sets([8, 60]), 1)]),
     log("2026-09-01", [exercise(BENCH, sets([5, 75]))]),
     log("2026-08-20", [exercise(ROW, sets([8, 60]))]), // never benched
   ];
 
-  it("5. the page summary and the full-history recurrence agree on which sessions are performed", async () => {
+  it("full-history facts come only from performed, non-future sessions", async () => {
     logs = dataset();
-    const page = await getLogHistory({ exerciseId: BENCH, pageSize: 30 });
-    const shown = summarizePerformedSessions(page.logs, BENCH);
-    const recurrence = await getExerciseRecurrence(BENCH);
-
-    // Performed Bench sessions: Sep 19, 15, 10, 1 — not the blank Sep 17 or the future Sep 25.
-    expect(shown).toEqual({ count: 4, earliestDate: "2026-09-01", latestDate: "2026-09-19" });
-    expect(recurrence).toEqual({ count: 4, lastDate: "2026-09-19" });
-    expect(formatSessionSummary(shown)).toBe("4 sessions shown · Tue, Sep 1 – Sat, Sep 19");
-    expect(formatExerciseRecurrence(recurrence)).toBe("4 sessions performed · last on Sat, Sep 19");
+    const sessions = await getExerciseSessions(BENCH);
+    expect(sessions.map((s) => s.date)).toEqual(["2026-09-19", "2026-09-15", "2026-09-10", "2026-09-01"]);
+    const recurrence = summarizeExerciseRecurrence(sessions.map((s) => s.date));
+    expect(recurrence).toEqual({ count: 4, firstDate: "2026-09-01", lastDate: "2026-09-19" });
+    expect(formatExerciseRecurrence(recurrence)).toEqual({
+      countLine: "4 sessions performed",
+      firstLine: "First performed: Sep 1, 2026",
+      lastLine: "Last performed: Sep 19, 2026",
+    });
   });
 
-  it("7. pagination is unchanged (cursor over raw log dates); each page's line covers only its own performed sessions", async () => {
+  it("12. pagination pages over performed sessions; facts and comparisons don't depend on the page", async () => {
     logs = dataset();
+    const sessions = await getExerciseSessions(BENCH);
+    const views = buildSessionViews(sessions);
 
-    const first = await getLogHistory({ exerciseId: BENCH, pageSize: 4 });
-    expect(first.logs.map((l) => l.date)).toEqual(["2026-09-25", "2026-09-19", "2026-09-17", "2026-09-15"]);
+    const first = pageSessionViews(views, { pageSize: 2 });
+    expect(first.views.map((v) => v.date)).toEqual(["2026-09-19", "2026-09-15"]);
     expect(first.hasMore).toBe(true);
-    // Sep 25 (future) and Sep 17 (blank) are on the page but are not performed sessions.
-    expect(summarizePerformedSessions(first.logs, BENCH)).toEqual({
-      count: 2,
-      earliestDate: "2026-09-15",
-      latestDate: "2026-09-19",
-    });
+    // The oldest card on page 1 (Sep 15) is compared with Sep 10, which is on page 2 — and the
+    // blank Sep 17 log between Sep 19 and Sep 15 is not a session, so Sep 19 compares with Sep 15.
+    expect(first.views[0].previousDate).toBe("2026-09-15");
+    expect(first.views[0].daysSincePrevious).toBe(4);
+    expect(first.views[1].previousDate).toBe("2026-09-10");
+    expect(first.views[1].daysSincePrevious).toBe(5);
 
-    const second = await getLogHistory({ exerciseId: BENCH, before: "2026-09-15", pageSize: 4 });
-    expect(second.logs.map((l) => l.date)).toEqual(["2026-09-10", "2026-09-01"]);
+    const second = pageSessionViews(views, { before: "2026-09-15", pageSize: 2 });
+    expect(second.views.map((v) => v.date)).toEqual(["2026-09-10", "2026-09-01"]);
     expect(second.hasMore).toBe(false);
-    expect(summarizePerformedSessions(second.logs, BENCH)).toEqual({
-      count: 2,
-      earliestDate: "2026-09-01",
-      latestDate: "2026-09-10",
-    });
 
-    // Full history is independent of the page cursor and equals the pages' performed total.
-    expect((await getExerciseRecurrence(BENCH))?.count).toBe(4);
+    // Same facts whichever page is on screen.
+    expect(summarizeExerciseRecurrence(sessions.map((s) => s.date))?.count).toBe(4);
   });
 
-  it("an exercise with only blank sessions shows no 'shown' line and no recurrence line", async () => {
+  it("10. compares same-numbered sets with the previous real performed session (blank Sep 17 skipped)", async () => {
+    logs = dataset();
+    const [latest] = buildSessionViews(await getExerciseSessions(BENCH));
+    // Sep 19: set 1 = 8 × 82.5, set 2 = 7 × 82.5.  Previous performed (Sep 15): set 1 = 6 × 80, set 3 = 5 × 80.
+    expect(formatSetChange(latest.sets[0].comparison)).toBe("+2.5 kg · +2 reps");
+    // Sep 15 has no set 2 (blank), so Sep 19's set 2 has nothing to compare against.
+    expect(latest.sets[1].comparison).toBeNull();
+  });
+
+  it("13. an exercise whose only sessions are blank has no history and no facts", async () => {
     logs = [log("2026-09-17", [exercise(BENCH, sets([null, null]))])];
-    const page = await getLogHistory({ exerciseId: BENCH, pageSize: 30 });
-    expect(page.logs).toHaveLength(1); // the raw card list is unchanged
-    expect(summarizePerformedSessions(page.logs, BENCH)).toBeNull();
-    expect(await getExerciseRecurrence(BENCH)).toBeNull();
+    const sessions = await getExerciseSessions(BENCH);
+    expect(sessions).toEqual([]);
+    expect(summarizeExerciseRecurrence(sessions.map((s) => s.date))).toBeNull();
+    expect(pageSessionViews(buildSessionViews(sessions), { pageSize: 30 })).toEqual({ views: [], hasMore: false });
   });
 
-  it("the selected exercise's page summary ignores a performed same-day sibling", async () => {
+  it("the selected exercise's history ignores a performed same-day sibling", async () => {
     logs = [log("2026-09-10", [exercise(BENCH, sets([null, null]), 0), exercise(ROW, sets([8, 60]), 1)])];
-    const page = await getLogHistory({ exerciseId: BENCH, pageSize: 30 });
-    expect(summarizePerformedSessions(page.logs, BENCH)).toBeNull();
+    expect(await getExerciseSessions(BENCH)).toEqual([]);
+    expect((await getExerciseSessions(ROW)).map((s) => s.date)).toEqual(["2026-09-10"]);
+  });
+
+  it("14. unfiltered History is unchanged — the raw log list still includes blank and future logs", async () => {
+    logs = dataset();
+    const page = await getLogHistory({ pageSize: 30 });
+    expect(page.logs.map((l) => l.date)).toEqual([
+      "2026-09-25",
+      "2026-09-19",
+      "2026-09-17",
+      "2026-09-15",
+      "2026-09-10",
+      "2026-09-01",
+      "2026-08-20",
+    ]);
+  });
+
+  it("15. the logger's previous-performance lookup (Phase 11) skips the blank latest session and matches the same performed sets", async () => {
+    logs = dataset();
+    const previous = await getPreviousPerformance(BENCH, "2026-09-19");
+    expect(previous?.date).toBe("2026-09-15"); // not the blank Sep 17
+    expect(previous?.sets.map((s) => s.setNumber)).toEqual([1, 3]);
+    // The History comparison and the logger's lookup agree on the previous real session.
+    const [latest] = buildSessionViews(await getExerciseSessions(BENCH));
+    expect(latest.previousDate).toBe(previous?.date);
   });
 });

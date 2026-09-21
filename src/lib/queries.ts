@@ -1,29 +1,22 @@
 import { createClient } from "@/lib/supabase/server";
 import { today } from "@/lib/date";
+import { isWorkoutDay, windowStart, type WorkoutLogLike } from "@/lib/analyze/definitions";
 import {
-  isPerformedExerciseSession,
-  isPerformedSet,
-  isWorkoutDay,
-  windowStart,
-  type ExerciseSessionLike,
-  type WorkoutLogLike,
-} from "@/lib/analyze/definitions";
-import {
-  summarizeExerciseRecurrence,
-  type ExerciseRecurrence,
-} from "@/app/history/exerciseRecurrence";
+  buildExerciseSessions,
+  performedSetsOf,
+  type ExerciseSession,
+  type PerformedSet,
+  type SessionSourceLog,
+} from "@/lib/analyze/exerciseSessions";
 import type {
   Exercise,
   MuscleGroup,
   WorkoutPlan,
   WorkoutLog,
-  LoggedSet,
   Profile,
   WorkoutTemplate,
   BodyMeasurement,
 } from "@/lib/types";
-
-export type { ExerciseRecurrence };
 
 export type AiPlan = {
   id: string;
@@ -318,26 +311,23 @@ export type LogHistoryPage = {
 // Server-rendered, cursor-paginated history — same searchParam-driven pattern as Calendar's
 // week paging, so no client-side accumulation/infinite-scroll infrastructure is needed. `before`
 // is an exclusive date cursor (workout_logs has at most one row per user per date, so date is a
-// safe, stable cursor). The exercise filter is applied at the query level (not post-fetch), so a
-// page's row count and the "is there another page" check stay accurate even when filtered.
+// safe, stable cursor). This is the raw, unfiltered log list; exercise-specific History is built
+// from performed sessions instead (getExerciseSessions).
 export async function getLogHistory(options: {
-  exerciseId?: string;
   before?: string;
   pageSize?: number;
 } = {}): Promise<LogHistoryPage> {
-  const { exerciseId, before, pageSize = DEFAULT_HISTORY_PAGE_SIZE } = options;
+  const { before, pageSize = DEFAULT_HISTORY_PAGE_SIZE } = options;
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { logs: [], hasMore: false };
 
-  const loggedExercisesEmbed = exerciseId ? "logged_exercises!inner" : "logged_exercises";
-
   let query = supabase
     .from("workout_logs")
     .select(
-      `*, plan:workout_plans(title), ${loggedExercisesEmbed}(*, exercise:exercises(id, name, equipment), logged_sets(*))`
+      "*, plan:workout_plans(title), logged_exercises(*, exercise:exercises(id, name, equipment), logged_sets(*))"
     )
     .eq("user_id", user.id)
     .order("date", { ascending: false })
@@ -345,7 +335,6 @@ export async function getLogHistory(options: {
     // separate count query.
     .limit(pageSize + 1);
 
-  if (exerciseId) query = query.eq("logged_exercises.exercise_id", exerciseId);
   if (before) query = query.lt("date", before);
 
   const { data, error } = await query;
@@ -358,12 +347,7 @@ export async function getLogHistory(options: {
   const logs = rows.slice(0, pageSize).map((row) => ({
     ...row,
     planTitle: row.plan?.title ?? null,
-    // The `!inner` join above only decides which days (parent rows) are included when
-    // exerciseId is set — Supabase still embeds every sibling logged_exercise for those days.
-    // Drop siblings here so a caller filtering by exercise gets only that exercise's data, never
-    // co-logged exercises from the same day.
     logged_exercises: (row.logged_exercises ?? [])
-      .filter((le) => !exerciseId || le.exercise_id === exerciseId)
       .sort((a, b) => a.position - b.position)
       .map((le) => ({
         ...le,
@@ -374,36 +358,34 @@ export async function getLogHistory(options: {
   return { logs, hasMore };
 }
 
-// Full-history recurrence for one exercise — every performed session date, not a History page.
-// A session counts only when the selected exercise has at least one performed set on that log
-// (blank placeholder sets and planned-but-skipped exercises don't), and only for dates on or
-// before today. Incomplete logs still count (completed_at is a separate concept). Duplicate rows
-// for the same exercise on one log collapse via summarizeExerciseRecurrence. No before-cursor,
-// no limit.
-export async function getExerciseRecurrence(
-  exerciseId: string
-): Promise<ExerciseRecurrence | null> {
+// Every performed session of one exercise, newest first — the full history, never a History page
+// (no before-cursor, no limit), so first/last/count facts cannot depend on pagination. A session
+// is a log on or before today where the exercise has at least one performed set; blank placeholder
+// sets, planned-but-skipped exercises and future dates are excluded (see analyze/definitions.ts),
+// and duplicate occurrences on one log collapse to one session. Incomplete logs still count
+// (completed_at is a separate concept). Only performed sets are returned, each with its own
+// set_number. A single request is subject to the API's max-rows cap (commonly 1,000 logs).
+export async function getExerciseSessions(exerciseId: string): Promise<ExerciseSession[]> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return null;
+  if (!user) return [];
 
   const todayStr = today();
   const { data, error } = await supabase
     .from("workout_logs")
-    .select("date, logged_exercises!inner(exercise_id, logged_sets(reps, weight))")
+    .select(
+      "date, logged_exercises!inner(exercise_id, position, logged_sets(set_number, reps, weight, weight_unit))"
+    )
     .eq("user_id", user.id)
     .eq("logged_exercises.exercise_id", exerciseId)
-    .lte("date", todayStr);
+    .lte("date", todayStr)
+    .order("date", { ascending: false });
 
-  if (error || !data) return null;
+  if (error || !data) return [];
 
-  const dates = (data as unknown as ExerciseSessionLike[])
-    .filter((row) => isPerformedExerciseSession(row, exerciseId, todayStr))
-    .map((row) => row.date);
-
-  return summarizeExerciseRecurrence(dates);
+  return buildExerciseSessions(data as unknown as SessionSourceLog[], exerciseId, todayStr);
 }
 
 export type LastCompletedLog = {
@@ -439,7 +421,7 @@ export async function getLastCompletedLog(): Promise<LastCompletedLog | null> {
 
 export type PreviousPerformance = {
   date: string;
-  sets: { setNumber: number; reps: number | null; weight: number | null; weightUnit: string }[];
+  sets: PerformedSet[];
 };
 
 const PREVIOUS_PERFORMANCE_PAGE_SIZE = 20;
@@ -459,11 +441,6 @@ export async function getPreviousPerformance(
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  type Row = {
-    date: string;
-    logged_exercises: { exercise_id: string; logged_sets: LoggedSet[] | null }[];
-  };
-
   // Walks back through matching logs a page at a time until one contains performed sets — blank
   // sessions are rare, so this is normally a single query.
   let cursor = beforeDate;
@@ -478,25 +455,12 @@ export async function getPreviousPerformance(
       .limit(PREVIOUS_PERFORMANCE_PAGE_SIZE);
 
     if (error || !data) return null;
-    const rows = data as unknown as Row[];
+    const rows = data as unknown as SessionSourceLog[];
 
     for (const row of rows) {
-      const sets = row.logged_exercises
-        .filter((le) => le.exercise_id === exerciseId)
-        .flatMap((le) => le.logged_sets ?? [])
-        .filter(isPerformedSet)
-        .sort((a, b) => a.set_number - b.set_number);
+      const sets = performedSetsOf(row, exerciseId);
       if (sets.length === 0) continue;
-
-      return {
-        date: row.date,
-        sets: sets.map((s) => ({
-          setNumber: s.set_number,
-          reps: s.reps,
-          weight: s.weight,
-          weightUnit: s.weight_unit,
-        })),
-      };
+      return { date: row.date, sets };
     }
 
     if (rows.length < PREVIOUS_PERFORMANCE_PAGE_SIZE) return null;

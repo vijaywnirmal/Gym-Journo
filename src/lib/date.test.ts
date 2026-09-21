@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateAge, daysSince, today, shiftDate } from "./date";
+import { calculateAge, daysBetween, daysSince, formatDateLong, today, shiftDate } from "./date";
 
 describe("calculateAge", () => {
   it("computes whole years elapsed since the date of birth", () => {
@@ -29,5 +29,23 @@ describe("daysSince", () => {
 
   it("returns the whole-day count for an older date", () => {
     expect(daysSince(shiftDate(today(), -10))).toBe(10);
+  });
+});
+
+describe("daysBetween", () => {
+  it("counts whole calendar days between two dates", () => {
+    expect(daysBetween("2026-09-11", "2026-09-18")).toBe(7);
+    expect(daysBetween("2026-09-18", "2026-09-18")).toBe(0);
+  });
+
+  it("crosses month and year boundaries", () => {
+    expect(daysBetween("2026-08-30", "2026-09-02")).toBe(3);
+    expect(daysBetween("2025-12-31", "2026-01-01")).toBe(1);
+  });
+});
+
+describe("formatDateLong", () => {
+  it("includes the year", () => {
+    expect(formatDateLong("2026-06-12")).toBe("Jun 12, 2026");
   });
 });

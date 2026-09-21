@@ -20,6 +20,16 @@ export function formatDate(date: string): string {
   return format(parseISO(date), "EEE, MMM d");
 }
 
+// Year included — for facts that can span years (first/last performed).
+export function formatDateLong(date: string): string {
+  return format(parseISO(date), "MMM d, yyyy");
+}
+
+// Whole calendar days from `earlier` to `later` (both yyyy-MM-dd) — pure, no dependence on today.
+export function daysBetween(earlier: string, later: string): number {
+  return differenceInCalendarDays(parseISO(later), parseISO(earlier));
+}
+
 // Deterministic date+time formatting (unlike toLocaleString, doesn't depend on server/client locale)
 export function formatDateTime(isoString: string): string {
   return format(new Date(isoString), "MMM d, yyyy 'at' h:mm a");

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { PreviousPerformance } from "@/lib/queries";
+import { compareSet, type SetComparison, type ValueComparison } from "@/lib/analyze/setComparison";
 
 export type SetRow = { reps: string; weight: string; weightUnit: string };
 export type ExerciseEntry = {
@@ -12,18 +13,14 @@ export type ExerciseEntry = {
   done: boolean;
 };
 
-export type ValueComparison =
-  | { type: "delta"; delta: number; unit?: string }
-  | { type: "same" }
-  | { type: "unavailable" };
-
-export type SetComparison = { weight: ValueComparison; reps: ValueComparison };
+export type { ValueComparison, SetComparison };
 
 // Strict same-set-number matching only: a current set is compared against the previous session's
 // set with the identical set_number, never by array position. Weight and reps are evaluated
 // independently so a missing/mismatched value on one never suppresses a valid comparison on the
 // other. Current sets aren't persisted yet, so their eventual set_number is derived the same way
 // save_workout_log assigns it — array index + 1 (see log/[date]/actions.ts's saveLog mapping).
+// The arithmetic itself lives in lib/analyze/setComparison.ts, shared with the exercise History.
 export function compareSets(
   currentSets: SetRow[],
   previous: PreviousPerformance | null | undefined
@@ -36,31 +33,11 @@ export function compareSets(
     const currentWeight = set.weight ? parseFloat(set.weight) : null;
     const currentReps = set.reps ? parseInt(set.reps, 10) : null;
 
-    return {
-      weight: compareWeight(currentWeight, set.weightUnit, previousSet.weight, previousSet.weightUnit),
-      reps: compareReps(currentReps, previousSet.reps),
-    };
+    return compareSet(
+      { reps: currentReps, weight: currentWeight, weightUnit: set.weightUnit },
+      { reps: previousSet.reps, weight: previousSet.weight, weightUnit: previousSet.weightUnit }
+    );
   });
-}
-
-function compareWeight(
-  currentWeight: number | null,
-  currentUnit: string,
-  previousWeight: number | null,
-  previousUnit: string
-): ValueComparison {
-  if (currentWeight === null || previousWeight === null) return { type: "unavailable" };
-  if (currentUnit !== previousUnit) return { type: "unavailable" };
-  const delta = currentWeight - previousWeight;
-  if (delta === 0) return { type: "same" };
-  return { type: "delta", delta, unit: currentUnit };
-}
-
-function compareReps(currentReps: number | null, previousReps: number | null): ValueComparison {
-  if (currentReps === null || previousReps === null) return { type: "unavailable" };
-  const delta = currentReps - previousReps;
-  if (delta === 0) return { type: "same" };
-  return { type: "delta", delta };
 }
 
 function formatWeightComparison(c: ValueComparison): string | null {
