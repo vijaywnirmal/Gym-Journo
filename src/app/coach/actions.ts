@@ -12,7 +12,9 @@ import { screenQuestion } from "@/lib/coach/screen";
 import { saveCoachRecord } from "@/lib/coach/store";
 import type { CoachReply } from "@/lib/coach/contract";
 
-const GEMINI_TIMEOUT_MS = 25_000;
+// Per attempt. The model can be slow and occasionally returns a transient 503, so give it room and
+// retry once; low thinking keeps a normal answer to a few seconds.
+const GEMINI_TIMEOUT_MS = 40_000;
 
 export type AskCoachResult =
   | { status: "accepted"; reply: CoachReply; sources: CoachSource[] }
@@ -72,7 +74,12 @@ export async function askCoach(question: string): Promise<AskCoachResult> {
     question: screened.question,
     evidence,
     model: GEMINI_MODEL,
-    generate: (prompt) => generateWithGemini(prompt, { json: true, timeoutMs: GEMINI_TIMEOUT_MS }),
+    generate: (prompt) => generateWithGemini(prompt, {
+        json: true,
+        timeoutMs: GEMINI_TIMEOUT_MS,
+        thinkingLevel: "low",
+        retries: 1,
+      }),
   });
 
   // The record is an audit trail. Failing to write it must not hide a verified answer.

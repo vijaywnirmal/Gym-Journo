@@ -36,6 +36,49 @@ describe("generateWithGemini", () => {
     expect(lastCall().init.signal).toBeInstanceOf(AbortSignal);
   });
 
+  it("thinkingLevel is sent only when asked for", async () => {
+    await generateWithGemini("prompt", { json: true, thinkingLevel: "low" });
+    expect(JSON.parse(lastCall().init.body).generationConfig).toEqual({
+      responseMimeType: "application/json",
+      thinkingConfig: { thinkingLevel: "low" },
+    });
+    fetchMock.mockClear();
+    await generateWithGemini("prompt", { json: true });
+    expect(JSON.parse(lastCall().init.body).generationConfig).toEqual({ responseMimeType: "application/json" });
+  });
+
+  it("retries once after a transient 503 when asked to, and not otherwise", async () => {
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 503, text: async () => "high demand" })
+      .mockResolvedValueOnce(okResponse);
+    expect(await generateWithGemini("prompt", { retries: 1 })).toBe("hello");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    fetchMock.mockReset().mockResolvedValue({ ok: false, status: 503, text: async () => "high demand" });
+    await expect(generateWithGemini("prompt")).rejects.toThrow(/failed \(503\)/);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives up after the allowed retries, and never retries other errors", async () => {
+    fetchMock.mockReset().mockResolvedValue({ ok: false, status: 503, text: async () => "high demand" });
+    await expect(generateWithGemini("prompt", { retries: 1 })).rejects.toThrow(/failed \(503\)/);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    fetchMock.mockReset().mockResolvedValue({ ok: false, status: 400, text: async () => "bad request" });
+    await expect(generateWithGemini("prompt", { retries: 3 })).rejects.toThrow(/failed \(400\)/);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores thought parts and joins the answer text", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        candidates: [{ content: { parts: [{ text: "thinking…", thought: true }, { text: "{\"a\":" }, { text: "1}" }] } }],
+      }),
+    });
+    expect(await generateWithGemini("prompt")).toBe('{"a":1}');
+  });
+
   it("throws without an API key", async () => {
     delete process.env.GEMINI_API_KEY;
     await expect(generateWithGemini("prompt")).rejects.toThrow(/not configured/);

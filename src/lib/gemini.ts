@@ -4,36 +4,58 @@ export const GEMINI_MODEL = MODEL;
 export type GeminiOptions = {
   // Ask for a JSON response (Coach's contract is JSON). Off by default: AI Plan wants markdown.
   json?: boolean;
+  // Per-attempt timeout.
   timeoutMs?: number;
+  // How much the model "thinks" before answering. Unset leaves the model's default, which for this
+  // model can take 20+ seconds even for a one-word reply; a structured, evidence-bound task needs
+  // little reasoning, so Coach asks for "low".
+  thinkingLevel?: "minimal" | "low";
+  // Extra attempts after a transient 503 ("high demand"). Unset means no retry.
+  retries?: number;
 };
 
 export async function generateWithGemini(prompt: string, options: GeminiOptions = {}): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY is not configured.");
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-goog-api-key": apiKey,
-      },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        ...(options.json ? { generationConfig: { responseMimeType: "application/json" } } : {}),
-      }),
-      signal: options.timeoutMs ? AbortSignal.timeout(options.timeoutMs) : undefined,
-    }
-  );
+  const generationConfig = {
+    ...(options.json ? { responseMimeType: "application/json" } : {}),
+    ...(options.thinkingLevel ? { thinkingConfig: { thinkingLevel: options.thinkingLevel } } : {}),
+  };
+  const body = JSON.stringify({
+    contents: [{ parts: [{ text: prompt }] }],
+    ...(Object.keys(generationConfig).length > 0 ? { generationConfig } : {}),
+  });
+
+  let res: Response;
+  for (let attempt = 0; ; attempt++) {
+    res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-goog-api-key": apiKey,
+        },
+        body,
+        signal: options.timeoutMs ? AbortSignal.timeout(options.timeoutMs) : undefined,
+      }
+    );
+    if (res.status === 503 && attempt < (options.retries ?? 0)) continue;
+    break;
+  }
 
   if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Gemini request failed (${res.status}): ${body}`);
+    const errorBody = await res.text();
+    throw new Error(`Gemini request failed (${res.status}): ${errorBody}`);
   }
 
   const data = await res.json();
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  const parts: { text?: string; thought?: boolean }[] = data?.candidates?.[0]?.content?.parts ?? [];
+  const text = parts
+    .filter((part) => part.text && !part.thought)
+    .map((part) => part.text)
+    .join("");
   if (!text) throw new Error("Gemini returned an empty response.");
   return text;
 }
