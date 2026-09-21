@@ -160,10 +160,16 @@ describe("askCoach — an exchange", () => {
     });
   });
 
-  it("asks Gemini for JSON with low thinking, a timeout and one retry, and sends only the evidence prompt", async () => {
+  it("asks Gemini for JSON with minimal thinking, a timeout and retries, and sends only the evidence prompt", async () => {
     await askCoach("What changed?");
     const [prompt, options] = generateWithGemini.mock.calls[0];
-    expect(options).toEqual({ json: true, timeoutMs: 40_000, thinkingLevel: "low", retries: 1 });
+    expect(options).toEqual({
+      json: true,
+      timeoutMs: 40_000,
+      thinkingLevel: "minimal",
+      retries: 2,
+      retryDelayMs: 1500,
+    });
     expect(prompt).toContain(JSON.stringify(coachEvidence()));
     expect(prompt).not.toContain("full_name");
   });

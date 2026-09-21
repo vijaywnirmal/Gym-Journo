@@ -30,6 +30,29 @@ export type CoachRunResult = {
   record: CoachRecord;
 };
 
+function isQuotaError(error: unknown): boolean {
+  return error instanceof Error && /failed \(429\)/.test(error.message);
+}
+
+// "timed out", "http 503", or a generic fallback — never the provider's own message.
+export function describeGenerationFailure(error: unknown): string {
+  if (error instanceof Error) {
+    if (error.name === "TimeoutError" || error.name === "AbortError") return "the model call timed out";
+    const status = /failed \((\d{3})\)/.exec(error.message)?.[1];
+    if (status) return `the model call failed (http ${status})`;
+  }
+  return "the model call failed";
+}
+
+// Shown when the model could not be reached or refused (quota, overload, timeout) — distinct from a
+// reply that failed verification, so the person isn't told their records couldn't be checked.
+// The provider refused because a usage quota is used up (HTTP 429). Unlike a busy spell this doesn't
+// clear in a minute — a daily quota can take hours — so it says so.
+export const QUOTA_MESSAGE =
+  "Coach's language model has reached its usage limit for now. Please try again later.";
+
+export const UNAVAILABLE_MESSAGE = "Coach couldn't get an answer just now. Please try again in a minute.";
+
 export const REJECTED_MESSAGE =
   "Coach couldn't produce an answer it could verify against your records. Please try again.";
 
@@ -60,19 +83,28 @@ export async function runCoach(args: {
     };
   }
 
-  const rejected = (rawReply: string | null, issues: CoachIssue[]): CoachRunResult => ({
+  const rejected = (
+    rawReply: string | null,
+    issues: CoachIssue[],
+    message: string = REJECTED_MESSAGE
+  ): CoachRunResult => ({
     status: "rejected",
     reply: null,
-    message: REJECTED_MESSAGE,
+    message,
     record: { ...base, question: screened.question, status: "rejected", reply: null, rawReply, issues },
   });
 
   let raw: string;
   try {
     raw = await generate(buildCoachPrompt(evidence, screened.question));
-  } catch {
-    // The provider's error text is deliberately not surfaced or stored.
-    return rejected(null, [{ code: "generation_failed", statementIndex: null, detail: "the model call failed" }]);
+  } catch (error) {
+    // The provider's error text is deliberately not surfaced or stored — only a coarse category, so
+    // a failure can still be diagnosed from the record.
+    return rejected(
+      null,
+      [{ code: "generation_failed", statementIndex: null, detail: describeGenerationFailure(error) }],
+      isQuotaError(error) ? QUOTA_MESSAGE : UNAVAILABLE_MESSAGE
+    );
   }
 
   const parsed = parseCoachReply(raw);

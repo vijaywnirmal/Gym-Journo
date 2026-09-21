@@ -10,6 +10,8 @@ export function citationLabels(evidence: TrainingEvidence): Map<string, string> 
     else if (id === "training.recent") labels.set(id, "Recent training");
     else if (id === "training.weekly") labels.set(id, "Weekly training");
     else if (id === "body.weight") labels.set(id, "Body weight");
+    else if (id === "absent:body.weight") labels.set(id, "No body-weight records");
+    else if (id === "absent:exercises.recent") labels.set(id, "No recent exercises");
   }
   for (const exercise of evidence.exercises) labels.set(exercise.id, exercise.name);
   return labels;

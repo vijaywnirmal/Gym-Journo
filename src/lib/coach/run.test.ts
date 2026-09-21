@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { REJECTED_MESSAGE, runCoach } from "./run";
+import { describeGenerationFailure, QUOTA_MESSAGE, REJECTED_MESSAGE, runCoach, UNAVAILABLE_MESSAGE } from "./run";
 import { BLOCKED_MESSAGES } from "./screen";
 import { BENCH_ID, coachEvidence } from "./testFixtures";
 
@@ -59,10 +59,41 @@ describe("runCoach", () => {
     const result = await run(async () => {
       throw new Error("Gemini request failed (500): {\"secret\":\"key=AIza-123\"}");
     });
-    expect(result).toMatchObject({ status: "rejected", reply: null, message: REJECTED_MESSAGE });
+    // A provider failure is not told to the person as "couldn't verify your records".
+    expect(result).toMatchObject({ status: "rejected", reply: null, message: UNAVAILABLE_MESSAGE });
+    expect(UNAVAILABLE_MESSAGE).not.toBe(REJECTED_MESSAGE);
     expect(JSON.stringify(result)).not.toContain("AIza-123");
-    expect(result.record.issues).toEqual([{ code: "generation_failed", statementIndex: null, detail: "the model call failed" }]);
+    // Only a coarse category is kept (here the HTTP status) — never the provider's text or the key.
+    expect(result.record.issues).toEqual([
+      { code: "generation_failed", statementIndex: null, detail: "the model call failed (http 500)" },
+    ]);
     expect(result.record.rawReply).toBeNull();
+  });
+
+  it("a provider quota error (429) says the limit is used up, not 'try again in a minute'", async () => {
+    const result = await run(async () => {
+      throw new Error('Gemini request failed (429): {"message":"You exceeded your current quota"}');
+    });
+    expect(result).toMatchObject({ status: "rejected", reply: null, message: QUOTA_MESSAGE });
+    expect(QUOTA_MESSAGE).not.toMatch(/minute/);
+    expect(result.record.issues[0].detail).toBe("the model call failed (http 429)");
+    expect(JSON.stringify(result)).not.toContain("exceeded your current quota");
+  });
+
+  it("records a coarse failure category: timeout, HTTP status, or generic — and nothing else", async () => {
+    const detail = async (error: Error) =>
+      (await run(async () => {
+        throw error;
+      })).record.issues[0].detail;
+
+    const timeout = new Error("The operation was aborted due to timeout");
+    timeout.name = "TimeoutError";
+    expect(await detail(timeout)).toBe("the model call timed out");
+    expect(await detail(new Error("Gemini request failed (503): {\"message\":\"high demand\"}"))).toBe(
+      "the model call failed (http 503)"
+    );
+    expect(await detail(new Error("something else entirely, key=AIza-secret"))).toBe("the model call failed");
+    expect(describeGenerationFailure("not an error")).toBe("the model call failed");
   });
 
   it("unparseable output is rejected and the raw text is kept for diagnosis", async () => {

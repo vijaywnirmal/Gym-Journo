@@ -12,8 +12,9 @@ import { screenQuestion } from "@/lib/coach/screen";
 import { saveCoachRecord } from "@/lib/coach/store";
 import type { CoachReply } from "@/lib/coach/contract";
 
-// Per attempt. The model can be slow and occasionally returns a transient 503, so give it room and
-// retry once; low thinking keeps a normal answer to a few seconds.
+// Per attempt. The model's speed varies with provider load (about 4-13 seconds in testing) and it
+// sometimes returns a transient 503, so give it room and retry twice after a short pause. Minimal
+// thinking is enough for a strict, evidence-bound JSON answer and still passes verification.
 const GEMINI_TIMEOUT_MS = 40_000;
 
 export type AskCoachResult =
@@ -77,8 +78,9 @@ export async function askCoach(question: string): Promise<AskCoachResult> {
     generate: (prompt) => generateWithGemini(prompt, {
         json: true,
         timeoutMs: GEMINI_TIMEOUT_MS,
-        thinkingLevel: "low",
-        retries: 1,
+        thinkingLevel: "minimal",
+        retries: 2,
+        retryDelayMs: 1500,
       }),
   });
 

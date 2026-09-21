@@ -88,6 +88,10 @@ export type ExerciseEvidence = EvidenceRef & {
   }[];
 };
 
+// Sections that would normally be present but have no records. Lets a statement about an absence
+// ("no body weight is recorded") be cited and checked, instead of resting on an unrelated section.
+export type NotRecordedId = "body.weight" | "exercises.recent";
+
 export type TrainingEvidence = {
   asOf: string;
   definitions: typeof EVIDENCE_DEFINITIONS;
@@ -120,6 +124,7 @@ export type TrainingEvidence = {
       })
     | null;
   exercises: ExerciseEvidence[];
+  notRecorded: NotRecordedId[];
   // Limitations that apply to everything below, then the wording of every code used anywhere.
   globalLimitations: LimitationCode[];
   limitations: Partial<Record<LimitationCode, string>>;
@@ -263,6 +268,10 @@ export function buildTrainingEvidence(input: TrainingEvidenceInput): TrainingEvi
         }
       : null,
     exercises,
+    notRecorded: [
+      ...(weightFacts ? [] : ["body.weight" as const]),
+      ...(exercises.length === 0 ? ["exercises.recent" as const] : []),
+    ],
     globalLimitations: ["records_are_editable", "no_effort_data", "today_uses_server_timezone"],
     limitations: {},
   };

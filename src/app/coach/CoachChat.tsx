@@ -51,6 +51,11 @@ export default function CoachChat() {
         >
           {pending ? "Checking your records…" : "Ask Coach"}
         </button>
+        {pending && (
+          <p className="text-xs text-neutral-500">
+            Coach checks every statement against your records, so this can take up to about 30 seconds.
+          </p>
+        )}
       </form>
 
       <div className="flex flex-wrap gap-2">

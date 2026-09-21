@@ -11,6 +11,8 @@ export type IssueCode =
   | "unknown_citation"
   | "ungrounded_number"
   | "evaluative"
+  | "raw_value"
+  | "ungrounded_date"
   | "advice"
   | "medical"
   | "blocked_question"
@@ -33,6 +35,8 @@ export function evidenceSections(evidence: TrainingEvidence): Map<string, unknow
   sections.set(evidence.training.weekly.id, evidence.training.weekly);
   if (evidence.bodyWeight) sections.set(evidence.bodyWeight.id, evidence.bodyWeight);
   for (const exercise of evidence.exercises) sections.set(exercise.id, exercise);
+  // An absence can be cited too: `absent:<id>` is valid only for sections the evidence lists as not recorded.
+  for (const id of evidence.notRecorded) sections.set(`absent:${id}`, { notRecorded: id });
   return sections;
 }
 
@@ -52,6 +56,27 @@ function collectNumbers(value: unknown, into: Set<number>): void {
     for (const item of Object.values(value)) collectNumbers(item, into);
   }
 }
+
+// Every ISO date (yyyy-MM-dd) anywhere in a cited section.
+function collectIsoDates(value: unknown, into: Set<string>): void {
+  if (typeof value === "string") {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) into.add(value);
+  } else if (Array.isArray(value)) {
+    for (const item of value) collectIsoDates(item, into);
+  } else if (value && typeof value === "object") {
+    for (const item of Object.values(value)) collectIsoDates(item, into);
+  }
+}
+
+const MONTHS: Record<string, number> = {
+  jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
+};
+// "Sep 21", "September 21, 2026", "Sep 21st" — a written month with a day, and optionally a year.
+const MONTH_DAY =
+  /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.?\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?\b/gi;
+
+// Values that leaked from the JSON instead of being said in words.
+const RAW_VALUE = /\b(null|undefined|nan)\b/i;
 
 const EVALUATIVE =
   /\b(progress\w*|improv\w*|regress\w*|plateau\w*|declin\w*|stronger|weaker|on track|off track|behind|ahead of|good|great|excellent|poor|bad|consistent\w*|inconsistent\w*|adheren\w*|success\w*|fail\w*|strong|weak|solid|impressive|disappoint\w*|better|worse|best|worst)\b/i;
@@ -92,16 +117,37 @@ function checkStatement(
 
   if (unknown.length === 0) {
     const allowed = new Set<number>();
-    for (const id of statement.cites) collectNumbers(sections.get(id), allowed);
+    const isoDates = new Set<string>();
+    for (const id of statement.cites) {
+      collectNumbers(sections.get(id), allowed);
+      collectIsoDates(sections.get(id), isoDates);
+    }
     const ungrounded = (statement.text.match(/\d+(?:\.\d+)?/g) ?? []).filter(
       (token) => !allowed.has(round(Number(token)))
     );
     if (ungrounded.length > 0) {
       at("ungrounded_number", `not in the cited evidence: ${[...new Set(ungrounded)].join(", ")}`);
     }
+
+    // A written date ("Sep 21") must be a real date in the cited sections — month and day (and year,
+    // if given) together, not just numbers that happen to be present.
+    const badDates = [...statement.text.matchAll(MONTH_DAY)].filter((match) => {
+      const month = MONTHS[match[1].slice(0, 3).toLowerCase()];
+      const day = Number(match[2]);
+      const year = match[3] ? Number(match[3]) : null;
+      return ![...isoDates].some((iso) => {
+        const [y, m, d] = iso.split("-").map(Number);
+        return m === month && d === day && (year === null || y === year);
+      });
+    });
+    if (badDates.length > 0) {
+      at("ungrounded_date", `not a date in the cited evidence: ${badDates.map((m) => m[0]).join(", ")}`);
+    }
   }
 
   if (SPELLED_NUMBER.test(statement.text)) at("ungrounded_number", "a number is written as a word and cannot be checked");
+
+  if (RAW_VALUE.test(statement.text)) at("raw_value", "contains a raw value (null/undefined) instead of words");
 
   const plain = withoutStatusPhrases(statement.text);
   if (EVALUATIVE.test(plain)) at("evaluative", "contains an evaluative verdict");
