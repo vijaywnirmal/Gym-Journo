@@ -3,13 +3,21 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { COACH_CONSENT } from "@/lib/coach/consent";
+import { coachConsent } from "@/lib/coach/consent";
 import { formatDateLong } from "@/lib/date";
 import { setCoachConsent } from "./actions";
 
 // Where a person gives (and withdraws) consent for Coach to use their training data. Consent is
 // off until they turn it on here, and the server checks it again on every Coach question.
-export default function CoachConsentSection({ consentedAt }: { consentedAt: string | null }) {
+export default function CoachConsentSection({
+  consentedAt,
+  recipient,
+}: {
+  consentedAt: string | null;
+  // Who receives the data — the configured AI provider (see providerLabel in lib/ai.ts).
+  recipient: string;
+}) {
+  const COACH_CONSENT = coachConsent(recipient);
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);

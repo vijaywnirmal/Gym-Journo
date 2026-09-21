@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { buildTrainingEvidence } from "@/lib/analyze/evidence";
 import { citationLabels, evidenceIsEmpty, replySources } from "./presentation";
-import { hasCoachConsent, COACH_CONSENT } from "./consent";
+import { hasCoachConsent, coachConsent } from "./consent";
+
+const COACH_CONSENT = coachConsent("Google's Gemini model");
 import { BENCH_ID, coachEvidence } from "./testFixtures";
 
 const evidence = coachEvidence();

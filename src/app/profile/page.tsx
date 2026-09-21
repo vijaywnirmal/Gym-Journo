@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import ProfileCard from "./ProfileCard";
 import DeleteAccountSection from "./DeleteAccountSection";
 import CoachConsentSection from "./CoachConsentSection";
+import { providerLabel } from "@/lib/ai";
 
 export default async function ProfilePage() {
   const [profile, supabase] = await Promise.all([getProfile(), createClient()]);
@@ -20,7 +21,7 @@ export default async function ProfilePage() {
         <SignOutButton />
       </div>
       <ProfileCard initial={profileFieldsFromProfile(profile)} email={user?.email ?? null} />
-      <CoachConsentSection consentedAt={profile?.coach_consent_at ?? null} />
+      <CoachConsentSection consentedAt={profile?.coach_consent_at ?? null} recipient={providerLabel()} />
       <Link
         href="/body"
         className="mt-5 mb-1 flex items-center justify-between rounded-xl border border-neutral-800 bg-neutral-900 p-4"

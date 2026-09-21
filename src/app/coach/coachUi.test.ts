@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import CoachReplyView from "./CoachReplyView";
-import { COACH_CONSENT } from "@/lib/coach/consent";
+import { coachConsent } from "@/lib/coach/consent";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => {} }) }));
 vi.mock("next/link", () => ({
@@ -66,9 +66,19 @@ describe("CoachReplyView", () => {
   });
 });
 
+const RECIPIENT = "Google's Gemini model";
+const COACH_CONSENT = coachConsent(RECIPIENT);
+
 describe("CoachConsentSection", () => {
-  const render = (consentedAt: string | null) =>
-    text(renderToStaticMarkup(createElement(CoachConsentSection, { consentedAt })));
+  const render = (consentedAt: string | null, recipient: string = RECIPIENT) =>
+    text(renderToStaticMarkup(createElement(CoachConsentSection, { consentedAt, recipient })));
+
+  it("names whoever actually receives the data — the wording follows the configured provider", () => {
+    const gateway = "AgentRouter, a third-party AI gateway that passes it on to a model provider";
+    const out = render(null, gateway);
+    expect(out).toContain(`your training data is sent to ${gateway} when you ask a question`);
+    expect(out).not.toContain("Gemini");
+  });
 
   it("without consent: explains what is and isn't sent, and offers to allow — no withdraw, no link to Coach", () => {
     const out = render(null);
