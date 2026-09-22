@@ -115,4 +115,9 @@ describe("COACH_CONSENT wording matches what is really sent", () => {
     expect(COACH_CONSENT.withdraw).toMatch(/withdraw at any time/i);
     expect(COACH_CONSENT.limits).toMatch(/pain or injuries/);
   });
+
+  it("says data on the paid tier isn't used to improve Google's products — true only because Coach runs on Gemini's paid tier", () => {
+    expect(COACH_CONSENT.dataUse).toMatch(/not used.*to improve its products/i);
+    expect(COACH_CONSENT.dataUse).toMatch(/Google/);
+  });
 });

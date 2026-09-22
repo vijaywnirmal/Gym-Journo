@@ -74,6 +74,7 @@ describe("CoachConsentSection", () => {
     const out = render(null);
     for (const line of [...COACH_CONSENT.shared, ...COACH_CONSENT.notShared]) expect(out).toContain(line);
     expect(out).toContain(COACH_CONSENT.summary);
+    expect(out).toContain(COACH_CONSENT.dataUse);
     expect(out).toContain(COACH_CONSENT.kept);
     expect(out).toContain(COACH_CONSENT.withdraw);
     expect(out).toContain("Allow Coach to use my training data");

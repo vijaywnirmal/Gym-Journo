@@ -46,6 +46,7 @@ export default function CoachConsentSection({ consentedAt }: { consentedAt: stri
         ))}
       </ul>
 
+      <p className="mb-2 text-xs text-neutral-400">{COACH_CONSENT.dataUse}</p>
       <p className="mb-2 text-xs text-neutral-400">{COACH_CONSENT.kept}</p>
       <p className="mb-2 text-xs text-neutral-400">{COACH_CONSENT.withdraw}</p>
       <p className="mb-3 text-xs text-neutral-500">{COACH_CONSENT.limits}</p>

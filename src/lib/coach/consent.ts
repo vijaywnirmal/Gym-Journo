@@ -23,6 +23,10 @@ export const COACH_CONSENT = {
     "Your name, email, date of birth, height, or gender",
     "Workout notes, body-measurement notes, and nutrition entries",
   ],
+  // True while Coach runs on Gemini's paid tier (the only tier this account is billed on): Google
+  // states that paid-tier content is not used to improve its products, unlike its free tier.
+  dataUse:
+    "Your questions and training data are not used by Google to improve its products.",
   kept:
     "Each question, the data sent, and the reply are saved in your account. They are deleted if you delete your account.",
   withdraw:

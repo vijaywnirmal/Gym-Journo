@@ -322,7 +322,7 @@ describe("buildTrainingEvidence — exercises", () => {
 describe("buildTrainingEvidence — limitations", () => {
   it("always carries the global limitations, with their wording in the catalog", () => {
     const evidence = build();
-    expect(evidence.globalLimitations).toEqual(["records_are_editable", "no_effort_data", "today_uses_server_timezone"]);
+    expect(evidence.globalLimitations).toEqual(["records_are_editable", "no_effort_data", "today_uses_stored_timezone"]);
     for (const code of evidence.globalLimitations) expect(evidence.limitations[code]).toBe(LIMITATIONS[code]);
   });
 
@@ -338,7 +338,7 @@ describe("buildTrainingEvidence — limitations", () => {
         "records_are_editable",
         "set_matching_is_positional",
         "single_measurement",
-        "today_uses_server_timezone",
+        "today_uses_stored_timezone",
       ].sort()
     );
   });

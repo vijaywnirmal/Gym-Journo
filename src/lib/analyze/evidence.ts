@@ -24,8 +24,8 @@ export const LIMITATIONS = {
     "Workout logs and body measurements can be edited after the fact and no audit history is kept, so these facts describe the records as they currently stand.",
   no_effort_data:
     "Effort (RPE/RIR), duration, recovery and pain are not recorded, so nothing here says how hard a set was or how the person felt.",
-  today_uses_server_timezone:
-    "\"Today\" and calendar weeks follow the server's timezone, which is not verified to match the person's.",
+  today_uses_stored_timezone:
+    "\"Today\" and calendar weeks follow the person's saved timezone, or the server's if none is saved yet.",
   goal_is_current_state_only:
     "Goal, target weight and the training-days target are the person's current settings. Their history is not kept, so they are not necessarily what applied in past weeks.",
   set_matching_is_positional:
@@ -286,7 +286,7 @@ export function buildTrainingEvidence(input: TrainingEvidenceInput): TrainingEvi
       ...(weightFacts ? [] : ["body.weight" as const]),
       ...(exercises.length === 0 ? ["exercises.recent" as const] : []),
     ],
-    globalLimitations: ["records_are_editable", "no_effort_data", "today_uses_server_timezone"],
+    globalLimitations: ["records_are_editable", "no_effort_data", "today_uses_stored_timezone"],
     limitations: {},
   };
 
