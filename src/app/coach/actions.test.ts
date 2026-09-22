@@ -1,22 +1,34 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildTrainingEvidence } from "@/lib/analyze/evidence";
 import { coachEvidence, BENCH_ID } from "@/lib/coach/testFixtures";
-import { COACH_LIMIT_PER_DAY } from "@/lib/coach/limits";
+import { COACH_ATTEMPT_CEILING_PER_DAY, COACH_LIMIT_PER_DAY } from "@/lib/coach/limits";
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 const getUser = vi.fn();
 type CountResult = { count: number | null; error: unknown };
-let countResult: CountResult = { count: 0, error: null };
-const countCalls: { eq: unknown[][]; in: unknown[][]; gte: unknown[][] } = { eq: [], in: [], gte: [] };
+// Two count queries run per question: one that leaves out exchanges whose model call failed (the
+// daily allowance) and one that includes them (the attempt backstop). They are told apart by whether
+// .not(...) was applied.
+let answeredCount: CountResult = { count: 0, error: null };
+let attemptedCount: CountResult = { count: 0, error: null };
+type CountQuery = { eq: unknown[][]; in: unknown[][]; gte: unknown[][]; not: unknown[][] };
+let countQueries: CountQuery[] = [];
 
-const countBuilder = {
-  eq: (...args: unknown[]) => (countCalls.eq.push(args), countBuilder),
-  in: (...args: unknown[]) => (countCalls.in.push(args), countBuilder),
-  gte: (...args: unknown[]) => (countCalls.gte.push(args), countBuilder),
-  then: (resolve: (v: CountResult) => unknown) => Promise.resolve(countResult).then(resolve),
-};
-const from = vi.fn(() => ({ select: () => countBuilder }));
+function makeCountBuilder() {
+  const q: CountQuery = { eq: [], in: [], gte: [], not: [] };
+  countQueries.push(q);
+  const builder = {
+    eq: (...args: unknown[]) => (q.eq.push(args), builder),
+    in: (...args: unknown[]) => (q.in.push(args), builder),
+    gte: (...args: unknown[]) => (q.gte.push(args), builder),
+    not: (...args: unknown[]) => (q.not.push(args), builder),
+    then: (resolve: (v: CountResult) => unknown) =>
+      Promise.resolve(q.not.length > 0 ? answeredCount : attemptedCount).then(resolve),
+  };
+  return builder;
+}
+const from = vi.fn(() => ({ select: () => makeCountBuilder() }));
 
 vi.mock("@/lib/supabase/server", () => ({ createClient: async () => ({ auth: { getUser }, from }) }));
 
@@ -51,10 +63,9 @@ beforeEach(() => {
   getTrainingEvidence.mockReset().mockResolvedValue(coachEvidence());
   generateWithGemini.mockReset().mockResolvedValue(goodReply);
   saveCoachRecord.mockReset().mockResolvedValue({ success: true });
-  countResult = { count: 0, error: null };
-  countCalls.eq = [];
-  countCalls.in = [];
-  countCalls.gte = [];
+  answeredCount = { count: 0, error: null };
+  attemptedCount = { count: 0, error: null };
+  countQueries = [];
   from.mockClear();
 });
 
@@ -94,29 +105,66 @@ describe("askCoach — gates before anything is sent", () => {
   });
 
   it("stops at the daily limit, counting only accepted/rejected exchanges from the last 24 hours", async () => {
-    countResult = { count: COACH_LIMIT_PER_DAY, error: null };
+    answeredCount = { count: COACH_LIMIT_PER_DAY, error: null };
+    const result = await askCoach("What changed?");
+    expect(result.status).toBe("rate_limited");
+    expect("message" in result && result.message).toMatch(/today's limit of 10 Coach questions/);
+    expect(generateWithGemini).not.toHaveBeenCalled();
+    expect(getTrainingEvidence).not.toHaveBeenCalled();
+
+    const [answered] = countQueries;
+    expect(answered.eq).toContainEqual(["user_id", "user-1"]);
+    expect(answered.in).toEqual([["status", ["accepted", "rejected"]]]);
+    const since = Date.parse(answered.gte[0][1] as string);
+    expect(Math.abs(Date.now() - since - 24 * 60 * 60 * 1000)).toBeLessThan(5000);
+  });
+
+  it("the daily allowance leaves out exchanges whose model call failed", async () => {
+    await askCoach("What changed?");
+    const answered = countQueries.find((q) => q.not.length > 0);
+    expect(answered?.not).toEqual([["issues", "cs", JSON.stringify([{ code: "generation_failed" }])]]);
+  });
+
+  it("failed calls don't use up the allowance: many failures + few answers still lets a question through", async () => {
+    // What the person hit: lots of saved exchanges, nearly all failed provider calls.
+    attemptedCount = { count: 12, error: null };
+    answeredCount = { count: 1, error: null };
+    expect((await askCoach("What changed?")).status).toBe("accepted");
+  });
+
+  it("allows a question just under the limit", async () => {
+    answeredCount = { count: COACH_LIMIT_PER_DAY - 1, error: null };
+    expect((await askCoach("What changed?")).status).toBe("accepted");
+  });
+
+  it("but failures are bounded: past the attempt ceiling, Coach stops even with few answers", async () => {
+    attemptedCount = { count: COACH_ATTEMPT_CEILING_PER_DAY, error: null };
+    answeredCount = { count: 0, error: null };
     const result = await askCoach("What changed?");
     expect(result.status).toBe("rate_limited");
     expect(generateWithGemini).not.toHaveBeenCalled();
     expect(getTrainingEvidence).not.toHaveBeenCalled();
+    // A different message from the daily limit, so it isn't read as "10 questions".
+    expect("message" in result && result.message).not.toMatch(/limit of 10/);
 
-    expect(countCalls.eq).toContainEqual(["user_id", "user-1"]);
-    expect(countCalls.in).toEqual([["status", ["accepted", "rejected"]]]);
-    const since = Date.parse(countCalls.gte[0][1] as string);
-    expect(Math.abs(Date.now() - since - 24 * 60 * 60 * 1000)).toBeLessThan(5000);
-  });
-
-  it("allows a question just under the limit", async () => {
-    countResult = { count: COACH_LIMIT_PER_DAY - 1, error: null };
+    attemptedCount = { count: COACH_ATTEMPT_CEILING_PER_DAY - 1, error: null };
     expect((await askCoach("What changed?")).status).toBe("accepted");
   });
 
   it("fails closed when exchanges can't be counted (e.g. the record table is missing)", async () => {
-    countResult = { count: null, error: { message: 'relation "coach_replies" does not exist' } };
-    const result = await askCoach("What changed?");
-    expect(result.status).toBe("error");
-    expect(JSON.stringify(result)).not.toContain("relation");
-    expect(generateWithGemini).not.toHaveBeenCalled();
+    const missing = { count: null, error: { message: 'relation "coach_replies" does not exist' } };
+    for (const [answered, attempted] of [
+      [missing, { count: 0, error: null }],
+      [{ count: 0, error: null }, missing],
+    ]) {
+      answeredCount = answered;
+      attemptedCount = attempted;
+      generateWithGemini.mockClear();
+      const result = await askCoach("What changed?");
+      expect(result.status).toBe("error");
+      expect(JSON.stringify(result)).not.toContain("relation");
+      expect(generateWithGemini).not.toHaveBeenCalled();
+    }
   });
 
   it("reports unavailability when the training history can't be read", async () => {

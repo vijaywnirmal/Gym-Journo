@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { generateWithGemini, GEMINI_MODEL } from "@/lib/gemini";
 import { getProfile, getTrainingEvidence } from "@/lib/queries";
 import { hasCoachConsent } from "@/lib/coach/consent";
-import { COACH_LIMIT_PER_DAY, COACH_WINDOW_MS } from "@/lib/coach/limits";
+import { COACH_ATTEMPT_CEILING_PER_DAY, COACH_LIMIT_PER_DAY, COACH_WINDOW_MS } from "@/lib/coach/limits";
 import { evidenceIsEmpty, replySources, type CoachSource } from "@/lib/coach/presentation";
 import { runCoach } from "@/lib/coach/run";
 import { screenQuestion } from "@/lib/coach/screen";
@@ -25,6 +25,28 @@ export type AskCoachResult =
     };
 
 const UNAVAILABLE = "Coach isn't available right now. Please try again later.";
+
+// PostgREST jsonb containment: a saved exchange whose issues include a failed model call.
+const FAILED_MODEL_CALL = JSON.stringify([{ code: "generation_failed" }]);
+
+// How many of this person's exchanges in the window reached the model. `countFailedCalls: false` leaves
+// out the ones where the call itself failed. Null when the count can't be read — callers fail closed.
+async function countExchanges(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  since: string,
+  countFailedCalls: boolean
+): Promise<number | null> {
+  let query = supabase
+    .from("coach_replies")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .in("status", ["accepted", "rejected"])
+    .gte("created_at", since);
+  if (!countFailedCalls) query = query.not("issues", "cs", FAILED_MODEL_CALL);
+  const { count, error } = await query;
+  return error ? null : count;
+}
 
 export async function askCoach(question: string): Promise<AskCoachResult> {
   const supabase = await createClient();
@@ -48,17 +70,19 @@ export async function askCoach(question: string): Promise<AskCoachResult> {
 
   // Fail closed: if the exchange can't be counted (and so can't be recorded either), Coach is off.
   const since = new Date(Date.now() - COACH_WINDOW_MS).toISOString();
-  const { count, error: countError } = await supabase
-    .from("coach_replies")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .in("status", ["accepted", "rejected"])
-    .gte("created_at", since);
-  if (countError || count === null) return { status: "error", message: UNAVAILABLE };
-  if (count >= COACH_LIMIT_PER_DAY) {
+  const answered = await countExchanges(supabase, user.id, since, false);
+  const attempted = await countExchanges(supabase, user.id, since, true);
+  if (answered === null || attempted === null) return { status: "error", message: UNAVAILABLE };
+  if (answered >= COACH_LIMIT_PER_DAY) {
     return {
       status: "rate_limited",
       message: `You've reached today's limit of ${COACH_LIMIT_PER_DAY} Coach questions. Try again later.`,
+    };
+  }
+  if (attempted >= COACH_ATTEMPT_CEILING_PER_DAY) {
+    return {
+      status: "rate_limited",
+      message: "Coach has had a lot of requests from your account today. Try again later.",
     };
   }
 

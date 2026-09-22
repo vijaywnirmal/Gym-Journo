@@ -70,6 +70,17 @@ describe("runCoach", () => {
     expect(result.record.rawReply).toBeNull();
   });
 
+  it("prepaid credit running out (402, as Gemini's prepay billing answers) says so, not 'try again in a minute'", async () => {
+    const result = await run(async () => {
+      throw new Error('Gemini request failed (402): {"message":"Your prepayment credits are depleted."}');
+    });
+    expect(result).toMatchObject({ status: "rejected", reply: null, message: QUOTA_MESSAGE });
+    expect(QUOTA_MESSAGE).toMatch(/run out of credits/);
+    expect(QUOTA_MESSAGE).not.toMatch(/minute/);
+    expect(result.record.issues[0].detail).toBe("the model call failed (http 402)");
+    expect(JSON.stringify(result)).not.toContain("prepayment");
+  });
+
   it("a provider quota error (429) says the limit is used up, not 'try again in a minute'", async () => {
     const result = await run(async () => {
       throw new Error('Gemini request failed (429): {"message":"You exceeded your current quota"}');

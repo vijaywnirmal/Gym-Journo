@@ -30,8 +30,10 @@ export type CoachRunResult = {
   record: CoachRecord;
 };
 
+// 429 is a provider's rate/quota limit; 402 means prepaid credits or a budget are used up (Gemini's
+// prepay billing and gateways both answer this way).
 function isQuotaError(error: unknown): boolean {
-  return error instanceof Error && /failed \(429\)/.test(error.message);
+  return error instanceof Error && /failed \((429|402)\)/.test(error.message);
 }
 
 // "timed out", "http 503", or a generic fallback — never the provider's own message.
@@ -46,10 +48,11 @@ export function describeGenerationFailure(error: unknown): string {
 
 // Shown when the model could not be reached or refused (quota, overload, timeout) — distinct from a
 // reply that failed verification, so the person isn't told their records couldn't be checked.
-// The provider refused because a usage quota is used up (HTTP 429). Unlike a busy spell this doesn't
-// clear in a minute — a daily quota can take hours — so it says so.
+// The provider refused because a usage quota or prepaid credit is used up (HTTP 429 or 402). Unlike a
+// busy spell this doesn't clear in a minute — a daily quota can take hours, and credits need topping up
+// — so it says so.
 export const QUOTA_MESSAGE =
-  "Coach's language model has reached its usage limit for now. Please try again later.";
+  "Coach's language model has reached its usage limit or run out of credits. Please try again later.";
 
 export const UNAVAILABLE_MESSAGE = "Coach couldn't get an answer just now. Please try again in a minute.";
 
