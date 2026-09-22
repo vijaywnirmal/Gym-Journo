@@ -12,6 +12,7 @@ export type IssueCode =
   | "ungrounded_number"
   | "evaluative"
   | "raw_value"
+  | "signed_number"
   | "ungrounded_date"
   | "advice"
   | "medical"
@@ -77,6 +78,12 @@ const MONTH_DAY =
 
 // Values that leaked from the JSON instead of being said in words.
 const RAW_VALUE = /\b(null|undefined|nan)\b/i;
+
+// A minus sign in front of a number ("-5 days") reads as arithmetic, not as a fact about training;
+// differences are said in words ("5 fewer than") and the evidence supplies that wording. Only a sign
+// that starts the number counts, so ISO dates ("2026-09-21") and ranges ("3-5") are not caught.
+// Covers the hyphen-minus, the true minus sign (U+2212) and the en dash.
+const SIGNED_NUMBER = /(?:^|[\s(])[-\u2212\u2013]\d/;
 
 const EVALUATIVE =
   /\b(progress\w*|improv\w*|regress\w*|plateau\w*|declin\w*|stronger|weaker|on track|off track|behind|ahead of|good|great|excellent|poor|bad|consistent\w*|inconsistent\w*|adheren\w*|success\w*|fail\w*|strong|weak|solid|impressive|disappoint\w*|better|worse|best|worst)\b/i;
@@ -148,6 +155,8 @@ function checkStatement(
   if (SPELLED_NUMBER.test(statement.text)) at("ungrounded_number", "a number is written as a word and cannot be checked");
 
   if (RAW_VALUE.test(statement.text)) at("raw_value", "contains a raw value (null/undefined) instead of words");
+
+  if (SIGNED_NUMBER.test(statement.text)) at("signed_number", "writes a negative number instead of saying the difference in words");
 
   const plain = withoutStatusPhrases(statement.text);
   if (EVALUATIVE.test(plain)) at("evaluative", "contains an evaluative verdict");

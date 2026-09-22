@@ -1,5 +1,6 @@
 import { getTargetWeightKg } from "@/lib/home";
 import { distanceToTargetKg, summarizeBodyWeight } from "./bodyWeight";
+import { weightVersusEarliest, weightVersusTarget, workoutDaysVersusTarget } from "./differenceWording";
 import { windowStart } from "./definitions";
 import { buildSessionViews, type ExerciseSession } from "./exerciseSessions";
 import type { ValueComparison } from "./setComparison";
@@ -64,6 +65,8 @@ export type WeekEvidence = {
   performedDates: string[];
   // performed − target for a completed week; null for the in-progress week or with no target.
   differenceFromTarget: number | null;
+  // The same difference in words ("5 fewer workout days than the target"), for Coach to quote.
+  differenceFromTargetWords: string | null;
 };
 
 export type SetEvidence = {
@@ -118,9 +121,13 @@ export type TrainingEvidence = {
         earliest: { date: string; weightKg: number };
         latest: { date: string; weightKg: number };
         changeKg: number | null;
+        // latest − earliest, in words.
+        changeWords: string | null;
         targetWeightKg: number | null;
         // latest − target; positive means the latest weight is above the target.
         distanceToTargetKg: number | null;
+        // The same distance in words ("4 kg above the target weight").
+        distanceToTargetWords: string | null;
       })
     | null;
   exercises: ExerciseEvidence[];
@@ -177,6 +184,8 @@ export function buildTrainingEvidence(input: TrainingEvidenceInput): TrainingEvi
     daysPerformed: w.daysPerformed,
     performedDates: w.performedDates,
     differenceFromTarget: w.isCurrentWeek || target === null ? null : w.daysPerformed - target,
+    differenceFromTargetWords:
+      w.isCurrentWeek || target === null ? null : workoutDaysVersusTarget(w.daysPerformed - target),
   });
   const currentWeek = weeks.find((w) => w.isCurrentWeek)!;
   const completedWeeks = weeks.filter((w) => !w.isCurrentWeek);
@@ -260,11 +269,16 @@ export function buildTrainingEvidence(input: TrainingEvidenceInput): TrainingEvi
           earliest: weightFacts.earliest,
           latest: weightFacts.latest,
           changeKg: weightFacts.changeKg,
+          changeWords: weightFacts.changeKg === null ? null : weightVersusEarliest(weightFacts.changeKg),
           targetWeightKg,
           distanceToTargetKg:
             targetWeightKg === null
               ? null
               : distanceToTargetKg(weightFacts.latest.weightKg, targetWeightKg),
+          distanceToTargetWords:
+            targetWeightKg === null
+              ? null
+              : weightVersusTarget(distanceToTargetKg(weightFacts.latest.weightKg, targetWeightKg)),
         }
       : null,
     exercises,
