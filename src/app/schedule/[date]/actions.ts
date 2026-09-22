@@ -2,13 +2,21 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { validateTargetWeight, WEIGHT_UNITS } from "@/lib/validation";
 
 export type SavePlanInput = {
   date: string;
   title: string;
   isRestDay: boolean;
   muscleGroupIds: string[];
-  exercises: { exerciseId: string; targetSets: number | null; targetReps: number | null }[];
+  exercises: {
+    exerciseId: string;
+    targetSets: number | null;
+    targetReps: number | null;
+    // Optional so existing callers that don't set a target weight need not specify these.
+    targetWeight?: number | null;
+    targetWeightUnit?: string;
+  }[];
 };
 
 export async function savePlan(input: SavePlanInput) {
@@ -17,6 +25,16 @@ export async function savePlan(input: SavePlanInput) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not signed in" };
+
+  for (const ex of input.exercises) {
+    if (ex.targetWeight != null) {
+      const weightError = validateTargetWeight(ex.targetWeight);
+      if (weightError) return { error: weightError };
+    }
+    if (ex.targetWeightUnit !== undefined && !WEIGHT_UNITS.has(ex.targetWeightUnit)) {
+      return { error: "Invalid weight unit." };
+    }
+  }
 
   const { data: plan, error: upsertError } = await supabase
     .from("workout_plans")
@@ -51,6 +69,8 @@ export async function savePlan(input: SavePlanInput) {
         position: i,
         target_sets: ex.targetSets,
         target_reps: ex.targetReps,
+        target_weight: ex.targetWeight ?? null,
+        target_weight_unit: ex.targetWeightUnit ?? "kg",
       }))
     );
   }

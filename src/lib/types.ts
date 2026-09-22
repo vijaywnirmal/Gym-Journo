@@ -50,6 +50,8 @@ export type PlannedExercise = {
   position: number;
   target_sets: number | null;
   target_reps: number | null;
+  target_weight: number | null;
+  target_weight_unit: string;
   exercise?: Exercise;
 };
 
@@ -99,6 +101,8 @@ export type TemplateExercise = {
   position: number;
   target_sets: number | null;
   target_reps: number | null;
+  target_weight: number | null;
+  target_weight_unit: string;
   exercise?: Exercise;
 };
 

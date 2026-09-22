@@ -4,10 +4,15 @@ import { useState } from "react";
 import type { Exercise } from "@/lib/types";
 import ExercisePicker from "./ExercisePicker";
 
-export type ExerciseTargets = Map<string, { targetSets: string; targetReps: string }>;
+export type ExerciseTargets = Map<
+  string,
+  { targetSets: string; targetReps: string; targetWeight: string; targetWeightUnit: string }
+>;
+
+const EMPTY_TARGETS = { targetSets: "", targetReps: "", targetWeight: "", targetWeightUnit: "kg" };
 
 // Shared by the schedule form and the template manager: a compact list of already-selected
-// exercises with optional target sets/reps, plus an "+ Add exercise" button that opens the
+// exercises with optional target sets/reps/weight, plus an "+ Add exercise" button that opens the
 // on-demand picker rather than showing the whole library inline.
 export default function ExerciseTargetEditor({
   exercises,
@@ -24,13 +29,17 @@ export default function ExerciseTargetEditor({
   function applyPicker(ids: string[]) {
     const next: ExerciseTargets = new Map();
     for (const id of ids) {
-      next.set(id, selected.get(id) ?? { targetSets: "", targetReps: "" });
+      next.set(id, selected.get(id) ?? { ...EMPTY_TARGETS });
     }
     onChange(next);
     setPickerOpen(false);
   }
 
-  function updateTarget(id: string, field: "targetSets" | "targetReps", value: string) {
+  function updateTarget(
+    id: string,
+    field: "targetSets" | "targetReps" | "targetWeight" | "targetWeightUnit",
+    value: string
+  ) {
     const next = new Map(selected);
     const current = next.get(id);
     if (current) next.set(id, { ...current, [field]: value });
@@ -70,7 +79,7 @@ export default function ExerciseTargetEditor({
               Remove
             </button>
           </div>
-          <div className="flex items-center gap-3 text-sm text-neutral-300">
+          <div className="flex flex-wrap items-center gap-3 text-sm text-neutral-300">
             <label className="flex items-center gap-1.5">
               Sets
               <input
@@ -92,6 +101,27 @@ export default function ExerciseTargetEditor({
                 onChange={(e) => updateTarget(id, "targetReps", e.target.value)}
                 className="w-20 rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-100 placeholder-neutral-600"
               />
+            </label>
+            <label className="flex items-center gap-1.5">
+              Weight
+              <input
+                type="number"
+                inputMode="decimal"
+                min={0}
+                step="0.5"
+                placeholder="optional"
+                value={targets.targetWeight}
+                onChange={(e) => updateTarget(id, "targetWeight", e.target.value)}
+                className="w-20 rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-100 placeholder-neutral-600"
+              />
+              <select
+                value={targets.targetWeightUnit}
+                onChange={(e) => updateTarget(id, "targetWeightUnit", e.target.value)}
+                className="rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-100"
+              >
+                <option value="kg">kg</option>
+                <option value="lb">lb</option>
+              </select>
             </label>
           </div>
         </div>

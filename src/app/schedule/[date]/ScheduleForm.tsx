@@ -33,7 +33,12 @@ export default function ScheduleForm({
     new Map(
       existingPlan?.planned_exercises?.map((pe) => [
         pe.exercise_id,
-        { targetSets: pe.target_sets?.toString() ?? "", targetReps: pe.target_reps?.toString() ?? "" },
+        {
+          targetSets: pe.target_sets?.toString() ?? "",
+          targetReps: pe.target_reps?.toString() ?? "",
+          targetWeight: pe.target_weight?.toString() ?? "",
+          targetWeightUnit: pe.target_weight_unit || "kg",
+        },
       ]) ?? []
     )
   );
@@ -59,6 +64,8 @@ export default function ScheduleForm({
       next.set(te.exercise_id, {
         targetSets: te.target_sets?.toString() ?? "",
         targetReps: te.target_reps?.toString() ?? "",
+        targetWeight: te.target_weight?.toString() ?? "",
+        targetWeightUnit: te.target_weight_unit || "kg",
       });
     }
     setSelectedExercises(next);
@@ -76,6 +83,8 @@ export default function ScheduleForm({
           exerciseId,
           targetSets: t.targetSets ? parseInt(t.targetSets, 10) : null,
           targetReps: t.targetReps ? parseInt(t.targetReps, 10) : null,
+          targetWeight: t.targetWeight ? parseFloat(t.targetWeight) : null,
+          targetWeightUnit: t.targetWeightUnit,
         })),
       });
       if (result.success) {

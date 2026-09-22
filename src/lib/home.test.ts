@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { formatGoalSummary, formatTrainingFrequency, getGreeting, getWorkoutCta } from "./home";
+import {
+  formatGoalSummary,
+  formatPlannedExercise,
+  formatTrainingFrequency,
+  getGreeting,
+  getWorkoutCta,
+} from "./home";
 
 describe("getGreeting", () => {
   it("greets a named user by first name, varying by hour", () => {
@@ -137,5 +143,33 @@ describe("getWorkoutCta", () => {
       label: "View Log",
       href: "/log/2026-09-16",
     });
+  });
+});
+
+describe("formatPlannedExercise", () => {
+  const base = { name: "Bench Press", targetSets: 3, targetReps: 8, targetWeight: null, targetWeightUnit: "kg" };
+
+  it("shows sets × reps with no weight target", () => {
+    expect(formatPlannedExercise(base)).toBe("Bench Press — 3 × 8");
+  });
+
+  it("appends the target weight and its unit when set", () => {
+    expect(formatPlannedExercise({ ...base, targetWeight: 80 })).toBe("Bench Press — 3 × 8 @ 80 kg");
+    expect(formatPlannedExercise({ ...base, targetWeight: 82.5, targetWeightUnit: "lb" })).toBe(
+      "Bench Press — 3 × 8 @ 82.5 lb"
+    );
+  });
+
+  it("shows a target weight of exactly 0 — a bodyweight exercise's target, not 'no weight set'", () => {
+    expect(formatPlannedExercise({ ...base, targetWeight: 0 })).toBe("Bench Press — 3 × 8 @ 0 kg");
+  });
+
+  it("falls back to '?' for a missing sets or reps target, unaffected by the weight target", () => {
+    expect(formatPlannedExercise({ ...base, targetSets: null, targetReps: null })).toBe(
+      "Bench Press — ? × ?"
+    );
+    expect(formatPlannedExercise({ ...base, targetSets: null, targetWeight: 80 })).toBe(
+      "Bench Press — ? × 8 @ 80 kg"
+    );
   });
 });

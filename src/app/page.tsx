@@ -9,7 +9,13 @@ import {
 import { formatDate, hourIn, todayIn } from "@/lib/date";
 import { getUserTimeZone } from "@/lib/userDate";
 import { namePartsOf } from "@/lib/names";
-import { formatGoalSummary, formatTrainingFrequency, getGreeting, getWorkoutCta } from "@/lib/home";
+import {
+  formatGoalSummary,
+  formatPlannedExercise,
+  formatTrainingFrequency,
+  getGreeting,
+  getWorkoutCta,
+} from "@/lib/home";
 import SignOutButton from "@/components/SignOutButton";
 
 const TRAINING_FREQUENCY_WINDOW_DAYS = 7;
@@ -102,7 +108,15 @@ export default async function TodayPage() {
           <ul className="mb-4 flex flex-col gap-1 text-sm text-neutral-300">
             {plan.planned_exercises?.map((pe) => (
               <li key={pe.id}>
-                {pe.exercise?.name} — {pe.target_sets ?? "?"} × {pe.target_reps ?? "?"}
+                {formatPlannedExercise({
+                  name: pe.exercise?.name ?? "Exercise",
+                  targetSets: pe.target_sets,
+                  targetReps: pe.target_reps,
+                  // `?? null`/`?? "kg"`: before migration 0017 is applied, these columns don't exist
+                  // yet and Supabase omits them rather than returning null.
+                  targetWeight: pe.target_weight ?? null,
+                  targetWeightUnit: pe.target_weight_unit ?? "kg",
+                })}
               </li>
             ))}
           </ul>

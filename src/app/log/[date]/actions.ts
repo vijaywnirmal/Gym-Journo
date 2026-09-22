@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getPreviousPerformance } from "@/lib/queries";
+import { WEIGHT_UNITS } from "@/lib/validation";
 
 export type SaveLogInput = {
   date: string;
@@ -14,8 +15,6 @@ export type SaveLogInput = {
     sets: { reps: number | null; weight: number | null; weightUnit: string }[];
   }[];
 };
-
-const WEIGHT_UNITS = new Set(["kg", "lb"]);
 
 // Obviously-invalid-only checks — mirrors the "loose sanity bounds" style used elsewhere in
 // validation.ts. The DB also enforces reps/weight >= 0 (0009_add_logged_set_constraints.sql) as

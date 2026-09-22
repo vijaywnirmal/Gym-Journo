@@ -5,13 +5,22 @@ import { getExercises } from "@/lib/queries";
 import {
   validateTargetReps,
   validateTargetSets,
+  validateTargetWeight,
   validateTemplateName,
+  WEIGHT_UNITS,
 } from "@/lib/validation";
 
 export type SaveTemplateInput = {
   templateId?: string;
   name: string;
-  exercises: { exerciseId: string; targetSets: number | null; targetReps: number | null }[];
+  exercises: {
+    exerciseId: string;
+    targetSets: number | null;
+    targetReps: number | null;
+    // Optional so existing callers that don't set a target weight need not specify these.
+    targetWeight?: number | null;
+    targetWeightUnit?: string;
+  }[];
 };
 
 export async function saveTemplate(input: SaveTemplateInput) {
@@ -33,6 +42,13 @@ export async function saveTemplate(input: SaveTemplateInput) {
     if (ex.targetReps !== null) {
       const repsError = validateTargetReps(ex.targetReps);
       if (repsError) return { error: repsError };
+    }
+    if (ex.targetWeight != null) {
+      const weightError = validateTargetWeight(ex.targetWeight);
+      if (weightError) return { error: weightError };
+    }
+    if (ex.targetWeightUnit !== undefined && !WEIGHT_UNITS.has(ex.targetWeightUnit)) {
+      return { error: "Invalid weight unit." };
     }
   }
 
@@ -83,6 +99,8 @@ export async function saveTemplate(input: SaveTemplateInput) {
         position: i,
         target_sets: ex.targetSets,
         target_reps: ex.targetReps,
+        target_weight: ex.targetWeight ?? null,
+        target_weight_unit: ex.targetWeightUnit ?? "kg",
       }))
     );
     if (insertError) {

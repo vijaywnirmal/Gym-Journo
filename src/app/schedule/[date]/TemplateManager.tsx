@@ -12,6 +12,8 @@ function templateToTargets(template: WorkoutTemplate): ExerciseTargets {
     map.set(te.exercise_id, {
       targetSets: te.target_sets?.toString() ?? "",
       targetReps: te.target_reps?.toString() ?? "",
+      targetWeight: te.target_weight?.toString() ?? "",
+      targetWeightUnit: te.target_weight_unit || "kg",
     });
   }
   return map;
@@ -62,6 +64,8 @@ export default function TemplateManager({
           exerciseId,
           targetSets: t.targetSets ? parseInt(t.targetSets, 10) : null,
           targetReps: t.targetReps ? parseInt(t.targetReps, 10) : null,
+          targetWeight: t.targetWeight ? parseFloat(t.targetWeight) : null,
+          targetWeightUnit: t.targetWeightUnit,
         })),
       });
       if (result.error) {

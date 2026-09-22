@@ -123,6 +123,20 @@ export function validateWeightKg(value: number): string | null {
   return null;
 }
 
+// Shared by every place a weight is recorded against a unit (logged sets, planned/template
+// exercise targets) — one definition, so "kg" and "lb" can't drift apart between them.
+export const WEIGHT_UNITS = new Set(["kg", "lb"]);
+
+// A planned/template exercise's target weight. Unlike validateWeightKg (a body measurement, which
+// can never sensibly be 0), 0 is valid here — a bodyweight exercise's target is legitimately "no
+// added weight" — matching the >= 0 bound logged_sets already uses (0009_add_logged_set_constraints.sql).
+export function validateTargetWeight(value: number): string | null {
+  if (!Number.isFinite(value) || value < 0 || value > 500) {
+    return "Enter a valid target weight.";
+  }
+  return null;
+}
+
 // Body measurements are historical/current only — a future date isn't a meaningful entry.
 // Compared as plain yyyy-MM-dd strings against `todayStr` — the person's own today (`getToday()`),
 // the same one Calendar, Home and the logger use. A UTC-derived date could disagree with it near

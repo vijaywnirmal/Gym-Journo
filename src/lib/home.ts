@@ -63,6 +63,20 @@ export function formatTrainingFrequency(
   };
 }
 
+// The Home plan-summary line for one planned exercise: "Bench Press — 3 × 8" or, with a target
+// weight set, "Bench Press — 3 × 8 @ 80 kg". A missing sets/reps target shows as "?", matching the
+// long-standing behavior of the Home plan card.
+export function formatPlannedExercise(pe: {
+  name: string;
+  targetSets: number | null;
+  targetReps: number | null;
+  targetWeight: number | null;
+  targetWeightUnit: string;
+}): string {
+  const base = `${pe.name} — ${pe.targetSets ?? "?"} × ${pe.targetReps ?? "?"}`;
+  return pe.targetWeight !== null ? `${base} @ ${pe.targetWeight} ${pe.targetWeightUnit}` : base;
+}
+
 export type WorkoutCta = {
   label: string;
   href: string;

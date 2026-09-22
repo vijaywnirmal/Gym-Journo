@@ -87,15 +87,77 @@ describe("saveTemplate", () => {
     });
     expect(result.success).toBe(true);
     expect(templateExercisesInsert).toHaveBeenCalledWith([
-      { template_id: "template-1", exercise_id: "sys-1", position: 0, target_sets: 3, target_reps: 8 },
+      {
+        template_id: "template-1",
+        exercise_id: "sys-1",
+        position: 0,
+        target_sets: 3,
+        target_reps: 8,
+        target_weight: null,
+        target_weight_unit: "kg",
+      },
       {
         template_id: "template-1",
         exercise_id: "custom-1",
         position: 1,
         target_sets: null,
         target_reps: null,
+        target_weight: null,
+        target_weight_unit: "kg",
       },
     ]);
+  });
+
+  it("copies a target weight and unit when supplied", async () => {
+    single.mockResolvedValue({ data: { id: "template-1" }, error: null });
+    await saveTemplate({
+      name: "Push A",
+      exercises: [
+        { exerciseId: "sys-1", targetSets: 3, targetReps: 8, targetWeight: 82.5, targetWeightUnit: "lb" },
+      ],
+    });
+    expect(templateExercisesInsert).toHaveBeenCalledWith([
+      {
+        template_id: "template-1",
+        exercise_id: "sys-1",
+        position: 0,
+        target_sets: 3,
+        target_reps: 8,
+        target_weight: 82.5,
+        target_weight_unit: "lb",
+      },
+    ]);
+  });
+
+  it("rejects an out-of-range or negative target weight", async () => {
+    for (const targetWeight of [-1, 501]) {
+      const result = await saveTemplate({
+        name: "Push A",
+        exercises: [{ exerciseId: "sys-1", targetSets: null, targetReps: null, targetWeight }],
+      });
+      expect(result.error).toBeTruthy();
+      expect(templatesInsert).not.toHaveBeenCalled();
+    }
+  });
+
+  it("accepts a target weight of exactly 0 — a bodyweight exercise's target is 'no added weight'", async () => {
+    single.mockResolvedValue({ data: { id: "template-1" }, error: null });
+    const result = await saveTemplate({
+      name: "Push A",
+      exercises: [{ exerciseId: "sys-1", targetSets: null, targetReps: null, targetWeight: 0 }],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects an invalid weight unit", async () => {
+    const result = await saveTemplate({
+      name: "Push A",
+      exercises: [
+        { exerciseId: "sys-1", targetSets: null, targetReps: null, targetWeightUnit: "stone" },
+      ],
+    });
+    expect(result.error).toBe("Invalid weight unit.");
+    expect(templatesInsert).not.toHaveBeenCalled();
   });
 
   it("rejects an exercise that is not visible to the user", async () => {

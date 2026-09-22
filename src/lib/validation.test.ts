@@ -9,9 +9,11 @@ import {
   validateMeasurementNote,
   validatePassword,
   validatePrimaryGoal,
+  validateTargetWeight,
   validateTargetWeightKg,
   validateTrainingDaysPerWeek,
   validateWeightKg,
+  WEIGHT_UNITS,
   MAX_EXERCISE_NAME_LENGTH,
   MAX_MEASUREMENT_NOTE_LENGTH,
   MIN_PASSWORD_LENGTH,
@@ -188,6 +190,38 @@ describe("validateWeightKg", () => {
 
   it("rejects an unreasonably large value", () => {
     expect(validateWeightKg(5000)).not.toBeNull();
+  });
+});
+
+describe("WEIGHT_UNITS", () => {
+  it("is exactly kg and lb", () => {
+    expect(WEIGHT_UNITS).toEqual(new Set(["kg", "lb"]));
+  });
+});
+
+describe("validateTargetWeight", () => {
+  it("accepts a normal target weight", () => {
+    expect(validateTargetWeight(82.5)).toBeNull();
+  });
+
+  it("accepts exactly 0 — a bodyweight exercise's target is 'no added weight', unlike a body-weight goal", () => {
+    expect(validateTargetWeight(0)).toBeNull();
+    // The distinction from validateWeightKg (a body measurement) that this exists to make:
+    expect(validateWeightKg(0)).not.toBeNull();
+  });
+
+  it("rejects negative values", () => {
+    expect(validateTargetWeight(-10)).not.toBeNull();
+  });
+
+  it("rejects NaN/non-finite values", () => {
+    expect(validateTargetWeight(NaN)).not.toBeNull();
+    expect(validateTargetWeight(Infinity)).not.toBeNull();
+  });
+
+  it("rejects an unreasonably large value", () => {
+    expect(validateTargetWeight(501)).not.toBeNull();
+    expect(validateTargetWeight(500)).toBeNull();
   });
 });
 
