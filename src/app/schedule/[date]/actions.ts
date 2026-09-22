@@ -36,43 +36,32 @@ export async function savePlan(input: SavePlanInput) {
     }
   }
 
-  const { data: plan, error: upsertError } = await supabase
-    .from("workout_plans")
-    .upsert(
-      {
-        user_id: user.id,
-        date: input.date,
-        title: input.title || null,
-        is_rest_day: input.isRestDay,
-      },
-      { onConflict: "user_id,date" }
-    )
-    .select()
-    .single();
+  // A rest day carries no muscle groups or exercises — same rule the previous write path applied,
+  // now decided before the call instead of by guarding each of several separate statements.
+  const muscleGroupIds = input.isRestDay ? [] : input.muscleGroupIds;
+  const exercises = input.isRestDay ? [] : input.exercises;
 
-  if (upsertError || !plan) return { error: upsertError?.message ?? "Failed to save plan" };
+  // Single RPC call = single transaction: either the whole plan is replaced, or (on any error)
+  // nothing changes — see save_workout_plan in 0018_add_save_workout_plan_rpc.sql. Replaces what
+  // used to be five separate, unguarded round trips (upsert, two deletes, two inserts), where a
+  // failure partway through could leave a plan saved with no exercises.
+  const { data, error } = await supabase.rpc("save_workout_plan", {
+    p_date: input.date,
+    p_title: input.title || null,
+    p_is_rest_day: input.isRestDay,
+    p_muscle_group_ids: muscleGroupIds,
+    p_exercises: exercises.map((ex, i) => ({
+      exercise_id: ex.exerciseId,
+      position: i,
+      target_sets: ex.targetSets,
+      target_reps: ex.targetReps,
+      target_weight: ex.targetWeight ?? null,
+      target_weight_unit: ex.targetWeightUnit ?? "kg",
+    })),
+  });
 
-  await supabase.from("workout_plan_muscle_groups").delete().eq("plan_id", plan.id);
-  await supabase.from("planned_exercises").delete().eq("plan_id", plan.id);
-
-  if (!input.isRestDay && input.muscleGroupIds.length > 0) {
-    await supabase.from("workout_plan_muscle_groups").insert(
-      input.muscleGroupIds.map((muscle_group_id) => ({ plan_id: plan.id, muscle_group_id }))
-    );
-  }
-
-  if (!input.isRestDay && input.exercises.length > 0) {
-    await supabase.from("planned_exercises").insert(
-      input.exercises.map((ex, i) => ({
-        plan_id: plan.id,
-        exercise_id: ex.exerciseId,
-        position: i,
-        target_sets: ex.targetSets,
-        target_reps: ex.targetReps,
-        target_weight: ex.targetWeight ?? null,
-        target_weight_unit: ex.targetWeightUnit ?? "kg",
-      }))
-    );
+  if (error || !data) {
+    return { error: "Couldn't save your schedule. Please try again." };
   }
 
   revalidatePath(`/schedule/${input.date}`);
