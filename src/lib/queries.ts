@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { shiftDate, weekDates } from "@/lib/date";
+import { suggestOverload, type OverloadSuggestion } from "@/lib/analyze/overload";
 import {
   countMuscleSets,
   planAdherence,
@@ -815,4 +816,103 @@ export async function getWeeklyInsights(): Promise<WeeklyInsights | null> {
         ),
     adherenceWindowDays: ADHERENCE_WINDOW_DAYS,
   };
+}
+
+export const ADAPT_HORIZON_DAYS = 14;
+
+export type AdaptSuggestion = {
+  plannedExerciseId: string;
+  exerciseId: string;
+  exerciseName: string;
+  planDate: string;
+  planTitle: string | null;
+  suggestion: OverloadSuggestion;
+};
+
+type UpcomingPlanRow = {
+  date: string;
+  title: string | null;
+  planned_exercises:
+    | {
+        id: string;
+        exercise_id: string;
+        position: number;
+        target_sets: number | null;
+        target_reps: number | null;
+        target_weight: number | null;
+        target_weight_unit: string | null;
+        exercise: { name: string } | null;
+      }[]
+    | null;
+};
+
+// Progressive-overload suggestions for the next planned occurrence of each exercise in the coming
+// two weeks (see analyze/overload.ts), each based only on sessions logged before that plan's date.
+// Planned exercises the person already decided on are left out. [] when signed out or on error.
+export async function getAdaptSuggestions(): Promise<AdaptSuggestion[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const todayStr = await getToday();
+  const { data, error } = await supabase
+    .from("workout_plans")
+    .select(
+      "date, title, planned_exercises(id, exercise_id, position, target_sets, target_reps, target_weight, target_weight_unit, exercise:exercises(name))"
+    )
+    .eq("user_id", user.id)
+    .eq("is_rest_day", false)
+    .gte("date", todayStr)
+    .lte("date", shiftDate(todayStr, ADAPT_HORIZON_DAYS - 1))
+    .order("date", { ascending: true });
+  if (error || !data) return [];
+
+  // The next occurrence of each exercise only — one suggestion per exercise, not one per future day.
+  const next = new Map<string, { plan: UpcomingPlanRow; pe: NonNullable<UpcomingPlanRow["planned_exercises"]>[number] }>();
+  for (const plan of data as unknown as UpcomingPlanRow[]) {
+    const ordered = [...(plan.planned_exercises ?? [])].sort((a, b) => a.position - b.position);
+    for (const pe of ordered) if (!next.has(pe.exercise_id)) next.set(pe.exercise_id, { plan, pe });
+  }
+  if (next.size === 0) return [];
+
+  const plannedIds = [...next.values()].map((n) => n.pe.id);
+  const { data: decided, error: decidedError } = await supabase
+    .from("recommendations")
+    .select("planned_exercise_id")
+    .eq("user_id", user.id)
+    .in("planned_exercise_id", plannedIds);
+  if (decidedError) return [];
+  const decidedIds = new Set((decided ?? []).map((r) => r.planned_exercise_id as string));
+
+  const lastDate = [...next.values()].reduce((max, n) => (n.plan.date > max ? n.plan.date : max), todayStr);
+  // Sessions before the latest plan date; each plan then keeps only those before its own date.
+  const history = await getPriorExerciseSessions([...next.keys()], lastDate);
+  if (!history) return [];
+
+  const suggestions: AdaptSuggestion[] = [];
+  for (const [exerciseId, { plan, pe }] of next) {
+    if (decidedIds.has(pe.id)) continue;
+    const before = (history[exerciseId] ?? []).filter((s) => s.date < plan.date);
+    const suggestion = suggestOverload(
+      {
+        targetSets: pe.target_sets,
+        targetReps: pe.target_reps,
+        targetWeight: pe.target_weight === null ? null : Number(pe.target_weight),
+        targetWeightUnit: pe.target_weight_unit ?? "kg",
+      },
+      before
+    );
+    if (!suggestion) continue;
+    suggestions.push({
+      plannedExerciseId: pe.id,
+      exerciseId,
+      exerciseName: pe.exercise?.name ?? "Exercise",
+      planDate: plan.date,
+      planTitle: plan.title,
+      suggestion,
+    });
+  }
+  return suggestions.sort((a, b) => (a.planDate < b.planDate ? -1 : a.planDate > b.planDate ? 1 : 0));
 }

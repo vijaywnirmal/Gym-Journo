@@ -28,7 +28,7 @@ behaviour has no regressions.
 - [x] **M8. PR history & records page** — every PR over time, per exercise, shown on Progress.
 - [x] **M9. Multi-week programs** — pick a program (PPL, 5/3/1, GZCLP…) and auto-schedule it onto
       the calendar from templates.
-- [ ] **M10. Coach "Adapt" stage** — evidence-cited progressive-overload suggestions (next weight,
+- [x] **M10. Coach "Adapt" stage** — evidence-cited progressive-overload suggestions (next weight,
       deload), still validated against the person's own records.
 - [ ] **M11. Health integrations** — body weight and workouts with Apple Health / Health Connect.
 

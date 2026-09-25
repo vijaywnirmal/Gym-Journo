@@ -6,6 +6,7 @@ import {
   getProfile,
   getTrainingConsistency,
   getWeeklyInsights,
+  getAdaptSuggestions,
 } from "@/lib/queries";
 import WeeklyInsightsCard from "@/components/WeeklyInsightsCard";
 import { formatDate, hourIn, todayIn } from "@/lib/date";
@@ -25,12 +26,13 @@ const TRAINING_FREQUENCY_WINDOW_DAYS = 7;
 export default async function TodayPage() {
   const { timeZone } = await getUserTimeZone();
   const date = todayIn(timeZone);
-  const [profile, plan, log, trainingConsistency, weeklyInsights] = await Promise.all([
+  const [profile, plan, log, trainingConsistency, weeklyInsights, suggestions] = await Promise.all([
     getProfile(),
     getPlanForDate(date),
     getLogForDate(date),
     getTrainingConsistency(TRAINING_FREQUENCY_WINDOW_DAYS),
     getWeeklyInsights(),
+    getAdaptSuggestions(),
   ]);
 
   const greeting = getGreeting(profile ? namePartsOf(profile).firstName : null, hourIn(timeZone));
@@ -72,6 +74,18 @@ export default async function TodayPage() {
           <p className="text-sm text-neutral-100">{trainingFrequency.actualLine}</p>
           <p className="text-xs text-neutral-400">{trainingFrequency.goalLine}</p>
         </div>
+      )}
+
+      {suggestions.length > 0 && (
+        <Link
+          href="/suggestions"
+          className="mb-4 flex items-center justify-between rounded-xl border border-green-900 bg-green-950/30 p-4"
+        >
+          <span className="text-sm font-medium text-green-300">
+            💡 {suggestions.length} weight suggestion{suggestions.length === 1 ? "" : "s"} for upcoming workouts
+          </span>
+          <span className="text-green-500">→</span>
+        </Link>
       )}
 
       {weeklyInsights && <WeeklyInsightsCard insights={weeklyInsights} goalDaysPerWeek={goalDaysPerWeek} />}
