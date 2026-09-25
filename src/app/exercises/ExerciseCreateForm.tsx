@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { MuscleGroup } from "@/lib/types";
+import { EQUIPMENT_OPTIONS } from "@/lib/exerciseSearch";
 import { createExercise } from "./actions";
 
 export default function ExerciseCreateForm({ muscleGroups }: { muscleGroups: MuscleGroup[] }) {
@@ -10,6 +11,7 @@ export default function ExerciseCreateForm({ muscleGroups }: { muscleGroups: Mus
   const [pending, startTransition] = useTransition();
   const [name, setName] = useState("");
   const [equipment, setEquipment] = useState("");
+  const [instructions, setInstructions] = useState("");
   const [selectedMuscleGroups, setSelectedMuscleGroups] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
@@ -28,6 +30,7 @@ export default function ExerciseCreateForm({ muscleGroups }: { muscleGroups: Mus
       const result = await createExercise({
         name,
         equipment,
+        instructions,
         muscleGroupIds: [...selectedMuscleGroups],
       });
       if (result.error) {
@@ -36,6 +39,7 @@ export default function ExerciseCreateForm({ muscleGroups }: { muscleGroups: Mus
       }
       setName("");
       setEquipment("");
+      setInstructions("");
       setSelectedMuscleGroups(new Set());
       router.refresh();
     });
@@ -53,10 +57,25 @@ export default function ExerciseCreateForm({ muscleGroups }: { muscleGroups: Mus
           placeholder="Exercise name"
           className="rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-base text-neutral-100 placeholder-neutral-500"
         />
-        <input
+        <select
           value={equipment}
           onChange={(e) => setEquipment(e.target.value)}
-          placeholder="Equipment (optional)"
+          aria-label="Equipment"
+          className="rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-base text-neutral-100"
+        >
+          <option value="">Equipment (optional)</option>
+          {EQUIPMENT_OPTIONS.map((eq) => (
+            <option key={eq} value={eq}>
+              {eq}
+            </option>
+          ))}
+        </select>
+        <textarea
+          value={instructions}
+          onChange={(e) => setInstructions(e.target.value)}
+          placeholder="How to do it (optional)"
+          maxLength={1000}
+          rows={2}
           className="rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-base text-neutral-100 placeholder-neutral-500"
         />
         <div>

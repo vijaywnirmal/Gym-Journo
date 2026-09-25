@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { Exercise } from "@/lib/types";
+import { matchesSearch } from "@/lib/exerciseSearch";
 
 // Compact, on-demand exercise picker: grouped by muscle group and collapsed by default, with a
 // search box, so the user is never shown the entire exercise library as one long expanded list.
@@ -20,10 +21,7 @@ export default function ExercisePicker({
   const [selected, setSelected] = useState<Set<string>>(new Set(initiallySelected));
 
   const groups = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    const filtered = term
-      ? exercises.filter((ex) => ex.name.toLowerCase().includes(term))
-      : exercises;
+    const filtered = exercises.filter((ex) => matchesSearch(ex, search));
     const byGroup = new Map<string, Exercise[]>();
     for (const ex of filtered) {
       const key = ex.muscle_groups?.[0]?.name ?? "Other";

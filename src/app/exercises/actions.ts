@@ -8,8 +8,11 @@ import { validateExerciseName } from "@/lib/validation";
 export type CreateExerciseInput = {
   name: string;
   equipment: string;
+  instructions?: string;
   muscleGroupIds: string[];
 };
+
+const MAX_INSTRUCTIONS_LENGTH = 1000;
 
 export async function createExercise(input: CreateExerciseInput) {
   const supabase = await createClient();
@@ -32,10 +35,14 @@ export async function createExercise(input: CreateExerciseInput) {
   if (isDuplicate) return { error: "An exercise with this name already exists." };
 
   const equipment = input.equipment.trim() || null;
+  const instructions = input.instructions?.trim() || null;
+  if (instructions && instructions.length > MAX_INSTRUCTIONS_LENGTH) {
+    return { error: `Instructions must be ${MAX_INSTRUCTIONS_LENGTH} characters or fewer.` };
+  }
 
   const { data: exercise, error } = await supabase
     .from("exercises")
-    .insert({ name: trimmedName, equipment, user_id: user.id })
+    .insert({ name: trimmedName, equipment, instructions, user_id: user.id })
     .select()
     .single();
 

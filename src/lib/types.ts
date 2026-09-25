@@ -30,6 +30,7 @@ export type Exercise = {
   name: string;
   equipment: string | null;
   notes: string | null;
+  instructions?: string | null;
   muscle_groups?: MuscleGroup[];
 };
 

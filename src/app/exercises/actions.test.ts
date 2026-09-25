@@ -113,3 +113,26 @@ describe("deleteExercise", () => {
     expect(result.error).toBe("Unable to delete this exercise.");
   });
 });
+
+describe("createExercise — instructions (M6)", () => {
+  beforeEach(() => {
+    getExercises.mockReset();
+    single.mockReset();
+    insert.mockClear();
+    getExercises.mockResolvedValue(existingExercises);
+  });
+
+  it("saves trimmed instructions, or null when blank", async () => {
+    single.mockResolvedValue({ data: { id: "new-2" }, error: null });
+    await createExercise({ name: "Zercher Squat", equipment: "Barbell", instructions: "  Bar in the elbows.  ", muscleGroupIds: [] });
+    expect(insert).toHaveBeenLastCalledWith(expect.objectContaining({ instructions: "Bar in the elbows." }));
+    await createExercise({ name: "Jefferson Curl", equipment: "", instructions: "   ", muscleGroupIds: [] });
+    expect(insert).toHaveBeenLastCalledWith(expect.objectContaining({ instructions: null }));
+  });
+
+  it("rejects instructions over 1000 characters", async () => {
+    const result = await createExercise({ name: "Long One", equipment: "", instructions: "x".repeat(1001), muscleGroupIds: [] });
+    expect(result.error).toBeTruthy();
+    expect(insert).not.toHaveBeenCalled();
+  });
+});

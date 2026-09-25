@@ -19,7 +19,7 @@ behaviour has no regressions.
       per-exercise notes; warm-ups excluded from PRs and volume.
 - [x] **M5. Installable offline app (PWA)** — manifest, icons, service worker, offline logging
       queue that syncs when back online.
-- [ ] **M6. Bigger exercise library** — equipment tags, instructions, search and filters.
+- [x] **M6. Bigger exercise library** — equipment tags, instructions, search and filters.
 
 ## Tier 2 — Differentiate
 

@@ -176,6 +176,7 @@ type ExerciseRow = {
   name: string;
   equipment: string | null;
   notes: string | null;
+  instructions?: string | null;
   exercise_muscle_groups: { muscle_group: MuscleGroup }[];
 };
 
@@ -190,7 +191,9 @@ export async function getExercises(): Promise<Exercise[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("exercises")
-    .select("id, user_id, name, equipment, notes, exercise_muscle_groups(muscle_group:muscle_groups(id, name))")
+    .select(
+      "id, user_id, name, equipment, notes, instructions, exercise_muscle_groups(muscle_group:muscle_groups(id, name))"
+    )
     .order("name");
   if (error) throw error;
 
@@ -200,6 +203,7 @@ export async function getExercises(): Promise<Exercise[]> {
     name: row.name,
     equipment: row.equipment,
     notes: row.notes,
+    instructions: row.instructions ?? null,
     muscle_groups: row.exercise_muscle_groups.map((r) => r.muscle_group),
   }));
 }
