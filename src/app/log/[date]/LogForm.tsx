@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { Exercise, WorkoutLog, WorkoutPlan } from "@/lib/types";
 import type { PreviousPerformance } from "@/lib/queries";
-import { saveLog, fetchPreviousPerformance } from "./actions";
+import { describePersonalRecord, type PersonalRecord } from "@/lib/analyze/personalRecords";
+import { saveLog, fetchPreviousPerformance, fetchPersonalRecords } from "./actions";
 import ExerciseLogPanel, { type ExerciseEntry, type SetRow } from "./ExerciseLogPanel";
 import LogExercisePicker from "./LogExercisePicker";
 
@@ -105,6 +106,10 @@ export default function LogForm({
 
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [personalRecords, setPersonalRecords] = useState<Record<string, PersonalRecord[]>>({});
+  // Only the newest lookup may update the records — an older response arriving late must not
+  // overwrite a newer one.
+  const recordsRequestRef = useRef(0);
 
   // Always-current snapshot for the save routine to read. Updated synchronously by the
   // update* helpers below (never via a useEffect keyed on state) — an effect only runs after
@@ -146,19 +151,20 @@ export default function LogForm({
     setSaveError(null);
 
     const snapshot = stateRef.current;
+    const exercisesPayload = snapshot.entries.map((e) => ({
+      exerciseId: e.exerciseId,
+      sets: e.sets.map((s) => ({
+        reps: s.reps ? parseInt(s.reps, 10) : null,
+        weight: s.weight ? parseFloat(s.weight) : null,
+        weightUnit: s.weightUnit,
+      })),
+    }));
     const result = await saveLog({
       date,
       planId: plan?.id ?? null,
       notes: snapshot.notes,
       completed: snapshot.workoutCompleted,
-      exercises: snapshot.entries.map((e) => ({
-        exerciseId: e.exerciseId,
-        sets: e.sets.map((s) => ({
-          reps: s.reps ? parseInt(s.reps, 10) : null,
-          weight: s.weight ? parseFloat(s.weight) : null,
-          weightUnit: s.weightUnit,
-        })),
-      })),
+      exercises: exercisesPayload,
     });
 
     savingRef.current = false;
@@ -178,6 +184,14 @@ export default function LogForm({
     }
     hasUnsavedRef.current = false;
     setSaveState("saved");
+    void refreshPersonalRecords(exercisesPayload);
+  }
+
+  // Best-effort: a failed lookup returns {} and simply shows no records.
+  async function refreshPersonalRecords(payload: Parameters<typeof fetchPersonalRecords>[1]) {
+    const requestId = ++recordsRequestRef.current;
+    const records = await fetchPersonalRecords(date, payload).catch(() => ({}));
+    if (requestId === recordsRequestRef.current) setPersonalRecords(records);
   }
 
   // Every real edit routes through here (called directly from the mutation handlers below —
@@ -310,6 +324,7 @@ export default function LogForm({
   }
 
   const current = entries[currentIndex];
+  const recordEntries = entries.filter((e) => personalRecords[e.exerciseId]?.length);
   const completedCount = entries.filter((e) => e.done).length;
 
   // Live-only: showTargets is false for HistoricalLogView's edit mode, where the plan may have
@@ -331,6 +346,27 @@ export default function LogForm({
       {workoutCompleted && (
         <div className="rounded-xl border border-green-900 bg-green-950/40 px-4 py-2.5">
           <p className="text-sm font-medium text-green-400">Workout completed ✓</p>
+        </div>
+      )}
+
+      {recordEntries.length > 0 && (
+        <div className="rounded-xl border border-amber-800 bg-amber-950/40 px-4 py-3" role="status">
+          <p className="mb-1 text-sm font-semibold text-amber-300">🏆 New personal record{recordEntries.length === 1 && personalRecords[recordEntries[0].exerciseId].length === 1 ? "" : "s"}</p>
+          <ul className="flex flex-col gap-1.5 text-sm text-neutral-200">
+            {recordEntries.map((e) => {
+              const unit = e.sets[e.sets.length - 1]?.weightUnit ?? "kg";
+              return (
+                <li key={e.exerciseId}>
+                  <span className="font-medium">{e.name}</span>
+                  <ul className="text-xs text-neutral-400">
+                    {personalRecords[e.exerciseId].map((r) => (
+                      <li key={r.kind}>{describePersonalRecord(r, unit)}</li>
+                    ))}
+                  </ul>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
 

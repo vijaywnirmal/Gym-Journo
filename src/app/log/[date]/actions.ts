@@ -2,7 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { getPreviousPerformance } from "@/lib/queries";
+import { getPreviousPerformance, getPriorExerciseSessions } from "@/lib/queries";
+import { getToday } from "@/lib/userDate";
+import { detectPersonalRecords, type PersonalRecord } from "@/lib/analyze/personalRecords";
 import { WEIGHT_UNITS } from "@/lib/validation";
 
 export type SaveLogInput = {
@@ -85,4 +87,37 @@ export async function fetchPreviousPerformance(exerciseId: string, beforeDate: s
   } = await supabase.auth.getUser();
   if (!user) return null;
   return getPreviousPerformance(exerciseId, beforeDate);
+}
+
+// New personal records in the given (unsaved or saved) sets for `date`, keyed by exercise id,
+// compared against every earlier performed session. Read-only and best-effort: any failure returns
+// {} so a PR lookup can never get in the way of logging. Future-dated logs never have records.
+export async function fetchPersonalRecords(
+  date: string,
+  exercises: SaveLogInput["exercises"]
+): Promise<Record<string, PersonalRecord[]>> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return {};
+  if (!Array.isArray(exercises) || exercises.length === 0) return {};
+  if (validateSaveLogInput({ date, planId: null, notes: "", completed: false, exercises })) return {};
+  if (date > (await getToday())) return {};
+
+  const history = await getPriorExerciseSessions(
+    exercises.map((ex) => ex.exerciseId),
+    date
+  );
+  if (!history) return {};
+
+  const result: Record<string, PersonalRecord[]> = {};
+  for (const ex of exercises) {
+    const records = detectPersonalRecords(
+      history[ex.exerciseId] ?? [],
+      ex.sets.map((s, i) => ({ setNumber: i + 1, reps: s.reps, weight: s.weight, weightUnit: s.weightUnit }))
+    );
+    if (records.length > 0) result[ex.exerciseId] = records;
+  }
+  return result;
 }

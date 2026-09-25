@@ -13,11 +13,15 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 const getPreviousPerformance = vi.fn();
+const getPriorExerciseSessions = vi.fn();
 vi.mock("@/lib/queries", () => ({
   getPreviousPerformance: (...args: unknown[]) => getPreviousPerformance(...args),
+  getPriorExerciseSessions: (...args: unknown[]) => getPriorExerciseSessions(...args),
 }));
 
-const { saveLog, fetchPreviousPerformance } = await import("./actions");
+vi.mock("@/lib/userDate", () => ({ getToday: async () => "2026-01-10" }));
+
+const { saveLog, fetchPreviousPerformance, fetchPersonalRecords } = await import("./actions");
 
 const basicInput = {
   date: "2026-01-05",
@@ -201,5 +205,47 @@ describe("fetchPreviousPerformance", () => {
     const result = await fetchPreviousPerformance("ex-1", "2026-01-05");
     expect(getPreviousPerformance).toHaveBeenCalledWith("ex-1", "2026-01-05");
     expect(result).toEqual({ date: "2026-01-01", sets: [] });
+  });
+});
+
+describe("fetchPersonalRecords", () => {
+  const kgSet = (reps: number | null, weight: number | null) => ({ reps, weight, weightUnit: "kg" });
+  const history = { "ex-1": [{ date: "2026-01-01", sets: [{ setNumber: 1, reps: 5, weight: 80, weightUnit: "kg" }] }] };
+
+  beforeEach(() => {
+    getPriorExerciseSessions.mockReset();
+    getUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
+  });
+
+  it("returns records keyed by exercise, compared against earlier sessions", async () => {
+    getPriorExerciseSessions.mockResolvedValue({ ...history, "ex-2": [] });
+    const result = await fetchPersonalRecords("2026-01-05", [
+      { exerciseId: "ex-1", sets: [kgSet(5, 90)] },
+      { exerciseId: "ex-2", sets: [kgSet(5, 200)] },
+    ]);
+    expect(getPriorExerciseSessions).toHaveBeenCalledWith(["ex-1", "ex-2"], "2026-01-05");
+    expect(Object.keys(result)).toEqual(["ex-1"]);
+    expect(result["ex-1"].map((r) => r.kind)).toEqual(["weight", "e1rm", "volume"]);
+  });
+
+  it("returns nothing when not signed in", async () => {
+    getUser.mockResolvedValue({ data: { user: null } });
+    expect(await fetchPersonalRecords("2026-01-05", [{ exerciseId: "ex-1", sets: [kgSet(5, 90)] }])).toEqual({});
+    expect(getPriorExerciseSessions).not.toHaveBeenCalled();
+  });
+
+  it("never reports records for a future-dated log", async () => {
+    expect(await fetchPersonalRecords("2026-01-11", [{ exerciseId: "ex-1", sets: [kgSet(5, 90)] }])).toEqual({});
+    expect(getPriorExerciseSessions).not.toHaveBeenCalled();
+  });
+
+  it("rejects invalid input without querying", async () => {
+    expect(await fetchPersonalRecords("2026-01-05", [{ exerciseId: "ex-1", sets: [kgSet(-1, 90)] }])).toEqual({});
+    expect(getPriorExerciseSessions).not.toHaveBeenCalled();
+  });
+
+  it("returns nothing when the history lookup fails", async () => {
+    getPriorExerciseSessions.mockResolvedValue(null);
+    expect(await fetchPersonalRecords("2026-01-05", [{ exerciseId: "ex-1", sets: [kgSet(5, 90)] }])).toEqual({});
   });
 });

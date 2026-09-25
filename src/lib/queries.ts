@@ -690,3 +690,36 @@ export async function getTrainingEvidence(): Promise<TrainingEvidence | null> {
     exercisesTruncated: recentIds.length > chosenIds.length,
   });
 }
+
+// Every performed session strictly before `beforeDate` for each of the given exercises, newest
+// first — the history a personal record has to beat. One request for all exercises; subject to the
+// same max-rows cap as getExerciseSessions. Exercises with no earlier session map to [].
+export async function getPriorExerciseSessions(
+  exerciseIds: string[],
+  beforeDate: string
+): Promise<Record<string, ExerciseSession[]> | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const ids = [...new Set(exerciseIds)];
+  if (ids.length === 0) return {};
+
+  const todayStr = await getToday();
+  const { data, error } = await supabase
+    .from("workout_logs")
+    .select(
+      "date, logged_exercises!inner(exercise_id, position, logged_sets(set_number, reps, weight, weight_unit))"
+    )
+    .eq("user_id", user.id)
+    .in("logged_exercises.exercise_id", ids)
+    .lt("date", beforeDate)
+    .order("date", { ascending: false });
+
+  if (error || !data) return null;
+
+  const logs = data as unknown as SessionSourceLog[];
+  return Object.fromEntries(ids.map((id) => [id, buildExerciseSessions(logs, id, todayStr)]));
+}
