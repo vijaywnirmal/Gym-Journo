@@ -18,6 +18,7 @@ import { toSetType } from "@/lib/setData";
 import ExerciseLogPanel, { setsFromPrevious, type ExerciseEntry, type SetRow } from "./ExerciseLogPanel";
 import LogExercisePicker from "./LogExercisePicker";
 import RestTimer, { type RestTimerHandle } from "./RestTimer";
+import ShareWorkoutButton from "@/components/ShareWorkoutButton";
 
 type Props = {
   date: string;
@@ -648,6 +649,11 @@ export default function LogForm({
         >
           Finish workout
         </button>
+      )}
+
+      {/* The image is built from the saved log, so it's offered once the latest edit is saved. */}
+      {workoutCompleted && showTargets && saveState !== "saving" && (
+        <ShareWorkoutButton date={date} />
       )}
     </div>
   );

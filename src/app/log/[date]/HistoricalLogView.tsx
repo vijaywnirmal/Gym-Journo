@@ -6,6 +6,7 @@ import type { PreviousPerformance, WorkoutLogWithContext } from "@/lib/queries";
 import { formatDate } from "@/lib/date";
 import { formatSetDetail } from "@/lib/setData";
 import LogForm from "./LogForm";
+import ShareWorkoutButton from "@/components/ShareWorkoutButton";
 
 type Props = {
   date: string;
@@ -113,6 +114,8 @@ export default function HistoricalLogView({
       >
         Edit workout
       </button>
+
+      <ShareWorkoutButton date={date} />
     </div>
   );
 }

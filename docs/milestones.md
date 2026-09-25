@@ -31,10 +31,17 @@ behaviour has no regressions.
 - [x] **M10. Coach "Adapt" stage** — evidence-cited progressive-overload suggestions (next weight,
       deload), still validated against the person's own records.
 - [ ] **M11. Health integrations** — body weight and workouts with Apple Health / Health Connect.
+      *Blocked on M15: neither has a web API; both need a native app shell.*
 
 ## Tier 3 — Growth & revenue
 
-- [ ] **M12. Sharing** — shareable workout summary cards; later follow/feed.
+- [x] **M12. Sharing** — shareable workout summary cards (private image via the device share sheet;
+      no public links).
+- [ ] **M12b. Follow / feed** — *needs a product decision: public profiles would change the app's
+      private-by-default stance.*
 - [ ] **M13. Structured nutrition** — macro logging, or integration with a nutrition app.
+      *Needs a decision: build a food database or integrate an existing app.*
 - [ ] **M14. Pro tier** — subscription gating for Coach Adapt, programs and advanced analytics.
+      *Needs a decision: payment provider, prices and what is free vs paid.*
 - [ ] **M15. Native wrapper & watch** — Capacitor/Expo shell, push reminders, watch set logging.
+      *Needs a decision: Capacitor vs Expo, and Apple/Google developer accounts.*
