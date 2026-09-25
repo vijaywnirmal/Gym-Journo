@@ -98,3 +98,28 @@ export function describePersonalRecord(record: PersonalRecord, unit: string): st
     unit
   )})`;
 }
+
+export type RecordEvent = { date: string; records: PersonalRecord[] };
+
+// Every session that set a personal record, newest first — the logger's detection
+// (detectPersonalRecords) replayed over the history, so both always agree. `sessions` in any order;
+// quadratic in the number of sessions, which stays small for one exercise.
+export function buildRecordHistory(sessions: ExerciseSession[]): RecordEvent[] {
+  const oldestFirst = [...sessions].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  const events: RecordEvent[] = [];
+  for (let i = 1; i < oldestFirst.length; i++) {
+    const records = detectPersonalRecords(oldestFirst.slice(0, i), oldestFirst[i].sets);
+    if (records.length > 0) events.push({ date: oldestFirst[i].date, records });
+  }
+  return events.reverse();
+}
+
+// Best single-session volume ever, in kg, with its date; null when no set has reps and weight.
+export function bestSessionVolume(sessions: ExerciseSession[]): { volumeKg: number; date: string } | null {
+  let best: { volumeKg: number; date: string } | null = null;
+  for (const session of sessions) {
+    const v = sessionVolumeKg(session.sets);
+    if (v !== null && (!best || v > best.volumeKg)) best = { volumeKg: v, date: session.date };
+  }
+  return best;
+}

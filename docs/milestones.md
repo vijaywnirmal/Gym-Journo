@@ -25,7 +25,7 @@ behaviour has no regressions.
 
 - [x] **M7. Weekly muscle analytics** — working sets per muscle group per week against a target
       range; streaks and plan adherence on the Today screen.
-- [ ] **M8. PR history & records page** — every PR over time, per exercise, shown on Progress.
+- [x] **M8. PR history & records page** — every PR over time, per exercise, shown on Progress.
 - [ ] **M9. Multi-week programs** — pick a program (PPL, 5/3/1, GZCLP…) and auto-schedule it onto
       the calendar from templates.
 - [ ] **M10. Coach "Adapt" stage** — evidence-cited progressive-overload suggestions (next weight,

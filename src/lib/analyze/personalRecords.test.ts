@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { describePersonalRecord, detectPersonalRecords } from "./personalRecords";
+import {
+  bestSessionVolume,
+  buildRecordHistory,
+  describePersonalRecord,
+  detectPersonalRecords,
+} from "./personalRecords";
 import type { ExerciseSession, PerformedSet } from "./exerciseSessions";
 
 const sets = (...rows: [number | null, number | null, string?][]): PerformedSet[] =>
@@ -107,5 +112,48 @@ describe("detectPersonalRecords — warm-ups (M4)", () => {
     const records = detectPersonalRecords(previous, sets([5, 110]));
     expect(records.map((r) => r.kind)).toEqual(["weight", "e1rm", "volume"]);
     expect(records[0].previousKg).toBe(100);
+  });
+});
+
+describe("buildRecordHistory (M8)", () => {
+  it("replays the history and lists record sessions newest first, skipping the first session", () => {
+    const history = [
+      session("2026-09-15", [5, 95]),
+      session("2026-09-01", [5, 80]),
+      session("2026-09-08", [5, 70]),
+      session("2026-09-22", [5, 90]),
+    ];
+    const events = buildRecordHistory(history);
+    expect(events.map((e) => e.date)).toEqual(["2026-09-15"]);
+    expect(events[0].records.map((r) => r.kind)).toEqual(["weight", "e1rm", "volume"]);
+    expect(events[0].records[0].previousKg).toBe(80);
+  });
+
+  it("is empty for zero or one session", () => {
+    expect(buildRecordHistory([])).toEqual([]);
+    expect(buildRecordHistory([session("2026-09-01", [5, 80])])).toEqual([]);
+  });
+
+  it("agrees with the logger's detection for each session", () => {
+    const history = [session("2026-09-01", [5, 80]), session("2026-09-08", [5, 85]), session("2026-09-15", [5, 85], [5, 85])];
+    const events = buildRecordHistory(history);
+    expect(events.map((e) => [e.date, e.records.map((r) => r.kind)])).toEqual([
+      ["2026-09-15", ["volume"]],
+      ["2026-09-08", ["weight", "e1rm", "volume"]],
+    ]);
+  });
+});
+
+describe("bestSessionVolume (M8)", () => {
+  it("finds the highest-volume session, ignoring warm-ups", () => {
+    const withWarmup: ExerciseSession = {
+      date: "2026-09-08",
+      sets: [
+        { setNumber: 1, reps: 10, weight: 100, weightUnit: "kg", setType: "warmup" },
+        { setNumber: 2, reps: 5, weight: 50, weightUnit: "kg" },
+      ],
+    };
+    expect(bestSessionVolume([session("2026-09-01", [5, 80]), withWarmup])).toEqual({ volumeKg: 400, date: "2026-09-01" });
+    expect(bestSessionVolume([session("2026-09-01", [null, 80])])).toBeNull();
   });
 });
