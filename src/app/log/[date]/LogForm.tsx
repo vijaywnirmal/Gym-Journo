@@ -7,6 +7,7 @@ import { describePersonalRecord, type PersonalRecord } from "@/lib/analyze/perso
 import { saveLog, fetchPreviousPerformance, fetchPersonalRecords } from "./actions";
 import ExerciseLogPanel, { type ExerciseEntry, type SetRow } from "./ExerciseLogPanel";
 import LogExercisePicker from "./LogExercisePicker";
+import RestTimer, { type RestTimerHandle } from "./RestTimer";
 
 type Props = {
   date: string;
@@ -110,6 +111,12 @@ export default function LogForm({
   // Only the newest lookup may update the records — an older response arriving late must not
   // overwrite a newer one.
   const recordsRequestRef = useRef(0);
+  const restTimerRef = useRef<RestTimerHandle>(null);
+
+  // Rest only applies to live logging, not to editing a past day (showTargets is false there).
+  function startRest(entry: ExerciseEntry | undefined) {
+    if (showTargets && entry) restTimerRef.current?.start(entry.exerciseId, entry.name);
+  }
 
   // Always-current snapshot for the save routine to read. Updated synchronously by the
   // update* helpers below (never via a useEffect keyed on state) — an effect only runs after
@@ -250,6 +257,10 @@ export default function LogForm({
   }
 
   function addSet() {
+    const entry = stateRef.current.entries[currentIndex];
+    // Adding the next set after filling one in means that set was just done: start resting.
+    const last = entry?.sets[entry.sets.length - 1];
+    if (last && (last.reps.trim() !== "" || last.weight.trim() !== "")) startRest(entry);
     updateEntries((prev) =>
       prev.map((e, i) =>
         i === currentIndex ? { ...e, sets: [...e.sets, emptySet(e.sets[e.sets.length - 1])] } : e
@@ -267,6 +278,7 @@ export default function LogForm({
 
   function toggleDone() {
     const wasDone = entries[currentIndex]?.done;
+    if (!wasDone && isExerciseEntryLogged(entries[currentIndex])) startRest(entries[currentIndex]);
     updateEntries((prev) => prev.map((e, i) => (i === currentIndex ? { ...e, done: !e.done } : e)));
     scheduleSave(true);
     if (!wasDone && currentIndex < entries.length - 1) {
@@ -407,6 +419,13 @@ export default function LogForm({
               </button>
             ))}
           </div>
+
+          {showTargets && (
+            <RestTimer
+              ref={restTimerRef}
+              current={current ? { exerciseId: current.exerciseId, name: current.name } : null}
+            />
+          )}
 
           {current && (
             <ExerciseLogPanel

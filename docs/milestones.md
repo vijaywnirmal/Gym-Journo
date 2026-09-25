@@ -11,7 +11,7 @@ behaviour has no regressions.
 - [x] **M1. Personal records (PRs)** — detect new bests (heaviest weight, best estimated 1RM, best
       session volume) against all earlier sessions of the exercise, and celebrate them in the logger
       while you train.
-- [ ] **M2. Rest timer** — a countdown that starts when a set is completed, with presets per
+- [x] **M2. Rest timer** — a countdown that starts when a set is completed, with presets per
       exercise, vibration/sound at zero, and it survives switching exercises.
 - [ ] **M3. "Same as last time" pre-fill** — one tap copies the previous session's sets into the
       current exercise, plus a plate calculator for barbell lifts.
