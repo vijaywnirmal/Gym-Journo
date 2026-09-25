@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getExercises, getLogForDate, getPlanForDate, getPreviousPerformance } from "@/lib/queries";
 import { formatDate } from "@/lib/date";
 import { getToday } from "@/lib/userDate";
+import { createClient } from "@/lib/supabase/server";
 import type { PreviousPerformance } from "@/lib/queries";
 import LogForm from "./LogForm";
 import HistoricalLogView from "./HistoricalLogView";
@@ -12,6 +13,10 @@ export default async function LogPage({
   params: Promise<{ date: string }>;
 }) {
   const { date } = await params;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   const [exercises, plan, log] = await Promise.all([
     getExercises(),
     getPlanForDate(date),
@@ -63,6 +68,7 @@ export default async function LogPage({
             plan={plan}
             existingLog={log}
             initialPreviousPerformance={initialPreviousPerformance}
+            backupScope={user?.id ?? null}
           />
         </>
       )}

@@ -17,7 +17,7 @@ behaviour has no regressions.
       current exercise, plus a plate calculator for barbell lifts.
 - [x] **M4. Richer set data** — RPE/RIR effort, set types (warm-up, working, drop, failure),
       per-exercise notes; warm-ups excluded from PRs and volume.
-- [ ] **M5. Installable offline app (PWA)** — manifest, icons, service worker, offline logging
+- [x] **M5. Installable offline app (PWA)** — manifest, icons, service worker, offline logging
       queue that syncs when back online.
 - [ ] **M6. Bigger exercise library** — equipment tags, instructions, search and filters.
 

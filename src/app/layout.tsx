@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import TimezoneSync from "@/components/TimezoneSync";
+import OfflineBanner from "@/components/OfflineBanner";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import { getUserTimeZone } from "@/lib/userDate";
 
 const geistSans = Geist({
@@ -18,6 +20,8 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Gym Journal & Scheduler",
   description: "Plan your workouts and log what you actually do.",
+  appleWebApp: { capable: true, title: "Gym Journo", statusBarStyle: "black-translucent" },
+  icons: { apple: "/icons/apple-touch-icon.png" },
 };
 
 export const viewport: Viewport = {
@@ -35,9 +39,11 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-neutral-950 text-neutral-100">
+        <OfflineBanner />
         <div className="mx-auto w-full max-w-md flex-1 pb-20">{children}</div>
         <BottomNav />
         {signedIn && <TimezoneSync stored={timeZone} />}
+        <ServiceWorkerRegister />
       </body>
     </html>
   );

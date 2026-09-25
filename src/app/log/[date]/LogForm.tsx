@@ -1,6 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useOffline } from "next/offline";
+import {
+  backupKey,
+  browserLocalStorage,
+  clearLogBackup,
+  parseLogBackup,
+  readRawLogBackup,
+  writeLogBackup,
+} from "@/lib/logBackup";
 import type { Exercise, WorkoutLog, WorkoutPlan } from "@/lib/types";
 import type { PreviousPerformance } from "@/lib/queries";
 import { describePersonalRecord, type PersonalRecord } from "@/lib/analyze/personalRecords";
@@ -21,6 +30,9 @@ type Props = {
   // performed (see HistoricalLogView). Defaults to true — today's/in-progress logging is
   // unaffected.
   showTargets?: boolean;
+  // Signed-in user id. When set, unsynced edits are backed up on this device (per user and date)
+  // so they survive the app closing before they reach the server — see lib/logBackup.ts.
+  backupScope?: string | null;
 };
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -75,7 +87,9 @@ export default function LogForm({
   existingLog,
   initialPreviousPerformance,
   showTargets = true,
+  backupScope = null,
 }: Props) {
+  const backupStorageKey = backupScope ? backupKey(backupScope, date) : null;
   const targetByExerciseId = new Map(
     showTargets
       ? plan?.planned_exercises?.map((pe) => [pe.exercise_id, { sets: pe.target_sets, reps: pe.target_reps }]) ?? []
@@ -120,6 +134,19 @@ export default function LogForm({
 
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
+  // Unsynced edits left on this device by an earlier visit (the app closed while offline, or
+  // before a save finished), offered to the person rather than applied silently. Storage is
+  // browser-only, so the server and hydration render see null. The offer lasts until they restore,
+  // discard, or make any edit — an edit rewrites the backup with this visit's state, so from then on
+  // the stored copy is no longer the earlier visit's.
+  const rawBackup = useSyncExternalStore(
+    noopSubscribe,
+    () => (backupStorageKey ? readRawLogBackup(browserLocalStorage(), backupStorageKey) : null),
+    () => null
+  );
+  const storedBackup = useMemo(() => parseLogBackup(rawBackup), [rawBackup]);
+  const [backupHandled, setBackupHandled] = useState(false);
+  const pendingBackup = backupHandled ? null : storedBackup;
   const [personalRecords, setPersonalRecords] = useState<Record<string, PersonalRecord[]>>({});
   // Only the newest lookup may update the records — an older response arriving late must not
   // overwrite a newer one.
@@ -161,6 +188,12 @@ export default function LogForm({
   // flush skip doing any work at all when there's nothing to save (e.g. just viewing the page).
   const hasUnsavedRef = useRef(false);
 
+  function backUpUnsyncedState() {
+    if (!backupStorageKey) return;
+    const { entries: e, notes: n, workoutCompleted: c } = stateRef.current;
+    writeLogBackup(browserLocalStorage(), backupStorageKey, { entries: e, notes: n, workoutCompleted: c });
+  }
+
   async function doSave() {
     if (savingRef.current) {
       dirtyRef.current = true;
@@ -182,13 +215,21 @@ export default function LogForm({
         rpe: s.rpe ? parseFloat(s.rpe) : null,
       })),
     }));
-    const result = await saveLog({
-      date,
-      planId: plan?.id ?? null,
-      notes: snapshot.notes,
-      completed: snapshot.workoutCompleted,
-      exercises: exercisesPayload,
-    });
+    // With experimental.useOffline, a save made offline waits and retries by itself once the
+    // connection returns; anything that still rejects (e.g. a server crash) must not leave
+    // savingRef stuck, or no later edit would ever be saved.
+    let result: Awaited<ReturnType<typeof saveLog>>;
+    try {
+      result = await saveLog({
+        date,
+        planId: plan?.id ?? null,
+        notes: snapshot.notes,
+        completed: snapshot.workoutCompleted,
+        exercises: exercisesPayload,
+      });
+    } catch {
+      result = { error: "Couldn't save — your changes are kept on this device." };
+    }
 
     savingRef.current = false;
 
@@ -207,6 +248,8 @@ export default function LogForm({
     }
     hasUnsavedRef.current = false;
     setSaveState("saved");
+    // Only drop the backup when no newer edit is still waiting on the debounce timer.
+    if (backupStorageKey && !debounceTimer.current) clearLogBackup(browserLocalStorage(), backupStorageKey);
     void refreshPersonalRecords(exercisesPayload);
   }
 
@@ -222,6 +265,8 @@ export default function LogForm({
   // double-fire under React Strict Mode's dev-only double-invoke).
   function scheduleSave(immediate: boolean) {
     hasUnsavedRef.current = true;
+    setBackupHandled(true);
+    backUpUnsyncedState();
     if (debounceTimer.current) {
       clearTimeout(debounceTimer.current);
       debounceTimer.current = null;
@@ -229,7 +274,10 @@ export default function LogForm({
     if (immediate) {
       void doSave();
     } else {
-      debounceTimer.current = setTimeout(() => void doSave(), AUTOSAVE_DEBOUNCE_MS);
+      debounceTimer.current = setTimeout(() => {
+        debounceTimer.current = null;
+        void doSave();
+      }, AUTOSAVE_DEBOUNCE_MS);
     }
   }
 
@@ -260,6 +308,29 @@ export default function LogForm({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function restoreBackup() {
+    if (!pendingBackup) return;
+    updateEntries(() => pendingBackup.entries);
+    updateNotesValue(pendingBackup.notes);
+    updateCompleted(pendingBackup.workoutCompleted);
+    setCurrentIndex(0);
+    setBackupHandled(true);
+    scheduleSave(true);
+
+    for (const e of pendingBackup.entries) {
+      if (e.exerciseId in previousPerformance) continue;
+      void fetchPreviousPerformance(e.exerciseId, date).then((prev) =>
+        setPreviousPerformance((p) => ({ ...p, [e.exerciseId]: prev }))
+      );
+    }
+  }
+
+  function discardBackup() {
+    // Handled means no edit has happened this visit, so the stored copy is still the earlier one.
+    if (backupStorageKey) clearLogBackup(browserLocalStorage(), backupStorageKey);
+    setBackupHandled(true);
+  }
 
   function updateSet(index: number, field: keyof SetRow, value: string) {
     updateEntries((prev) =>
@@ -385,6 +456,31 @@ export default function LogForm({
   return (
     <div className="flex flex-col gap-4 pb-6">
       <SaveStatus state={saveState} error={saveError} onRetry={() => scheduleSave(true)} />
+
+      {pendingBackup && (
+        <div className="rounded-xl border border-sky-900 bg-sky-950/40 px-4 py-3" role="status">
+          <p className="text-sm text-sky-200">
+            This device has changes to this workout from {formatBackupTime(pendingBackup.savedAt)} that
+            didn&apos;t sync.
+          </p>
+          <div className="mt-2 flex gap-2">
+            <button
+              type="button"
+              onClick={restoreBackup}
+              className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-neutral-900"
+            >
+              Restore and sync
+            </button>
+            <button
+              type="button"
+              onClick={discardBackup}
+              className="rounded-lg border border-neutral-700 px-3 py-1.5 text-xs font-medium text-neutral-300"
+            >
+              Discard
+            </button>
+          </div>
+        </div>
+      )}
 
       {workoutCompleted && (
         <div className="rounded-xl border border-green-900 bg-green-950/40 px-4 py-2.5">
@@ -546,6 +642,17 @@ export default function LogForm({
   );
 }
 
+const noopSubscribe = () => () => {};
+
+function formatBackupTime(savedAt: number): string {
+  return new Date(savedAt).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 function SaveStatus({
   state,
   error,
@@ -555,6 +662,7 @@ function SaveStatus({
   error: string | null;
   onRetry: () => void;
 }) {
+  const offline = useOffline();
   if (state === "idle") return null;
 
   if (state === "error") {
@@ -574,7 +682,11 @@ function SaveStatus({
 
   return (
     <p className="text-xs text-neutral-500">
-      {state === "saving" ? "Saving…" : "Saved"}
+      {state === "saving"
+        ? offline
+          ? "Offline — kept on this device, will sync when you're back online"
+          : "Saving…"
+        : "Saved"}
     </p>
   );
 }
