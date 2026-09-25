@@ -1,5 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
-import { shiftDate } from "@/lib/date";
+import { shiftDate, weekDates } from "@/lib/date";
+import {
+  countMuscleSets,
+  planAdherence,
+  type MuscleSets,
+  type MuscleSetsLog,
+  type PlanAdherence,
+} from "@/lib/analyze/weeklyInsights";
 import { getToday } from "@/lib/userDate";
 import {
   isWorkoutDay,
@@ -726,4 +733,86 @@ export async function getPriorExerciseSessions(
 
   const logs = data as unknown as SessionSourceLog[];
   return Object.fromEntries(ids.map((id) => [id, buildExerciseSessions(logs, id, todayStr)]));
+}
+
+export type WeeklyInsights = {
+  thisWeek: MuscleSets[];
+  lastWeek: MuscleSets[];
+  // Current week first; the streak is computed against the person's goal (weeklyStreak).
+  weeks: WeeklyTrainingDays[];
+  adherence: PlanAdherence | null;
+  adherenceWindowDays: number;
+};
+
+export const ADHERENCE_WINDOW_DAYS = 28;
+
+type MuscleSetsRow = {
+  date: string;
+  logged_exercises:
+    | {
+        exercise: { exercise_muscle_groups: { muscle_group: { id: string; name: string } | null }[] } | null;
+        logged_sets: { reps: number | null; weight: number | null; set_type?: string | null }[] | null;
+      }[]
+    | null;
+};
+
+// Everything the Today screen's "This week" card shows — see analyze/weeklyInsights.ts. Weeks are
+// Sunday–Saturday, like Calendar. Null when signed out or when the workout history can't be read.
+export async function getWeeklyInsights(): Promise<WeeklyInsights | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const todayStr = await getToday();
+  const thisWeekStart = weekDates(todayStr)[0];
+  const lastWeekStart = shiftDate(thisWeekStart, -7);
+  const adherenceStart = shiftDate(todayStr, -(ADHERENCE_WINDOW_DAYS - 1));
+
+  const [logsResult, plansResult, weeks, performedDates] = await Promise.all([
+    supabase
+      .from("workout_logs")
+      .select(
+        "date, logged_exercises(exercise:exercises(exercise_muscle_groups(muscle_group:muscle_groups(id, name))), logged_sets(reps, weight, set_type))"
+      )
+      .eq("user_id", user.id)
+      .gte("date", lastWeekStart)
+      .lte("date", todayStr),
+    supabase
+      .from("workout_plans")
+      .select("date")
+      .eq("user_id", user.id)
+      .eq("is_rest_day", false)
+      .gte("date", adherenceStart)
+      .lte("date", todayStr),
+    getWeeklyTrainingDays(),
+    getPerformedWorkoutDates(adherenceStart),
+  ]);
+
+  if (logsResult.error || !logsResult.data || performedDates === null) return null;
+
+  const logs: MuscleSetsLog[] = (logsResult.data as unknown as MuscleSetsRow[]).map((row) => ({
+    date: row.date,
+    logged_exercises: (row.logged_exercises ?? []).map((le) => ({
+      muscle_groups: (le.exercise?.exercise_muscle_groups ?? [])
+        .map((emg) => emg.muscle_group)
+        .filter((mg): mg is { id: string; name: string } => mg !== null),
+      logged_sets: le.logged_sets,
+    })),
+  }));
+
+  return {
+    thisWeek: countMuscleSets(logs, thisWeekStart, todayStr),
+    lastWeek: countMuscleSets(logs, lastWeekStart, shiftDate(thisWeekStart, -1)),
+    weeks,
+    adherence: plansResult.error
+      ? null
+      : planAdherence(
+          (plansResult.data ?? []).map((p) => p.date as string),
+          new Set(performedDates),
+          todayStr
+        ),
+    adherenceWindowDays: ADHERENCE_WINDOW_DAYS,
+  };
 }

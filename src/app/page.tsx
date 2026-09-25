@@ -5,7 +5,9 @@ import {
   getPlanForDate,
   getProfile,
   getTrainingConsistency,
+  getWeeklyInsights,
 } from "@/lib/queries";
+import WeeklyInsightsCard from "@/components/WeeklyInsightsCard";
 import { formatDate, hourIn, todayIn } from "@/lib/date";
 import { getUserTimeZone } from "@/lib/userDate";
 import { namePartsOf } from "@/lib/names";
@@ -23,11 +25,12 @@ const TRAINING_FREQUENCY_WINDOW_DAYS = 7;
 export default async function TodayPage() {
   const { timeZone } = await getUserTimeZone();
   const date = todayIn(timeZone);
-  const [profile, plan, log, trainingConsistency] = await Promise.all([
+  const [profile, plan, log, trainingConsistency, weeklyInsights] = await Promise.all([
     getProfile(),
     getPlanForDate(date),
     getLogForDate(date),
     getTrainingConsistency(TRAINING_FREQUENCY_WINDOW_DAYS),
+    getWeeklyInsights(),
   ]);
 
   const greeting = getGreeting(profile ? namePartsOf(profile).firstName : null, hourIn(timeZone));
@@ -38,6 +41,8 @@ export default async function TodayPage() {
     trainingConsistency.windowDays
   );
   const cta = getWorkoutCta(date, !!log, !!log?.completed_at);
+
+  const goalDaysPerWeek = profile?.training_days_per_week ?? null;
 
   const hasNothingToday = !plan && !log;
   const recentActivity = hasNothingToday ? await getLastCompletedLog() : null;
@@ -68,6 +73,8 @@ export default async function TodayPage() {
           <p className="text-xs text-neutral-400">{trainingFrequency.goalLine}</p>
         </div>
       )}
+
+      {weeklyInsights && <WeeklyInsightsCard insights={weeklyInsights} goalDaysPerWeek={goalDaysPerWeek} />}
 
       {plan?.is_rest_day ? (
         <div className="mb-4 rounded-xl border border-neutral-800 bg-neutral-900 p-4">

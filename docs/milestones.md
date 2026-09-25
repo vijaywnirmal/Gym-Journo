@@ -23,7 +23,7 @@ behaviour has no regressions.
 
 ## Tier 2 — Differentiate
 
-- [ ] **M7. Weekly muscle analytics** — working sets per muscle group per week against a target
+- [x] **M7. Weekly muscle analytics** — working sets per muscle group per week against a target
       range; streaks and plan adherence on the Today screen.
 - [ ] **M8. PR history & records page** — every PR over time, per exercise, shown on Progress.
 - [ ] **M9. Multi-week programs** — pick a program (PPL, 5/3/1, GZCLP…) and auto-schedule it onto
