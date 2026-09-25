@@ -14,6 +14,7 @@ const setSchema = z.object({
   weightUnit: z.string(),
   setType: z.enum(["working", "warmup", "drop", "failure"]).catch("working"),
   rpe: z.string().catch(""),
+  done: z.boolean().optional(),
 });
 
 const entrySchema = z.object({

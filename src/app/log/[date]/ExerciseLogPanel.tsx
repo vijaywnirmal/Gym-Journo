@@ -15,8 +15,15 @@ import {
 import type { PreviousPerformance } from "@/lib/queries";
 import { compareSet, type SetComparison, type ValueComparison } from "@/lib/analyze/setComparison";
 
-// rpe is "" when not recorded.
-export type SetRow = { reps: string; weight: string; weightUnit: string; setType: SetType; rpe: string };
+// rpe is "" when not recorded. done is the on-screen ✓ (it starts the rest timer); it is not saved.
+export type SetRow = {
+  reps: string;
+  weight: string;
+  weightUnit: string;
+  setType: SetType;
+  rpe: string;
+  done?: boolean;
+};
 export type ExerciseEntry = {
   exerciseId: string;
   name: string;
@@ -116,6 +123,7 @@ type Props = {
   onRemoveExercise: () => void;
   onCopyPrevious: () => void;
   onUpdateNotes: (value: string) => void;
+  onToggleSetDone: (index: number) => void;
 };
 
 // Reuses the existing exercise-filtered History view (see history/page.tsx + ExerciseFilter) —
@@ -170,6 +178,7 @@ export default function ExerciseLogPanel({
   onRemoveExercise,
   onCopyPrevious,
   onUpdateNotes,
+  onToggleSetDone,
 }: Props) {
   const [showPlates, setShowPlates] = useState(false);
   const canCopyPrevious = !!previous && previous.sets.length > 0 && countLoggedSets(entry.sets) === 0;
@@ -283,6 +292,19 @@ export default function ExerciseLogPanel({
                 </button>
               </div>
               <div className="flex items-center gap-2 pl-9">
+                <button
+                  type="button"
+                  onClick={() => onToggleSetDone(i)}
+                  aria-pressed={!!set.done}
+                  aria-label={set.done ? `Set ${i + 1} done. Undo` : `Mark set ${i + 1} done and start rest`}
+                  className={`rounded-md border px-2 py-1 text-xs font-medium ${
+                    set.done
+                      ? "border-green-800 bg-green-950 text-green-400"
+                      : "border-neutral-700 text-neutral-300"
+                  }`}
+                >
+                  {set.done ? "✓ Done" : "✓"}
+                </button>
                 <select
                   value={set.rpe}
                   onChange={(e) => onUpdateSet(i, "rpe", e.target.value)}

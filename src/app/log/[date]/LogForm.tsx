@@ -111,6 +111,7 @@ export default function LogForm({
               weightUnit: s.weight_unit,
               setType: toSetType(s.set_type),
               rpe: s.rpe === null || s.rpe === undefined ? "" : String(Number(s.rpe)),
+              done: s.reps !== null || s.weight !== null,
             }))
           : [emptySet()],
         done: false,
@@ -344,16 +345,26 @@ export default function LogForm({
   }
 
   function addSet() {
-    const entry = stateRef.current.entries[currentIndex];
-    // Adding the next set after filling one in means that set was just done: start resting.
-    const last = entry?.sets[entry.sets.length - 1];
-    if (last && (last.reps.trim() !== "" || last.weight.trim() !== "")) startRest(entry);
     updateEntries((prev) =>
       prev.map((e, i) =>
         i === currentIndex ? { ...e, sets: [...e.sets, emptySet(e.sets[e.sets.length - 1])] } : e
       )
     );
     scheduleSave(true);
+  }
+
+  // Ticking a set done starts the rest timer. The tick is on-screen only (never saved), so no save.
+  function toggleSetDone(index: number) {
+    const entry = stateRef.current.entries[currentIndex];
+    const becomingDone = !entry?.sets[index]?.done;
+    updateEntries((prev) =>
+      prev.map((e, i) =>
+        i === currentIndex
+          ? { ...e, sets: e.sets.map((s, si) => (si === index ? { ...s, done: !s.done } : s)) }
+          : e
+      )
+    );
+    if (becomingDone) startRest(entry);
   }
 
   function removeSet(index: number) {
@@ -365,7 +376,6 @@ export default function LogForm({
 
   function toggleDone() {
     const wasDone = entries[currentIndex]?.done;
-    if (!wasDone && isExerciseEntryLogged(entries[currentIndex])) startRest(entries[currentIndex]);
     updateEntries((prev) => prev.map((e, i) => (i === currentIndex ? { ...e, done: !e.done } : e)));
     scheduleSave(true);
     if (!wasDone && currentIndex < entries.length - 1) {
@@ -566,6 +576,7 @@ export default function LogForm({
               onRemoveExercise={() => removeExercise(currentIndex)}
               onCopyPrevious={copyPrevious}
               onUpdateNotes={updateExerciseNotes}
+              onToggleSetDone={toggleSetDone}
             />
           )}
 
