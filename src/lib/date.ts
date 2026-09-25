@@ -114,3 +114,11 @@ export function weekDates(centerDate: string): string[] {
   const start = addDays(d, -dayOfWeek);
   return Array.from({ length: 7 }, (_, i) => format(addDays(start, i), DATE_FMT));
 }
+
+// A real calendar date in yyyy-MM-dd form. Rejects impossible dates like 2026-02-31, which
+// Date.parse would silently roll over into March.
+export function isValidIsoDate(value: unknown): value is string {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = parseISO(value);
+  return !Number.isNaN(parsed.getTime()) && format(parsed, DATE_FMT) === value;
+}

@@ -75,3 +75,24 @@ describe("bestEstimatedOneRepMax", () => {
     expect(result?.e1rmKg).toBeCloseTo(120 * (1 + 1 / 30), 5);
   });
 });
+
+describe("warm-up sets (M4)", () => {
+  const withWarmup: ExerciseSession = {
+    date: "2026-09-10",
+    sets: [
+      { setNumber: 1, reps: 10, weight: 200, weightUnit: "kg", setType: "warmup" },
+      { setNumber: 2, reps: 5, weight: 100, weightUnit: "kg", setType: "working" },
+    ],
+  };
+
+  it("leave warm-ups out of volume and e1rm", () => {
+    const [point] = buildProgressPoints([withWarmup]);
+    expect(point.volumeKg).toBe(500);
+    expect(point.e1rmKg).toBeCloseTo(100 * (1 + 5 / 30), 5);
+  });
+
+  it("leave warm-ups out of heaviest set and best e1rm", () => {
+    expect(heaviestSet([withWarmup])?.weightKg).toBe(100);
+    expect(bestEstimatedOneRepMax([withWarmup])?.e1rmKg).toBeCloseTo(100 * (1 + 5 / 30), 5);
+  });
+});

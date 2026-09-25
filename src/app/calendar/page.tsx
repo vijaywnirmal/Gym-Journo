@@ -17,7 +17,12 @@ export default async function CalendarPage({
 
   return (
     <main className="px-4 pt-6">
-      <h1 className="mb-4 text-xl font-bold">Calendar</h1>
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-xl font-bold">Calendar</h1>
+        <Link href="/programs" className="text-sm text-neutral-400 underline">
+          Programs
+        </Link>
+      </div>
 
       <div className="mb-4 flex items-center justify-between">
         <Link

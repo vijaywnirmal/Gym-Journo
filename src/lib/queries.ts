@@ -1,5 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
-import { shiftDate } from "@/lib/date";
+import { shiftDate, weekDates } from "@/lib/date";
+import { suggestOverload, type OverloadSuggestion } from "@/lib/analyze/overload";
+import {
+  countMuscleSets,
+  planAdherence,
+  type MuscleSets,
+  type MuscleSetsLog,
+  type PlanAdherence,
+} from "@/lib/analyze/weeklyInsights";
 import { getToday } from "@/lib/userDate";
 import {
   isWorkoutDay,
@@ -176,6 +184,7 @@ type ExerciseRow = {
   name: string;
   equipment: string | null;
   notes: string | null;
+  instructions?: string | null;
   exercise_muscle_groups: { muscle_group: MuscleGroup }[];
 };
 
@@ -190,7 +199,9 @@ export async function getExercises(): Promise<Exercise[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("exercises")
-    .select("id, user_id, name, equipment, notes, exercise_muscle_groups(muscle_group:muscle_groups(id, name))")
+    .select(
+      "id, user_id, name, equipment, notes, instructions, exercise_muscle_groups(muscle_group:muscle_groups(id, name))"
+    )
     .order("name");
   if (error) throw error;
 
@@ -200,6 +211,7 @@ export async function getExercises(): Promise<Exercise[]> {
     name: row.name,
     equipment: row.equipment,
     notes: row.notes,
+    instructions: row.instructions ?? null,
     muscle_groups: row.exercise_muscle_groups.map((r) => r.muscle_group),
   }));
 }
@@ -391,7 +403,7 @@ export async function getExerciseSessions(exerciseId: string): Promise<ExerciseS
   const { data, error } = await supabase
     .from("workout_logs")
     .select(
-      "date, logged_exercises!inner(exercise_id, position, logged_sets(set_number, reps, weight, weight_unit))"
+      "date, logged_exercises!inner(exercise_id, position, logged_sets(set_number, reps, weight, weight_unit, set_type))"
     )
     .eq("user_id", user.id)
     .eq("logged_exercises.exercise_id", exerciseId)
@@ -689,4 +701,218 @@ export async function getTrainingEvidence(): Promise<TrainingEvidence | null> {
     })),
     exercisesTruncated: recentIds.length > chosenIds.length,
   });
+}
+
+// Every performed session strictly before `beforeDate` for each of the given exercises, newest
+// first — the history a personal record has to beat. One request for all exercises; subject to the
+// same max-rows cap as getExerciseSessions. Exercises with no earlier session map to [].
+export async function getPriorExerciseSessions(
+  exerciseIds: string[],
+  beforeDate: string
+): Promise<Record<string, ExerciseSession[]> | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const ids = [...new Set(exerciseIds)];
+  if (ids.length === 0) return {};
+
+  const todayStr = await getToday();
+  const { data, error } = await supabase
+    .from("workout_logs")
+    .select(
+      "date, logged_exercises!inner(exercise_id, position, logged_sets(set_number, reps, weight, weight_unit, set_type))"
+    )
+    .eq("user_id", user.id)
+    .in("logged_exercises.exercise_id", ids)
+    .lt("date", beforeDate)
+    .order("date", { ascending: false });
+
+  if (error || !data) return null;
+
+  const logs = data as unknown as SessionSourceLog[];
+  return Object.fromEntries(ids.map((id) => [id, buildExerciseSessions(logs, id, todayStr)]));
+}
+
+export type WeeklyInsights = {
+  thisWeek: MuscleSets[];
+  lastWeek: MuscleSets[];
+  // Current week first; the streak is computed against the person's goal (weeklyStreak).
+  weeks: WeeklyTrainingDays[];
+  adherence: PlanAdherence | null;
+  adherenceWindowDays: number;
+};
+
+export const ADHERENCE_WINDOW_DAYS = 28;
+
+type MuscleSetsRow = {
+  date: string;
+  logged_exercises:
+    | {
+        exercise: { exercise_muscle_groups: { muscle_group: { id: string; name: string } | null }[] } | null;
+        logged_sets: { reps: number | null; weight: number | null; set_type?: string | null }[] | null;
+      }[]
+    | null;
+};
+
+// Everything the Today screen's "This week" card shows — see analyze/weeklyInsights.ts. Weeks are
+// Sunday–Saturday, like Calendar. Null when signed out or when the workout history can't be read.
+export async function getWeeklyInsights(): Promise<WeeklyInsights | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const todayStr = await getToday();
+  const thisWeekStart = weekDates(todayStr)[0];
+  const lastWeekStart = shiftDate(thisWeekStart, -7);
+  const adherenceStart = shiftDate(todayStr, -(ADHERENCE_WINDOW_DAYS - 1));
+
+  const [logsResult, plansResult, weeks, performedDates] = await Promise.all([
+    supabase
+      .from("workout_logs")
+      .select(
+        "date, logged_exercises(exercise:exercises(exercise_muscle_groups(muscle_group:muscle_groups(id, name))), logged_sets(reps, weight, set_type))"
+      )
+      .eq("user_id", user.id)
+      .gte("date", lastWeekStart)
+      .lte("date", todayStr),
+    supabase
+      .from("workout_plans")
+      .select("date")
+      .eq("user_id", user.id)
+      .eq("is_rest_day", false)
+      .gte("date", adherenceStart)
+      .lte("date", todayStr),
+    getWeeklyTrainingDays(),
+    getPerformedWorkoutDates(adherenceStart),
+  ]);
+
+  if (logsResult.error || !logsResult.data || performedDates === null) return null;
+
+  const logs: MuscleSetsLog[] = (logsResult.data as unknown as MuscleSetsRow[]).map((row) => ({
+    date: row.date,
+    logged_exercises: (row.logged_exercises ?? []).map((le) => ({
+      muscle_groups: (le.exercise?.exercise_muscle_groups ?? [])
+        .map((emg) => emg.muscle_group)
+        .filter((mg): mg is { id: string; name: string } => mg !== null),
+      logged_sets: le.logged_sets,
+    })),
+  }));
+
+  return {
+    thisWeek: countMuscleSets(logs, thisWeekStart, todayStr),
+    lastWeek: countMuscleSets(logs, lastWeekStart, shiftDate(thisWeekStart, -1)),
+    weeks,
+    adherence: plansResult.error
+      ? null
+      : planAdherence(
+          (plansResult.data ?? []).map((p) => p.date as string),
+          new Set(performedDates),
+          todayStr
+        ),
+    adherenceWindowDays: ADHERENCE_WINDOW_DAYS,
+  };
+}
+
+export const ADAPT_HORIZON_DAYS = 14;
+
+export type AdaptSuggestion = {
+  plannedExerciseId: string;
+  exerciseId: string;
+  exerciseName: string;
+  planDate: string;
+  planTitle: string | null;
+  suggestion: OverloadSuggestion;
+};
+
+type UpcomingPlanRow = {
+  date: string;
+  title: string | null;
+  planned_exercises:
+    | {
+        id: string;
+        exercise_id: string;
+        position: number;
+        target_sets: number | null;
+        target_reps: number | null;
+        target_weight: number | null;
+        target_weight_unit: string | null;
+        exercise: { name: string } | null;
+      }[]
+    | null;
+};
+
+// Progressive-overload suggestions for the next planned occurrence of each exercise in the coming
+// two weeks (see analyze/overload.ts), each based only on sessions logged before that plan's date.
+// Planned exercises the person already decided on are left out. [] when signed out or on error.
+export async function getAdaptSuggestions(): Promise<AdaptSuggestion[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const todayStr = await getToday();
+  const { data, error } = await supabase
+    .from("workout_plans")
+    .select(
+      "date, title, planned_exercises(id, exercise_id, position, target_sets, target_reps, target_weight, target_weight_unit, exercise:exercises(name))"
+    )
+    .eq("user_id", user.id)
+    .eq("is_rest_day", false)
+    .gte("date", todayStr)
+    .lte("date", shiftDate(todayStr, ADAPT_HORIZON_DAYS - 1))
+    .order("date", { ascending: true });
+  if (error || !data) return [];
+
+  // The next occurrence of each exercise only — one suggestion per exercise, not one per future day.
+  const next = new Map<string, { plan: UpcomingPlanRow; pe: NonNullable<UpcomingPlanRow["planned_exercises"]>[number] }>();
+  for (const plan of data as unknown as UpcomingPlanRow[]) {
+    const ordered = [...(plan.planned_exercises ?? [])].sort((a, b) => a.position - b.position);
+    for (const pe of ordered) if (!next.has(pe.exercise_id)) next.set(pe.exercise_id, { plan, pe });
+  }
+  if (next.size === 0) return [];
+
+  const plannedIds = [...next.values()].map((n) => n.pe.id);
+  const { data: decided, error: decidedError } = await supabase
+    .from("recommendations")
+    .select("planned_exercise_id")
+    .eq("user_id", user.id)
+    .in("planned_exercise_id", plannedIds);
+  if (decidedError) return [];
+  const decidedIds = new Set((decided ?? []).map((r) => r.planned_exercise_id as string));
+
+  const lastDate = [...next.values()].reduce((max, n) => (n.plan.date > max ? n.plan.date : max), todayStr);
+  // Sessions before the latest plan date; each plan then keeps only those before its own date.
+  const history = await getPriorExerciseSessions([...next.keys()], lastDate);
+  if (!history) return [];
+
+  const suggestions: AdaptSuggestion[] = [];
+  for (const [exerciseId, { plan, pe }] of next) {
+    if (decidedIds.has(pe.id)) continue;
+    const before = (history[exerciseId] ?? []).filter((s) => s.date < plan.date);
+    const suggestion = suggestOverload(
+      {
+        targetSets: pe.target_sets,
+        targetReps: pe.target_reps,
+        targetWeight: pe.target_weight === null ? null : Number(pe.target_weight),
+        targetWeightUnit: pe.target_weight_unit ?? "kg",
+      },
+      before
+    );
+    if (!suggestion) continue;
+    suggestions.push({
+      plannedExerciseId: pe.id,
+      exerciseId,
+      exerciseName: pe.exercise?.name ?? "Exercise",
+      planDate: plan.date,
+      planTitle: plan.title,
+      suggestion,
+    });
+  }
+  return suggestions.sort((a, b) => (a.planDate < b.planDate ? -1 : a.planDate > b.planDate ? 1 : 0));
 }

@@ -281,7 +281,7 @@ describe("getPreviousPerformance", () => {
     ];
     const previous = await getPreviousPerformance("ex-1", "2026-09-16");
     expect(previous?.sets[0].weightUnit).toBe("lb");
-    const [comparison] = compareSets([{ reps: "6", weight: "80", weightUnit: "kg" }], previous);
+    const [comparison] = compareSets([{ reps: "6", weight: "80", weightUnit: "kg", setType: "working", rpe: "" }], previous);
     expect(comparison?.weight).toEqual({ type: "unavailable" });
     expect(comparison?.reps).toEqual({ type: "same" });
   });
@@ -301,8 +301,8 @@ describe("getPreviousPerformance", () => {
     const previous = await getPreviousPerformance("ex-1", "2026-09-16");
     const comparisons = compareSets(
       [
-        { reps: "8", weight: "62.5", weightUnit: "kg" },
-        { reps: "8", weight: "62.5", weightUnit: "kg" },
+        { reps: "8", weight: "62.5", weightUnit: "kg", setType: "working", rpe: "" },
+        { reps: "8", weight: "62.5", weightUnit: "kg", setType: "working", rpe: "" },
       ],
       previous
     );

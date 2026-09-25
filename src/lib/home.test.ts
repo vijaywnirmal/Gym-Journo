@@ -5,6 +5,8 @@ import {
   formatTrainingFrequency,
   getGreeting,
   getWorkoutCta,
+  formatAdherence,
+  formatStreak,
 } from "./home";
 
 describe("getGreeting", () => {
@@ -171,5 +173,22 @@ describe("formatPlannedExercise", () => {
     expect(formatPlannedExercise({ ...base, targetSets: null, targetWeight: 80 })).toBe(
       "Bench Press — ? × 8 @ 80 kg"
     );
+  });
+});
+
+describe("formatStreak / formatAdherence (M7)", () => {
+  it("says nothing without a streak", () => {
+    expect(formatStreak(0, 3)).toBeNull();
+  });
+
+  it("names the weekly goal the streak is measured against", () => {
+    expect(formatStreak(4, 3)).toBe("🔥 4-week streak of 3+ workout days");
+    expect(formatStreak(1, null)).toBe("🔥 1-week streak of at least 1 workout");
+  });
+
+  it("formats plan adherence, or nothing when no days were planned", () => {
+    expect(formatAdherence({ planned: 7, performed: 5 }, 28)).toBe("Trained on 5 of 7 planned days in the last 28 days");
+    expect(formatAdherence({ planned: 1, performed: 1 }, 28)).toBe("Trained on 1 of 1 planned day in the last 28 days");
+    expect(formatAdherence(null, 28)).toBeNull();
   });
 });

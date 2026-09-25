@@ -63,8 +63,9 @@ function entry(overrides: Partial<ExerciseEntry> & { sets?: SetRow[] } = {}): Ex
   return {
     exerciseId: overrides.exerciseId ?? "ex-a",
     name: overrides.name ?? "Exercise",
+    notes: overrides.notes ?? "",
     target: overrides.target ?? null,
-    sets: overrides.sets ?? [{ reps: "", weight: "", weightUnit: "kg" }],
+    sets: overrides.sets ?? [{ reps: "", weight: "", weightUnit: "kg", setType: "working", rpe: "" }],
     done: overrides.done ?? false,
   };
 }
@@ -75,11 +76,11 @@ describe("isExerciseEntryLogged (Phase 14)", () => {
   });
 
   it("is true once a set has reps entered", () => {
-    expect(isExerciseEntryLogged(entry({ sets: [{ reps: "5", weight: "", weightUnit: "kg" }] }))).toBe(true);
+    expect(isExerciseEntryLogged(entry({ sets: [{ reps: "5", weight: "", weightUnit: "kg", setType: "working", rpe: "" }] }))).toBe(true);
   });
 
   it("is true once a set has weight entered", () => {
-    expect(isExerciseEntryLogged(entry({ sets: [{ reps: "", weight: "80", weightUnit: "kg" }] }))).toBe(true);
+    expect(isExerciseEntryLogged(entry({ sets: [{ reps: "", weight: "80", weightUnit: "kg", setType: "working", rpe: "" }] }))).toBe(true);
   });
 
   it("is true when marked done even with blank sets", () => {
@@ -87,6 +88,6 @@ describe("isExerciseEntryLogged (Phase 14)", () => {
   });
 
   it("treats whitespace-only values as not logged", () => {
-    expect(isExerciseEntryLogged(entry({ sets: [{ reps: "  ", weight: " ", weightUnit: "kg" }] }))).toBe(false);
+    expect(isExerciseEntryLogged(entry({ sets: [{ reps: "  ", weight: " ", weightUnit: "kg", setType: "working", rpe: "" }] }))).toBe(false);
   });
 });

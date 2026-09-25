@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { describe, expect, it } from "vitest";
-import { calculateAge, daysBetween, daysSince, DATE_FMT, formatDateLong, today, shiftDate } from "./date";
+import { calculateAge, daysBetween, daysSince, DATE_FMT, formatDateLong, isValidIsoDate, today, shiftDate } from "./date";
 
 // The local calendar date, like calculateAge uses — a UTC slice is a day off for the first hours of
 // the day in timezones ahead of UTC, which made these tests fail only at certain times of day.
@@ -52,5 +52,17 @@ describe("daysBetween", () => {
 describe("formatDateLong", () => {
   it("includes the year", () => {
     expect(formatDateLong("2026-06-12")).toBe("Jun 12, 2026");
+  });
+});
+
+describe("isValidIsoDate", () => {
+  it("accepts real yyyy-MM-dd dates only", () => {
+    expect(isValidIsoDate("2026-09-25")).toBe(true);
+    expect(isValidIsoDate("2028-02-29")).toBe(true);
+    expect(isValidIsoDate("2026-02-29")).toBe(false);
+    expect(isValidIsoDate("2026-02-31")).toBe(false);
+    expect(isValidIsoDate("2026-13-01")).toBe(false);
+    expect(isValidIsoDate("25/09/2026")).toBe(false);
+    expect(isValidIsoDate(20260925)).toBe(false);
   });
 });

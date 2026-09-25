@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getExerciseSessions, getExercises, getLogHistory, type LogHistoryPage } from "@/lib/queries";
 import { formatDate } from "@/lib/date";
+import { formatSetCompact } from "@/lib/setData";
 import {
   buildSessionViews,
   pageSessionViews,
@@ -150,7 +151,7 @@ export default async function HistoryPage({
                       <span className="text-neutral-400">
                         —{" "}
                         {le.logged_sets
-                          ?.map((s) => `${s.reps ?? "?"}×${s.weight ?? "?"}${s.weight_unit}`)
+                          ?.map(formatSetCompact)
                           .join(", ")}
                       </span>
                     </li>

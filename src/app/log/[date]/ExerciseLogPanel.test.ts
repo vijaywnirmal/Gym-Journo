@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  plateText,
+  setsFromPrevious,
   compareSets,
   countLoggedSets,
   exerciseHistoryHref,
@@ -11,7 +13,7 @@ import {
 import type { PreviousPerformance } from "@/lib/queries";
 
 function set(weight: string, reps: string, weightUnit = "kg"): SetRow {
-  return { weight, reps, weightUnit };
+  return { weight, reps, weightUnit, setType: "working", rpe: "" };
 }
 
 function previousWith(
@@ -304,5 +306,53 @@ describe("formatRemainingPlannedSets (Phase 15)", () => {
     ]) {
       expect(text.toLowerCase()).not.toContain(forbidden.toLowerCase());
     }
+  });
+});
+
+describe("setsFromPrevious (M3)", () => {
+  it("returns nothing when there is no previous session", () => {
+    expect(setsFromPrevious(null)).toEqual([]);
+    expect(setsFromPrevious(undefined)).toEqual([]);
+  });
+
+  it("copies sets in set order, keeping units and leaving missing values blank", () => {
+    const previous: PreviousPerformance = {
+      date: "2026-09-01",
+      sets: [
+        { setNumber: 2, reps: 8, weight: null, weightUnit: "lb" },
+        { setNumber: 1, reps: 10, weight: 60, weightUnit: "kg" },
+      ],
+    };
+    expect(setsFromPrevious(previous)).toEqual([
+      { reps: "10", weight: "60", weightUnit: "kg", setType: "working", rpe: "" },
+      { reps: "8", weight: "", weightUnit: "lb", setType: "working", rpe: "" },
+    ]);
+  });
+
+  it("keeps a recorded 0 rather than blanking it", () => {
+    const previous: PreviousPerformance = {
+      date: "2026-09-01",
+      sets: [{ setNumber: 1, reps: 10, weight: 0, weightUnit: "kg" }],
+    };
+    expect(setsFromPrevious(previous)[0].weight).toBe("0");
+  });
+});
+
+describe("plateText (M3)", () => {
+  it("describes the per-side load", () => {
+    expect(plateText({ reps: "5", weight: "100", weightUnit: "kg", setType: "working", rpe: "" })).toBe("Per side: 25 + 15");
+    expect(plateText({ reps: "5", weight: "225", weightUnit: "lb", setType: "working", rpe: "" })).toBe("Per side: 45 ×2");
+  });
+
+  it("notes when the weight can't be made exactly", () => {
+    expect(plateText({ reps: "5", weight: "101", weightUnit: "kg", setType: "working", rpe: "" })).toBe(
+      "Per side: 25 + 15 (100 kg loaded, 1 short)"
+    );
+  });
+
+  it("says nothing for blank weights or loads at or below the bar", () => {
+    expect(plateText({ reps: "5", weight: "", weightUnit: "kg", setType: "working", rpe: "" })).toBeNull();
+    expect(plateText({ reps: "5", weight: "20", weightUnit: "kg", setType: "working", rpe: "" })).toBeNull();
+    expect(plateText({ reps: "5", weight: "21", weightUnit: "kg", setType: "working", rpe: "" })).toBeNull();
   });
 });

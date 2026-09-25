@@ -30,6 +30,7 @@ export type Exercise = {
   name: string;
   equipment: string | null;
   notes: string | null;
+  instructions?: string | null;
   muscle_groups?: MuscleGroup[];
 };
 
@@ -70,6 +71,7 @@ export type LoggedExercise = {
   log_id: string;
   exercise_id: string;
   position: number;
+  notes?: string | null;
   exercise?: Exercise;
   logged_sets?: LoggedSet[];
 };
@@ -82,6 +84,8 @@ export type LoggedSet = {
   weight: number | null;
   weight_unit: string;
   notes: string | null;
+  set_type?: string;
+  rpe?: number | null;
 };
 
 // A reusable workout definition. Instantiating one copies its template_exercises into a dated

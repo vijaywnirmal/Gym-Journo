@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { Exercise } from "@/lib/types";
+import { matchesSearch } from "@/lib/exerciseSearch";
 
 // Search + muscle-group grouping, same interaction pattern as schedule/[date]/ExercisePicker —
 // but adding an exercise here takes effect immediately (this session's log), rather than
@@ -20,10 +21,7 @@ export default function LogExercisePicker({
   const [search, setSearch] = useState("");
 
   const groups = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    const filtered = term
-      ? exercises.filter((ex) => ex.name.toLowerCase().includes(term))
-      : exercises;
+    const filtered = exercises.filter((ex) => matchesSearch(ex, search));
     const byGroup = new Map<string, Exercise[]>();
     for (const ex of filtered) {
       const key = ex.muscle_groups?.[0]?.name ?? "Other";

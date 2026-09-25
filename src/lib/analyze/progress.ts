@@ -1,6 +1,9 @@
 import { toKg } from "@/lib/units";
+import { countsTowardProgress } from "@/lib/setData";
 import type { ExerciseSession } from "./exerciseSessions";
 
+// Warm-up sets never count toward any figure here (setData.ts countsTowardProgress).
+//
 // Longitudinal progress facts for one exercise, built from the same performed-session history as
 // History (exerciseSessions.ts) — every weight is normalized to kg first, since logged_sets stores
 // weight_unit per set and a session can mix kg and lb entries. Pure — no I/O.
@@ -24,7 +27,7 @@ export function buildProgressPoints(sessions: ExerciseSession[]): ProgressPoint[
       let volumeKg = 0;
       let bestE1rmKg: number | null = null;
       for (const set of session.sets) {
-        if (set.weight === null || set.reps === null) continue;
+        if (set.weight === null || set.reps === null || !countsTowardProgress(set)) continue;
         const weightKg = toKg(set.weight, set.weightUnit);
         volumeKg += weightKg * set.reps;
         const estimate = estimatedOneRepMaxKg(weightKg, set.reps);
@@ -42,7 +45,7 @@ export function heaviestSet(sessions: ExerciseSession[]): HeaviestSet | null {
   let best: HeaviestSet | null = null;
   for (const session of sessions) {
     for (const set of session.sets) {
-      if (set.weight === null || set.reps === null) continue;
+      if (set.weight === null || set.reps === null || !countsTowardProgress(set)) continue;
       const weightKg = toKg(set.weight, set.weightUnit);
       if (
         !best ||
@@ -62,7 +65,7 @@ export function bestEstimatedOneRepMax(sessions: ExerciseSession[]): BestEstimat
   let best: BestEstimatedOneRepMax | null = null;
   for (const session of sessions) {
     for (const set of session.sets) {
-      if (set.weight === null || set.reps === null) continue;
+      if (set.weight === null || set.reps === null || !countsTowardProgress(set)) continue;
       const estimate = estimatedOneRepMaxKg(toKg(set.weight, set.weightUnit), set.reps);
       if (!best || estimate > best.e1rmKg) best = { e1rmKg: estimate, date: session.date };
     }

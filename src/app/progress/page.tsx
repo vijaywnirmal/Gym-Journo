@@ -5,6 +5,11 @@ import {
   buildProgressPoints,
   heaviestSet,
 } from "@/lib/analyze/progress";
+import {
+  bestSessionVolume,
+  buildRecordHistory,
+  describePersonalRecord,
+} from "@/lib/analyze/personalRecords";
 import ExerciseFilter from "@/app/history/ExerciseFilter";
 import TrendChart from "@/components/TrendChart";
 
@@ -30,6 +35,9 @@ export default async function ProgressPage({
   const points = buildProgressPoints(sessions);
   const pr = heaviestSet(sessions);
   const e1rm = bestEstimatedOneRepMax(sessions);
+  const bestVolume = bestSessionVolume(sessions);
+  const recordHistory = buildRecordHistory(sessions);
+  const recordCount = recordHistory.reduce((n, e) => n + e.records.length, 0);
 
   return (
     <main className="px-4 pt-6">
@@ -66,6 +74,20 @@ export default async function ProgressPage({
               </p>
               {e1rm && <p className="text-xs text-neutral-500">{formatDate(e1rm.date)}</p>}
             </div>
+            <div className="rounded-xl border border-neutral-800 p-4">
+              <p className="text-xs text-neutral-500">Best session volume</p>
+              <p className="text-lg font-semibold text-neutral-100">
+                {bestVolume ? `${Math.round(bestVolume.volumeKg).toLocaleString("en-US")} kg` : "—"}
+              </p>
+              {bestVolume && <p className="text-xs text-neutral-500">{formatDate(bestVolume.date)}</p>}
+            </div>
+            <div className="rounded-xl border border-neutral-800 p-4">
+              <p className="text-xs text-neutral-500">Personal records</p>
+              <p className="text-lg font-semibold text-neutral-100">{recordCount}</p>
+              <p className="text-xs text-neutral-500">
+                across {sessions.length} session{sessions.length === 1 ? "" : "s"}
+              </p>
+            </div>
           </div>
 
           <div>
@@ -81,6 +103,30 @@ export default async function ProgressPage({
           <div>
             <p className="mb-2 text-sm font-semibold text-neutral-100">Volume per session</p>
             <TrendChart points={points.map((p) => ({ date: p.date, value: p.volumeKg }))} unit="kg" />
+          </div>
+
+          <div>
+            <p className="mb-2 text-sm font-semibold text-neutral-100">🏆 Record history</p>
+            {recordHistory.length === 0 ? (
+              <p className="text-sm text-neutral-500">
+                {sessions.length === 1
+                  ? "Records start from your second session — the first one sets the bar."
+                  : "No records beaten yet. Warm-up sets never count."}
+              </p>
+            ) : (
+              <ol className="flex flex-col gap-2">
+                {recordHistory.map((event) => (
+                  <li key={event.date} className="rounded-xl border border-neutral-800 px-4 py-3">
+                    <p className="text-xs text-neutral-500">{formatDate(event.date)}</p>
+                    <ul className="text-sm text-neutral-200">
+                      {event.records.map((r) => (
+                        <li key={r.kind}>{describePersonalRecord(r, "kg")}</li>
+                      ))}
+                    </ul>
+                  </li>
+                ))}
+              </ol>
+            )}
           </div>
         </div>
       )}

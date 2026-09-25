@@ -1,3 +1,4 @@
+import { formatSetDetail } from "@/lib/setData";
 import type { PerformedSet } from "@/lib/analyze/exerciseSessions";
 import type { SetComparison, ValueComparison } from "@/lib/analyze/setComparison";
 
@@ -7,7 +8,8 @@ import type { SetComparison, ValueComparison } from "@/lib/analyze/setComparison
 // Same "weight × reps" rendering History has always used; a missing value stays "?" rather than
 // being invented.
 export function formatPerformedSet(set: PerformedSet): string {
-  return `${set.weight ?? "?"}${set.weightUnit} × ${set.reps ?? "?"}`;
+  const detail = formatSetDetail(set.setType, null);
+  return `${set.weight ?? "?"}${set.weightUnit} × ${set.reps ?? "?"}${detail ? ` (${detail})` : ""}`;
 }
 
 // Rounded so binary floating point (e.g. 0.1 + 0.2) never leaks into the display.
