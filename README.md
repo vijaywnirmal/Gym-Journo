@@ -5,7 +5,7 @@ Plan your workouts by day and muscle group, then log the sets/reps/weight you ac
 ## Setup
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. In the SQL editor, run the migration in [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql), then the seed data in [`supabase/seed.sql`](supabase/seed.sql) (adds muscle groups + a starter exercise library).
+2. In the SQL editor, run every file in [`supabase/migrations/`](supabase/migrations) in filename order (`0001_init.sql` first). Migration `0021` adds the shared exercise library with instructions; [`supabase/seed.sql`](supabase/seed.sql) is optional and safe to run before it.
    - If you use the Supabase CLI instead: `supabase link` then `supabase db push`, followed by `psql < supabase/seed.sql` (or paste it into the SQL editor).
 3. In Project Settings → API, copy the Project URL and `anon` public key.
 4. Copy `.env.local.example` to `.env.local` and fill in those two values.
