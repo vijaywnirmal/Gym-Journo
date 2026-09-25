@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
+import { calculatePlates, formatPlates, isPlateUnit } from "@/lib/plates";
 import type { PreviousPerformance } from "@/lib/queries";
 import { compareSet, type SetComparison, type ValueComparison } from "@/lib/analyze/setComparison";
 
@@ -65,6 +67,30 @@ export function formatSetComparison(comparison: SetComparison | null): string | 
   return parts.length > 0 ? parts.join(" · ") : null;
 }
 
+// "Same as last time": the previous session's performed sets as editable rows, in set order.
+// Missing values stay blank rather than becoming "0".
+export function setsFromPrevious(previous: PreviousPerformance | null | undefined): SetRow[] {
+  if (!previous) return [];
+  return [...previous.sets]
+    .sort((a, b) => a.setNumber - b.setNumber)
+    .map((s) => ({
+      reps: s.reps?.toString() ?? "",
+      weight: s.weight?.toString() ?? "",
+      weightUnit: s.weightUnit,
+    }));
+}
+
+// Per-side plate breakdown for one set row, or null when there's nothing to load (no weight, not
+// above the empty bar, or an unknown unit).
+export function plateText(set: SetRow): string | null {
+  const weight = parseFloat(set.weight);
+  if (!isPlateUnit(set.weightUnit)) return null;
+  const load = calculatePlates(weight, set.weightUnit);
+  if (!load || load.perSide.length === 0) return null;
+  const leftover = load.remainder > 0 ? ` (${load.loaded} ${set.weightUnit} loaded, ${load.remainder} short)` : "";
+  return `Per side: ${formatPlates(load.perSide)}${leftover}`;
+}
+
 type Props = {
   entry: ExerciseEntry;
   positionLabel: string;
@@ -74,6 +100,7 @@ type Props = {
   onRemoveSet: (index: number) => void;
   onToggleDone: () => void;
   onRemoveExercise: () => void;
+  onCopyPrevious: () => void;
 };
 
 // Reuses the existing exercise-filtered History view (see history/page.tsx + ExerciseFilter) —
@@ -126,7 +153,10 @@ export default function ExerciseLogPanel({
   onRemoveSet,
   onToggleDone,
   onRemoveExercise,
+  onCopyPrevious,
 }: Props) {
+  const [showPlates, setShowPlates] = useState(false);
+  const canCopyPrevious = !!previous && previous.sets.length > 0 && countLoggedSets(entry.sets) === 0;
   const target = targetLabel(entry.target);
   const comparisons = compareSets(entry.sets, previous);
   const remainingPlannedSets = formatRemainingPlannedSets(
@@ -168,6 +198,15 @@ export default function ExerciseLogPanel({
               .map((s) => `${s.weight ?? "?"}${s.weightUnit} × ${s.reps ?? "?"}`)
               .join(", ")}
           </p>
+          {canCopyPrevious && (
+            <button
+              type="button"
+              onClick={onCopyPrevious}
+              className="mt-2 rounded-lg border border-neutral-700 px-3 py-1.5 text-xs font-medium text-neutral-100"
+            >
+              ↺ Same as last time
+            </button>
+          )}
         </div>
       ) : (
         <p className="mb-3 text-xs text-neutral-600">No previous record for this exercise yet.</p>
@@ -176,6 +215,7 @@ export default function ExerciseLogPanel({
       <div className="flex flex-col gap-2">
         {entry.sets.map((set, i) => {
           const comparisonText = formatSetComparison(comparisons[i]);
+          const plates = showPlates ? plateText(set) : null;
           return (
             <div key={i} className="flex flex-col gap-1">
               <div className="flex items-center gap-2">
@@ -217,17 +257,33 @@ export default function ExerciseLogPanel({
               {comparisonText && (
                 <p className="pl-7 text-xs text-neutral-500">{comparisonText}</p>
               )}
+              {plates && <p className="pl-7 text-xs text-amber-300/80">{plates}</p>}
             </div>
           );
         })}
 
-        <button
-          type="button"
-          onClick={onAddSet}
-          className="self-start rounded-lg border border-neutral-700 px-3 py-1.5 text-sm font-medium text-neutral-100"
-        >
-          + Add set
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onAddSet}
+            className="rounded-lg border border-neutral-700 px-3 py-1.5 text-sm font-medium text-neutral-100"
+          >
+            + Add set
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowPlates((v) => !v)}
+            aria-pressed={showPlates}
+            className={`ml-auto rounded-lg px-3 py-1.5 text-xs ${
+              showPlates ? "bg-neutral-800 text-neutral-100" : "text-neutral-400"
+            }`}
+          >
+            Plates
+          </button>
+        </div>
+        {showPlates && (
+          <p className="text-xs text-neutral-600">Standard plates on a 20 kg / 45 lb bar.</p>
+        )}
       </div>
 
       <button

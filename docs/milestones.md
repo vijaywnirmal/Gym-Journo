@@ -13,7 +13,7 @@ behaviour has no regressions.
       while you train.
 - [x] **M2. Rest timer** — a countdown that starts when a set is completed, with presets per
       exercise, vibration/sound at zero, and it survives switching exercises.
-- [ ] **M3. "Same as last time" pre-fill** — one tap copies the previous session's sets into the
+- [x] **M3. "Same as last time" pre-fill** — one tap copies the previous session's sets into the
       current exercise, plus a plate calculator for barbell lifts.
 - [ ] **M4. Richer set data** — RPE/RIR effort, set types (warm-up, working, drop, failure),
       per-exercise notes; warm-ups excluded from PRs and volume.

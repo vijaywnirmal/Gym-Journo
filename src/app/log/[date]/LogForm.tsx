@@ -5,7 +5,7 @@ import type { Exercise, WorkoutLog, WorkoutPlan } from "@/lib/types";
 import type { PreviousPerformance } from "@/lib/queries";
 import { describePersonalRecord, type PersonalRecord } from "@/lib/analyze/personalRecords";
 import { saveLog, fetchPreviousPerformance, fetchPersonalRecords } from "./actions";
-import ExerciseLogPanel, { type ExerciseEntry, type SetRow } from "./ExerciseLogPanel";
+import ExerciseLogPanel, { setsFromPrevious, type ExerciseEntry, type SetRow } from "./ExerciseLogPanel";
 import LogExercisePicker from "./LogExercisePicker";
 import RestTimer, { type RestTimerHandle } from "./RestTimer";
 
@@ -286,6 +286,15 @@ export default function LogForm({
     }
   }
 
+  function copyPrevious() {
+    const entry = stateRef.current.entries[currentIndex];
+    if (!entry) return;
+    const sets = setsFromPrevious(previousPerformance[entry.exerciseId]);
+    if (sets.length === 0) return;
+    updateEntries((prev) => prev.map((e, i) => (i === currentIndex ? { ...e, sets } : e)));
+    scheduleSave(true);
+  }
+
   function removeExercise(index: number) {
     updateEntries((prev) => prev.filter((_, i) => i !== index));
     setCurrentIndex((i) => Math.max(0, Math.min(i, entries.length - 2)));
@@ -437,6 +446,7 @@ export default function LogForm({
               onRemoveSet={removeSet}
               onToggleDone={toggleDone}
               onRemoveExercise={() => removeExercise(currentIndex)}
+              onCopyPrevious={copyPrevious}
             />
           )}
 
