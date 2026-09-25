@@ -6,9 +6,11 @@ import type { Exercise } from "@/lib/types";
 export default function ExerciseFilter({
   exercises,
   selectedId,
+  basePath = "/history",
 }: {
   exercises: Exercise[];
   selectedId?: string;
+  basePath?: string;
 }) {
   const router = useRouter();
 
@@ -17,7 +19,7 @@ export default function ExerciseFilter({
       defaultValue={selectedId ?? ""}
       onChange={(e) => {
         const value = e.target.value;
-        router.push(value ? `/history?exercise=${value}` : "/history");
+        router.push(value ? `${basePath}?exercise=${value}` : basePath);
       }}
       className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-base text-neutral-100"
     >

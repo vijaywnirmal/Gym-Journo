@@ -44,6 +44,7 @@ export default function ScheduleForm({
   );
   const [templateId, setTemplateId] = useState("");
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   function toggleMuscle(id: string) {
     setSelectedMuscles((prev) => {
@@ -73,6 +74,7 @@ export default function ScheduleForm({
 
   function handleSubmit() {
     setSaved(false);
+    setError(null);
     startTransition(async () => {
       const result = await savePlan({
         date,
@@ -90,7 +92,9 @@ export default function ScheduleForm({
       if (result.success) {
         setSaved(true);
         router.refresh();
+        return;
       }
+      setError(result.error ?? "Couldn't save your schedule. Please try again.");
     });
   }
 
@@ -184,6 +188,7 @@ export default function ScheduleForm({
       )}
 
       {saved && <p className="text-sm text-green-400">Saved!</p>}
+      {error && <p className="text-sm text-red-400">{error}</p>}
 
       <button
         type="button"

@@ -62,53 +62,29 @@ export async function saveTemplate(input: SaveTemplateInput) {
     return { error: "One of the selected exercises is no longer available." };
   }
 
-  let templateId = input.templateId;
+  // Single RPC call = single transaction: either the whole template is replaced, or (on any
+  // error) nothing changes — see save_workout_template in 0019_add_save_workout_template_rpc.sql.
+  // Replaces what used to be three separate, unguarded round trips (update-or-insert, delete,
+  // insert), where a failure between the delete and the insert could leave a template saved with
+  // no exercises.
+  const { data: template, error } = await supabase.rpc("save_workout_template", {
+    p_template_id: input.templateId ?? null,
+    p_name: trimmedName,
+    p_exercises: input.exercises.map((ex, i) => ({
+      exercise_id: ex.exerciseId,
+      position: i,
+      target_sets: ex.targetSets,
+      target_reps: ex.targetReps,
+      target_weight: ex.targetWeight ?? null,
+      target_weight_unit: ex.targetWeightUnit ?? "kg",
+    })),
+  });
 
-  if (templateId) {
-    const { error } = await supabase
-      .from("workout_templates")
-      .update({ name: trimmedName })
-      .eq("id", templateId)
-      .eq("user_id", user.id);
-    if (error) return { error: "Something went wrong saving this template. Please try again." };
-  } else {
-    const { data: template, error } = await supabase
-      .from("workout_templates")
-      .insert({ user_id: user.id, name: trimmedName })
-      .select()
-      .single();
-    if (error || !template) {
-      return { error: "Something went wrong saving this template. Please try again." };
-    }
-    templateId = template.id;
-  }
-
-  const { error: clearError } = await supabase
-    .from("template_exercises")
-    .delete()
-    .eq("template_id", templateId);
-  if (clearError) {
+  if (error || !template) {
     return { error: "Something went wrong saving this template. Please try again." };
   }
 
-  if (input.exercises.length > 0) {
-    const { error: insertError } = await supabase.from("template_exercises").insert(
-      input.exercises.map((ex, i) => ({
-        template_id: templateId,
-        exercise_id: ex.exerciseId,
-        position: i,
-        target_sets: ex.targetSets,
-        target_reps: ex.targetReps,
-        target_weight: ex.targetWeight ?? null,
-        target_weight_unit: ex.targetWeightUnit ?? "kg",
-      }))
-    );
-    if (insertError) {
-      return { error: "Something went wrong saving this template. Please try again." };
-    }
-  }
-
-  return { success: true, templateId };
+  return { success: true, templateId: template.id };
 }
 
 export async function deleteTemplate(templateId: string) {
