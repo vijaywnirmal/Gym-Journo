@@ -91,3 +91,14 @@ describe("exercise History wording stays descriptive", () => {
     }
   });
 });
+
+describe("formatPerformedSet — set types (M4)", () => {
+  it("marks non-working sets and leaves working sets unchanged", () => {
+    expect(formatPerformedSet({ setNumber: 1, reps: 10, weight: 40, weightUnit: "kg", setType: "warmup" })).toBe(
+      "40kg × 10 (Warm-up)"
+    );
+    expect(formatPerformedSet({ setNumber: 2, reps: 5, weight: 100, weightUnit: "kg", setType: "working" })).toBe(
+      "100kg × 5"
+    );
+  });
+});

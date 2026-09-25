@@ -5,6 +5,7 @@ import type { Exercise, WorkoutLog, WorkoutPlan } from "@/lib/types";
 import type { PreviousPerformance } from "@/lib/queries";
 import { describePersonalRecord, type PersonalRecord } from "@/lib/analyze/personalRecords";
 import { saveLog, fetchPreviousPerformance, fetchPersonalRecords } from "./actions";
+import { toSetType } from "@/lib/setData";
 import ExerciseLogPanel, { setsFromPrevious, type ExerciseEntry, type SetRow } from "./ExerciseLogPanel";
 import LogExercisePicker from "./LogExercisePicker";
 import RestTimer, { type RestTimerHandle } from "./RestTimer";
@@ -26,8 +27,16 @@ type SaveState = "idle" | "saving" | "saved" | "error";
 
 const AUTOSAVE_DEBOUNCE_MS = 900;
 
+// A new set carries the previous weight and unit forward, but is always a working set with no
+// effort recorded — carrying "warm-up" into the next set would silently mislabel it.
 function emptySet(carryForward?: SetRow): SetRow {
-  return { reps: "", weight: carryForward?.weight ?? "", weightUnit: carryForward?.weightUnit ?? "kg" };
+  return {
+    reps: "",
+    weight: carryForward?.weight ?? "",
+    weightUnit: carryForward?.weightUnit ?? "kg",
+    setType: "working",
+    rpe: "",
+  };
 }
 
 export type PlannedExerciseRef = { exerciseId: string; name: string };
@@ -79,12 +88,15 @@ export default function LogForm({
     ? existingLog.logged_exercises.map((le) => ({
         exerciseId: le.exercise_id,
         name: le.exercise?.name ?? "Exercise",
+        notes: le.notes ?? "",
         target: targetByExerciseId.get(le.exercise_id) ?? null,
         sets: le.logged_sets?.length
           ? le.logged_sets.map((s) => ({
               reps: s.reps?.toString() ?? "",
               weight: s.weight?.toString() ?? "",
               weightUnit: s.weight_unit,
+              setType: toSetType(s.set_type),
+              rpe: s.rpe === null || s.rpe === undefined ? "" : String(Number(s.rpe)),
             }))
           : [emptySet()],
         done: false,
@@ -92,6 +104,7 @@ export default function LogForm({
     : plan?.planned_exercises?.map((pe) => ({
         exerciseId: pe.exercise_id,
         name: pe.exercise?.name ?? "Exercise",
+        notes: "",
         target: showTargets ? { sets: pe.target_sets, reps: pe.target_reps } : null,
         sets: Array.from({ length: pe.target_sets ?? 3 }, () => emptySet()),
         done: false,
@@ -160,10 +173,13 @@ export default function LogForm({
     const snapshot = stateRef.current;
     const exercisesPayload = snapshot.entries.map((e) => ({
       exerciseId: e.exerciseId,
+      notes: e.notes,
       sets: e.sets.map((s) => ({
         reps: s.reps ? parseInt(s.reps, 10) : null,
         weight: s.weight ? parseFloat(s.weight) : null,
         weightUnit: s.weightUnit,
+        setType: s.setType,
+        rpe: s.rpe ? parseFloat(s.rpe) : null,
       })),
     }));
     const result = await saveLog({
@@ -286,6 +302,11 @@ export default function LogForm({
     }
   }
 
+  function updateExerciseNotes(value: string) {
+    updateEntries((prev) => prev.map((e, i) => (i === currentIndex ? { ...e, notes: value } : e)));
+    scheduleSave(false);
+  }
+
   function copyPrevious() {
     const entry = stateRef.current.entries[currentIndex];
     if (!entry) return;
@@ -309,6 +330,7 @@ export default function LogForm({
       {
         exerciseId: ex.id,
         name: ex.name,
+        notes: "",
         target: targetByExerciseId.get(exerciseId) ?? null,
         sets: [emptySet()],
         done: false,
@@ -447,6 +469,7 @@ export default function LogForm({
               onToggleDone={toggleDone}
               onRemoveExercise={() => removeExercise(currentIndex)}
               onCopyPrevious={copyPrevious}
+              onUpdateNotes={updateExerciseNotes}
             />
           )}
 

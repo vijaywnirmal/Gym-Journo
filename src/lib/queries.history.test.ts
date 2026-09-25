@@ -272,7 +272,7 @@ describe("getExerciseSessions (full performed history for one exercise)", () => 
     nextResult = { data: [], error: null };
     await getExerciseSessions("ex-bench");
     expect(lastSelectArg).toContain("logged_exercises!inner");
-    expect(lastSelectArg).toContain("logged_sets(set_number, reps, weight, weight_unit)");
+    expect(lastSelectArg).toContain("logged_sets(set_number, reps, weight, weight_unit, set_type)");
     expect(lastBuilder!.calls.eq).toContainEqual(["user_id", "user-1"]);
     expect(lastBuilder!.calls.eq).toContainEqual(["logged_exercises.exercise_id", "ex-bench"]);
     expect(lastBuilder!.calls.lte).toEqual([["date", today()]]);

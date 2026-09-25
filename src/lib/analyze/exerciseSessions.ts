@@ -12,6 +12,8 @@ export type PerformedSet = {
   reps: number | null;
   weight: number | null;
   weightUnit: string;
+  // "working" | "warmup" | "drop" | "failure"; absent/unknown reads as working (lib/setData.ts).
+  setType?: string;
 };
 
 export type ExerciseSession = { date: string; sets: PerformedSet[] };
@@ -21,6 +23,7 @@ type SetRowLike = {
   reps: number | null;
   weight: number | null;
   weight_unit: string;
+  set_type?: string | null;
 };
 
 export type SessionSourceLog = {
@@ -44,6 +47,7 @@ export function performedSetsOf(log: SessionSourceLog, exerciseId: string): Perf
       reps: s.reps,
       weight: s.weight,
       weightUnit: s.weight_unit,
+      ...(s.set_type ? { setType: s.set_type } : {}),
     }));
 }
 

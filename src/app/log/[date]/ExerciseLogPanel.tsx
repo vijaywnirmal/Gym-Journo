@@ -3,13 +3,24 @@
 import Link from "next/link";
 import { useState } from "react";
 import { calculatePlates, formatPlates, isPlateUnit } from "@/lib/plates";
+import {
+  MAX_EXERCISE_NOTE_LENGTH,
+  nextSetType,
+  RPE_OPTIONS,
+  SET_TYPE_BADGE,
+  SET_TYPE_LABEL,
+  toSetType,
+  type SetType,
+} from "@/lib/setData";
 import type { PreviousPerformance } from "@/lib/queries";
 import { compareSet, type SetComparison, type ValueComparison } from "@/lib/analyze/setComparison";
 
-export type SetRow = { reps: string; weight: string; weightUnit: string };
+// rpe is "" when not recorded.
+export type SetRow = { reps: string; weight: string; weightUnit: string; setType: SetType; rpe: string };
 export type ExerciseEntry = {
   exerciseId: string;
   name: string;
+  notes: string;
   target: { sets: number | null; reps: number | null } | null;
   sets: SetRow[];
   done: boolean;
@@ -77,6 +88,9 @@ export function setsFromPrevious(previous: PreviousPerformance | null | undefine
       reps: s.reps?.toString() ?? "",
       weight: s.weight?.toString() ?? "",
       weightUnit: s.weightUnit,
+      setType: toSetType(s.setType),
+      // Effort is about today, so it is never copied.
+      rpe: "",
     }));
 }
 
@@ -101,6 +115,7 @@ type Props = {
   onToggleDone: () => void;
   onRemoveExercise: () => void;
   onCopyPrevious: () => void;
+  onUpdateNotes: (value: string) => void;
 };
 
 // Reuses the existing exercise-filtered History view (see history/page.tsx + ExerciseFilter) —
@@ -154,6 +169,7 @@ export default function ExerciseLogPanel({
   onToggleDone,
   onRemoveExercise,
   onCopyPrevious,
+  onUpdateNotes,
 }: Props) {
   const [showPlates, setShowPlates] = useState(false);
   const canCopyPrevious = !!previous && previous.sets.length > 0 && countLoggedSets(entry.sets) === 0;
@@ -219,7 +235,19 @@ export default function ExerciseLogPanel({
           return (
             <div key={i} className="flex flex-col gap-1">
               <div className="flex items-center gap-2">
-                <span className="w-5 text-sm text-neutral-500">{i + 1}</span>
+                <button
+                  type="button"
+                  onClick={() => onUpdateSet(i, "setType", nextSetType(set.setType))}
+                  aria-label={`Set ${i + 1}: ${SET_TYPE_LABEL[set.setType]}. Change set type`}
+                  title={SET_TYPE_LABEL[set.setType]}
+                  className={`h-7 w-7 shrink-0 rounded-md text-sm ${
+                    SET_TYPE_BADGE[set.setType]
+                      ? "bg-amber-900/50 font-semibold text-amber-300"
+                      : "text-neutral-500"
+                  }`}
+                >
+                  {SET_TYPE_BADGE[set.setType] ?? i + 1}
+                </button>
                 <input
                   type="number"
                   inputMode="decimal"
@@ -254,10 +282,23 @@ export default function ExerciseLogPanel({
                   ✕
                 </button>
               </div>
-              {comparisonText && (
-                <p className="pl-7 text-xs text-neutral-500">{comparisonText}</p>
-              )}
-              {plates && <p className="pl-7 text-xs text-amber-300/80">{plates}</p>}
+              <div className="flex items-center gap-2 pl-9">
+                <select
+                  value={set.rpe}
+                  onChange={(e) => onUpdateSet(i, "rpe", e.target.value)}
+                  aria-label={`Set ${i + 1} effort (RPE)`}
+                  className="rounded-md border border-neutral-800 bg-neutral-900 px-1.5 py-1 text-xs text-neutral-300"
+                >
+                  <option value="">RPE –</option>
+                  {RPE_OPTIONS.map((r) => (
+                    <option key={r} value={String(r)}>
+                      RPE {r}
+                    </option>
+                  ))}
+                </select>
+                {comparisonText && <p className="text-xs text-neutral-500">{comparisonText}</p>}
+              </div>
+              {plates && <p className="pl-9 text-xs text-amber-300/80">{plates}</p>}
             </div>
           );
         })}
@@ -284,7 +325,18 @@ export default function ExerciseLogPanel({
         {showPlates && (
           <p className="text-xs text-neutral-600">Standard plates on a 20 kg / 45 lb bar.</p>
         )}
+        <p className="text-xs text-neutral-600">Tap a set number to mark it warm-up (W), drop (D) or to failure (F).</p>
       </div>
+
+      <textarea
+        value={entry.notes}
+        onChange={(e) => onUpdateNotes(e.target.value)}
+        maxLength={MAX_EXERCISE_NOTE_LENGTH}
+        placeholder="Note for this exercise (seat height, grip…)"
+        rows={2}
+        aria-label={`Note for ${entry.name}`}
+        className="mt-3 w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-base text-neutral-100 placeholder-neutral-600"
+      />
 
       <button
         type="button"

@@ -87,3 +87,25 @@ describe("describePersonalRecord", () => {
     );
   });
 });
+
+describe("detectPersonalRecords — warm-ups (M4)", () => {
+  it("never counts a warm-up set as a record", () => {
+    const current: PerformedSet[] = [{ setNumber: 1, reps: 5, weight: 200, weightUnit: "kg", setType: "warmup" }];
+    expect(detectPersonalRecords([session("2026-09-01", [5, 100])], current)).toEqual([]);
+  });
+
+  it("ignores earlier warm-ups when finding the best to beat", () => {
+    const previous: ExerciseSession[] = [
+      {
+        date: "2026-09-01",
+        sets: [
+          { setNumber: 1, reps: 5, weight: 200, weightUnit: "kg", setType: "warmup" },
+          { setNumber: 2, reps: 5, weight: 100, weightUnit: "kg", setType: "working" },
+        ],
+      },
+    ];
+    const records = detectPersonalRecords(previous, sets([5, 110]));
+    expect(records.map((r) => r.kind)).toEqual(["weight", "e1rm", "volume"]);
+    expect(records[0].previousKg).toBe(100);
+  });
+});

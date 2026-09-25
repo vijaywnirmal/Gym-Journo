@@ -63,7 +63,8 @@ describe("saveLog", () => {
         {
           exercise_id: "ex-1",
           position: 0,
-          sets: [{ set_number: 1, reps: 10, weight: 60, weight_unit: "kg" }],
+          notes: null,
+          sets: [{ set_number: 1, reps: 10, weight: 60, weight_unit: "kg", set_type: "working", rpe: null }],
         },
       ],
     });
@@ -101,8 +102,13 @@ describe("saveLog", () => {
       "save_workout_log",
       expect.objectContaining({
         p_exercises: [
-          { exercise_id: "ex-1", position: 0, sets: [{ set_number: 1, reps: 8, weight: 65, weight_unit: "kg" }] },
-          { exercise_id: "ex-2", position: 1, sets: [] },
+          {
+            exercise_id: "ex-1",
+            position: 0,
+            notes: null,
+            sets: [{ set_number: 1, reps: 8, weight: 65, weight_unit: "kg", set_type: "working", rpe: null }],
+          },
+          { exercise_id: "ex-2", position: 1, notes: null, sets: [] },
         ],
       })
     );
@@ -247,5 +253,61 @@ describe("fetchPersonalRecords", () => {
   it("returns nothing when the history lookup fails", async () => {
     getPriorExerciseSessions.mockResolvedValue(null);
     expect(await fetchPersonalRecords("2026-01-05", [{ exerciseId: "ex-1", sets: [kgSet(5, 90)] }])).toEqual({});
+  });
+});
+
+describe("saveLog — set type, RPE and exercise notes (M4)", () => {
+  beforeEach(() => {
+    rpc.mockReset();
+    rpc.mockResolvedValue({ data: { id: "log-1" }, error: null });
+    getUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
+  });
+
+  it("sends set type, RPE and a trimmed exercise note", async () => {
+    await saveLog({
+      ...basicInput,
+      exercises: [
+        {
+          exerciseId: "ex-1",
+          notes: "  felt strong  ",
+          sets: [{ reps: 10, weight: 40, weightUnit: "kg", setType: "warmup", rpe: 6.5 }],
+        },
+      ],
+    });
+    expect(rpc).toHaveBeenCalledWith(
+      "save_workout_log",
+      expect.objectContaining({
+        p_exercises: [
+          {
+            exercise_id: "ex-1",
+            position: 0,
+            notes: "felt strong",
+            sets: [{ set_number: 1, reps: 10, weight: 40, weight_unit: "kg", set_type: "warmup", rpe: 6.5 }],
+          },
+        ],
+      })
+    );
+  });
+
+  it.each([
+    ["an unknown set type", { setType: "bogus" }],
+    ["an RPE out of range", { rpe: 11 }],
+    ["an RPE off the half steps", { rpe: 7.3 }],
+  ])("rejects %s without calling the database", async (_label, extra) => {
+    const result = await saveLog({
+      ...basicInput,
+      exercises: [{ exerciseId: "ex-1", sets: [{ reps: 5, weight: 60, weightUnit: "kg", ...extra } as never] }],
+    });
+    expect(result.error).toBeTruthy();
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("rejects an exercise note over 500 characters", async () => {
+    const result = await saveLog({
+      ...basicInput,
+      exercises: [{ exerciseId: "ex-1", notes: "x".repeat(501), sets: [] }],
+    });
+    expect(result.error).toBeTruthy();
+    expect(rpc).not.toHaveBeenCalled();
   });
 });

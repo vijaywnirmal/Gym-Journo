@@ -391,7 +391,7 @@ export async function getExerciseSessions(exerciseId: string): Promise<ExerciseS
   const { data, error } = await supabase
     .from("workout_logs")
     .select(
-      "date, logged_exercises!inner(exercise_id, position, logged_sets(set_number, reps, weight, weight_unit))"
+      "date, logged_exercises!inner(exercise_id, position, logged_sets(set_number, reps, weight, weight_unit, set_type))"
     )
     .eq("user_id", user.id)
     .eq("logged_exercises.exercise_id", exerciseId)
@@ -711,7 +711,7 @@ export async function getPriorExerciseSessions(
   const { data, error } = await supabase
     .from("workout_logs")
     .select(
-      "date, logged_exercises!inner(exercise_id, position, logged_sets(set_number, reps, weight, weight_unit))"
+      "date, logged_exercises!inner(exercise_id, position, logged_sets(set_number, reps, weight, weight_unit, set_type))"
     )
     .eq("user_id", user.id)
     .in("logged_exercises.exercise_id", ids)

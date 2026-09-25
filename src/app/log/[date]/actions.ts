@@ -6,6 +6,7 @@ import { getPreviousPerformance, getPriorExerciseSessions } from "@/lib/queries"
 import { getToday } from "@/lib/userDate";
 import { detectPersonalRecords, type PersonalRecord } from "@/lib/analyze/personalRecords";
 import { WEIGHT_UNITS } from "@/lib/validation";
+import { isSetType, isValidRpe, MAX_EXERCISE_NOTE_LENGTH, type SetType } from "@/lib/setData";
 
 export type SaveLogInput = {
   date: string;
@@ -14,7 +15,14 @@ export type SaveLogInput = {
   completed: boolean;
   exercises: {
     exerciseId: string;
-    sets: { reps: number | null; weight: number | null; weightUnit: string }[];
+    notes?: string;
+    sets: {
+      reps: number | null;
+      weight: number | null;
+      weightUnit: string;
+      setType?: SetType;
+      rpe?: number | null;
+    }[];
   }[];
 };
 
@@ -25,6 +33,9 @@ export type SaveLogInput = {
 function validateSaveLogInput(input: SaveLogInput): string | null {
   for (const ex of input.exercises) {
     if (typeof ex.exerciseId !== "string" || !ex.exerciseId) return "Invalid exercise in workout.";
+    if (ex.notes !== undefined && (typeof ex.notes !== "string" || ex.notes.length > MAX_EXERCISE_NOTE_LENGTH)) {
+      return `Exercise notes must be ${MAX_EXERCISE_NOTE_LENGTH} characters or fewer.`;
+    }
     for (const s of ex.sets) {
       if (s.reps !== null && (!Number.isInteger(s.reps) || s.reps < 0)) {
         return "Reps must be a valid non-negative number.";
@@ -33,6 +44,8 @@ function validateSaveLogInput(input: SaveLogInput): string | null {
         return "Weight must be a valid non-negative number.";
       }
       if (!WEIGHT_UNITS.has(s.weightUnit)) return "Invalid weight unit.";
+      if (s.setType !== undefined && !isSetType(s.setType)) return "Invalid set type.";
+      if (s.rpe !== undefined && s.rpe !== null && !isValidRpe(s.rpe)) return "RPE must be 1–10 in half steps.";
     }
   }
   return null;
@@ -58,11 +71,14 @@ export async function saveLog(input: SaveLogInput) {
     p_exercises: input.exercises.map((ex, i) => ({
       exercise_id: ex.exerciseId,
       position: i,
+      notes: ex.notes?.trim() || null,
       sets: ex.sets.map((s, setIndex) => ({
         set_number: setIndex + 1,
         reps: s.reps,
         weight: s.weight,
         weight_unit: s.weightUnit,
+        set_type: s.setType ?? "working",
+        rpe: s.rpe ?? null,
       })),
     })),
   });
@@ -115,7 +131,13 @@ export async function fetchPersonalRecords(
   for (const ex of exercises) {
     const records = detectPersonalRecords(
       history[ex.exerciseId] ?? [],
-      ex.sets.map((s, i) => ({ setNumber: i + 1, reps: s.reps, weight: s.weight, weightUnit: s.weightUnit }))
+      ex.sets.map((s, i) => ({
+        setNumber: i + 1,
+        reps: s.reps,
+        weight: s.weight,
+        weightUnit: s.weightUnit,
+        setType: s.setType ?? "working",
+      }))
     );
     if (records.length > 0) result[ex.exerciseId] = records;
   }

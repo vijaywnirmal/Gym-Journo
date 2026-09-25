@@ -1,4 +1,5 @@
 import { fromKg, toKg } from "@/lib/units";
+import { countsTowardProgress } from "@/lib/setData";
 import { isPerformedSet } from "./definitions";
 import type { ExerciseSession, PerformedSet } from "./exerciseSessions";
 import { bestEstimatedOneRepMax, heaviestSet } from "./progress";
@@ -11,7 +12,7 @@ import { bestEstimatedOneRepMax, heaviestSet } from "./progress";
 //   new exercise doesn't flood the logger with "records".
 // - Strictly greater than the previous best (with a small tolerance so a kg/lb round-trip of the
 //   same weight never counts). Matching a best is not a record.
-// - Only sets with both reps and weight count, same as progress.ts.
+// - Only sets with both reps and weight count, and never warm-ups, same as progress.ts.
 
 export type PersonalRecordKind = "weight" | "e1rm" | "volume";
 
@@ -30,7 +31,7 @@ function sessionVolumeKg(sets: PerformedSet[]): number | null {
   let volume = 0;
   let counted = false;
   for (const set of sets) {
-    if (set.weight === null || set.reps === null) continue;
+    if (set.weight === null || set.reps === null || !countsTowardProgress(set)) continue;
     volume += toKg(set.weight, set.weightUnit) * set.reps;
     counted = true;
   }

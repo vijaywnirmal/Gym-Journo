@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Exercise, WorkoutPlan } from "@/lib/types";
 import type { PreviousPerformance, WorkoutLogWithContext } from "@/lib/queries";
 import { formatDate } from "@/lib/date";
+import { formatSetDetail } from "@/lib/setData";
 import LogForm from "./LogForm";
 
 type Props = {
@@ -84,12 +85,16 @@ export default function HistoricalLogView({
                     {s.weight ?? "?"}
                     {s.weight_unit} × {s.reps ?? "?"}
                   </span>
+                  {formatSetDetail(s.set_type, s.rpe) && (
+                    <span className="text-xs text-neutral-500">{formatSetDetail(s.set_type, s.rpe)}</span>
+                  )}
                 </li>
               ))}
               {(le.logged_sets ?? []).length === 0 && (
                 <li className="text-neutral-500">No sets recorded.</li>
               )}
             </ul>
+            {le.notes && <p className="mt-2 text-xs text-neutral-400">📝 {le.notes}</p>}
           </div>
         ))}
       </div>

@@ -15,7 +15,7 @@ behaviour has no regressions.
       exercise, vibration/sound at zero, and it survives switching exercises.
 - [x] **M3. "Same as last time" pre-fill** — one tap copies the previous session's sets into the
       current exercise, plus a plate calculator for barbell lifts.
-- [ ] **M4. Richer set data** — RPE/RIR effort, set types (warm-up, working, drop, failure),
+- [x] **M4. Richer set data** — RPE/RIR effort, set types (warm-up, working, drop, failure),
       per-exercise notes; warm-ups excluded from PRs and volume.
 - [ ] **M5. Installable offline app (PWA)** — manifest, icons, service worker, offline logging
       queue that syncs when back online.
