@@ -153,6 +153,9 @@ export default async function TodayPage() {
             >
               {log ? cta.label : "Log a freeform workout"}
             </Link>
+            <Link href="/programs" className="text-xs text-neutral-400 underline">
+              Or follow a program
+            </Link>
           </div>
         </div>
       )}
