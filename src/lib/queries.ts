@@ -2,19 +2,14 @@ import { createClient } from "@/lib/supabase/server";
 import { shiftDate, weekDates } from "@/lib/date";
 import { suggestOverload, type OverloadSuggestion } from "@/lib/analyze/overload";
 import {
-  countMuscleSets,
   planAdherence,
+  toMuscleSets,
+  type MuscleSetCountRow,
   type MuscleSets,
-  type MuscleSetsLog,
   type PlanAdherence,
 } from "@/lib/analyze/weeklyInsights";
 import { getToday } from "@/lib/userDate";
-import {
-  isWorkoutDay,
-  performedWorkoutDates,
-  windowStart,
-  type WorkoutLogLike,
-} from "@/lib/analyze/definitions";
+import { windowStart } from "@/lib/analyze/definitions";
 import {
   buildWeeklyTrainingDays,
   COMPLETED_WEEKS,
@@ -289,7 +284,11 @@ export async function getWeekOverview(dates: string[]) {
   } = await supabase.auth.getUser();
   if (!user) return new Map<string, WeekDayOverview>();
 
-  const [{ data: plans }, { data: logs }] = await Promise.all([
+  const todayStr = await getToday();
+  const sorted = [...dates].sort();
+  // Future dates are never workout days, so the performed range stops at today.
+  const performedTo = sorted[sorted.length - 1] < todayStr ? sorted[sorted.length - 1] : todayStr;
+  const [{ data: plans }, { data: logs }, performed] = await Promise.all([
     supabase
       .from("workout_plans")
       .select("date, title, is_rest_day")
@@ -297,10 +296,14 @@ export async function getWeekOverview(dates: string[]) {
       .in("date", dates),
     supabase
       .from("workout_logs")
-      .select("date, completed_at, logged_exercises(logged_sets(reps, weight))")
+      .select("date, completed_at")
       .eq("user_id", user.id)
       .in("date", dates),
+    sorted.length > 0 && sorted[0] <= performedTo
+      ? fetchPerformedWorkoutDates(supabase, sorted[0], performedTo)
+      : Promise.resolve([] as string[]),
   ]);
+  const performedDates = new Set(performed ?? []);
 
   const overview = new Map<string, WeekDayOverview>();
   for (const date of dates) {
@@ -313,13 +316,10 @@ export async function getWeekOverview(dates: string[]) {
       isRestDay: plan.is_rest_day,
     });
   }
-  const todayStr = await getToday();
-  for (const log of (logs ?? []) as unknown as (WorkoutLogLike & {
-    completed_at: string | null;
-  })[]) {
+  for (const log of (logs ?? []) as { date: string; completed_at: string | null }[]) {
     overview.set(log.date, {
       ...overview.get(log.date)!,
-      performed: isWorkoutDay(log, todayStr),
+      performed: performedDates.has(log.date),
       completed: !!log.completed_at,
     });
   }
@@ -502,11 +502,25 @@ export type TrainingConsistency = {
   daysPerformed: number;
 };
 
+type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
+
+// Workout days (analyze/definitions.ts) in [from, to], ascending, computed by the database
+// (performed_workout_dates, migration 0026) so only dates come back, not every set. Pass the
+// person's today as `to` — future-dated logs are never workout days. Null on a query error.
+async function fetchPerformedWorkoutDates(
+  supabase: SupabaseClient,
+  from: string | null,
+  to: string
+): Promise<string[] | null> {
+  const { data, error } = await supabase.rpc("performed_workout_dates", { p_from: from, p_to: to });
+  if (error || !data) return null;
+  return (data as { date: string }[]).map((row) => row.date);
+}
+
 // Count of distinct workout days (see analyze/definitions.ts: a performed, non-future log) in the
 // inclusive N-calendar-day window ending today. A log row that exists but holds no performed set
 // — empty, or only blank planned sets — is not a workout day. completed_at and planned/freeform
-// are irrelevant. workout_logs.date is already unique per user (0001_init.sql); the Set keeps the
-// result a count of dates regardless.
+// are irrelevant. workout_logs.date is unique per user (0001_init.sql), so each date counts once.
 export async function getTrainingConsistency(windowDays = 28): Promise<TrainingConsistency> {
   const supabase = await createClient();
   const {
@@ -515,17 +529,8 @@ export async function getTrainingConsistency(windowDays = 28): Promise<TrainingC
   if (!user) return { windowDays, daysPerformed: 0 };
 
   const todayStr = await getToday();
-  const { data, error } = await supabase
-    .from("workout_logs")
-    .select("date, logged_exercises(logged_sets(reps, weight))")
-    .eq("user_id", user.id)
-    .gte("date", windowStart(windowDays, todayStr))
-    .lte("date", todayStr);
-
-  if (error) return { windowDays, daysPerformed: 0 };
-
-  const performedDates = performedWorkoutDates((data ?? []) as unknown as WorkoutLogLike[], todayStr);
-  return { windowDays, daysPerformed: performedDates.size };
+  const dates = await fetchPerformedWorkoutDates(supabase, windowStart(windowDays, todayStr), todayStr);
+  return { windowDays, daysPerformed: dates?.length ?? 0 };
 }
 
 // The distinct workout dates (canonical definition: performed, not in the future) from `sinceDate`
@@ -538,17 +543,7 @@ export async function getPerformedWorkoutDates(sinceDate: string): Promise<strin
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const todayStr = await getToday();
-  const { data, error } = await supabase
-    .from("workout_logs")
-    .select("date, logged_exercises(logged_sets(reps, weight))")
-    .eq("user_id", user.id)
-    .gte("date", sinceDate)
-    .lte("date", todayStr);
-
-  if (error) return null;
-
-  return [...performedWorkoutDates((data ?? []) as unknown as WorkoutLogLike[], todayStr)].sort();
+  return fetchPerformedWorkoutDates(supabase, sinceDate, await getToday());
 }
 
 // Workout days per Sunday–Saturday calendar week for the current (in-progress) week and the most
@@ -565,12 +560,9 @@ export async function getWeeklyTrainingDays(
 
 export type LastPerformedWorkout = { date: string | null };
 
-const LAST_WORKOUT_PAGE_SIZE = 30;
-
 // The most recent workout day — a performed, non-future log — for a purely factual "when did you
 // last work out" observation. Not "last completed workout" (that is getLastCompletedLog, which
-// keys off completed_at): a performed but never-completed session counts here. Walks back a page
-// at a time past any blank/empty logs.
+// keys off completed_at): a performed but never-completed session counts here.
 export async function getLastPerformedWorkoutDate(): Promise<LastPerformedWorkout> {
   const supabase = await createClient();
   const {
@@ -578,28 +570,12 @@ export async function getLastPerformedWorkoutDate(): Promise<LastPerformedWorkou
   } = await supabase.auth.getUser();
   if (!user) return { date: null };
 
-  const todayStr = await getToday();
-  let before: string | null = null;
-  for (;;) {
-    let query = supabase
-      .from("workout_logs")
-      .select("date, logged_exercises(logged_sets(reps, weight))")
-      .eq("user_id", user.id)
-      .lte("date", todayStr)
-      .order("date", { ascending: false })
-      .limit(LAST_WORKOUT_PAGE_SIZE);
-    if (before) query = query.lt("date", before);
-
-    const { data, error } = await query;
-    if (error || !data) return { date: null };
-    const rows = data as unknown as WorkoutLogLike[];
-
-    const latest = rows.find((row) => isWorkoutDay(row, todayStr));
-    if (latest) return { date: latest.date };
-
-    if (rows.length < LAST_WORKOUT_PAGE_SIZE) return { date: null };
-    before = rows[rows.length - 1].date;
-  }
+  const { data, error } = await supabase
+    .rpc("performed_workout_dates", { p_from: null, p_to: await getToday() })
+    .order("date", { ascending: false })
+    .limit(1);
+  if (error || !data) return { date: null };
+  return { date: (data as { date: string }[])[0]?.date ?? null };
 }
 
 // All of a user's historical weight entries, newest first. Small, unpaginated data volume (at
@@ -749,16 +725,6 @@ export type WeeklyInsights = {
 
 export const ADHERENCE_WINDOW_DAYS = 28;
 
-type MuscleSetsRow = {
-  date: string;
-  logged_exercises:
-    | {
-        exercise: { exercise_muscle_groups: { muscle_group: { id: string; name: string } | null }[] } | null;
-        logged_sets: { reps: number | null; weight: number | null; set_type?: string | null }[] | null;
-      }[]
-    | null;
-};
-
 // Everything the Today screen's "This week" card shows — see analyze/weeklyInsights.ts. Weeks are
 // Sunday–Saturday, like Calendar. Null when signed out or when the workout history can't be read.
 export async function getWeeklyInsights(): Promise<WeeklyInsights | null> {
@@ -773,15 +739,9 @@ export async function getWeeklyInsights(): Promise<WeeklyInsights | null> {
   const lastWeekStart = shiftDate(thisWeekStart, -7);
   const adherenceStart = shiftDate(todayStr, -(ADHERENCE_WINDOW_DAYS - 1));
 
-  const [logsResult, plansResult, weeks, performedDates] = await Promise.all([
-    supabase
-      .from("workout_logs")
-      .select(
-        "date, logged_exercises(exercise:exercises(exercise_muscle_groups(muscle_group:muscle_groups(id, name))), logged_sets(reps, weight, set_type))"
-      )
-      .eq("user_id", user.id)
-      .gte("date", lastWeekStart)
-      .lte("date", todayStr),
+  const [thisWeekResult, lastWeekResult, plansResult, weeks, performedDates] = await Promise.all([
+    supabase.rpc("muscle_set_counts", { p_from: thisWeekStart, p_to: todayStr }),
+    supabase.rpc("muscle_set_counts", { p_from: lastWeekStart, p_to: shiftDate(thisWeekStart, -1) }),
     supabase
       .from("workout_plans")
       .select("date")
@@ -793,21 +753,19 @@ export async function getWeeklyInsights(): Promise<WeeklyInsights | null> {
     getPerformedWorkoutDates(adherenceStart),
   ]);
 
-  if (logsResult.error || !logsResult.data || performedDates === null) return null;
-
-  const logs: MuscleSetsLog[] = (logsResult.data as unknown as MuscleSetsRow[]).map((row) => ({
-    date: row.date,
-    logged_exercises: (row.logged_exercises ?? []).map((le) => ({
-      muscle_groups: (le.exercise?.exercise_muscle_groups ?? [])
-        .map((emg) => emg.muscle_group)
-        .filter((mg): mg is { id: string; name: string } => mg !== null),
-      logged_sets: le.logged_sets,
-    })),
-  }));
+  if (
+    thisWeekResult.error ||
+    !thisWeekResult.data ||
+    lastWeekResult.error ||
+    !lastWeekResult.data ||
+    performedDates === null
+  ) {
+    return null;
+  }
 
   return {
-    thisWeek: countMuscleSets(logs, thisWeekStart, todayStr),
-    lastWeek: countMuscleSets(logs, lastWeekStart, shiftDate(thisWeekStart, -1)),
+    thisWeek: toMuscleSets(thisWeekResult.data as MuscleSetCountRow[]),
+    lastWeek: toMuscleSets(lastWeekResult.data as MuscleSetCountRow[]),
     weeks,
     adherence: plansResult.error
       ? null
