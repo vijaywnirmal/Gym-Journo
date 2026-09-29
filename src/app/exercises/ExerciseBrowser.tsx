@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { Exercise, MuscleGroup } from "@/lib/types";
 import { EQUIPMENT_OPTIONS, filterExercises } from "@/lib/exerciseSearch";
+import ExerciseDemo from "@/components/ExerciseDemo";
 import DeleteExerciseButton from "./DeleteExerciseButton";
 
 type Props = {
@@ -115,10 +116,15 @@ export default function ExerciseBrowser({ exercises, muscleGroups, userId }: Pro
                   </div>
                   {userId !== null && ex.user_id === userId && <DeleteExerciseButton exerciseId={ex.id} />}
                 </div>
-                {ex.instructions && (
+                {(!!ex.instructions || !!ex.demo_images?.length) && (
                   <details className="mt-2">
                     <summary className="cursor-pointer text-xs text-neutral-400">How to</summary>
-                    <p className="mt-1 text-sm text-neutral-300">{ex.instructions}</p>
+                    {!!ex.demo_images?.length && (
+                      <div className="mt-2">
+                        <ExerciseDemo images={ex.demo_images} name={ex.name} />
+                      </div>
+                    )}
+                    {ex.instructions && <p className="mt-1 text-sm text-neutral-300">{ex.instructions}</p>}
                   </details>
                 )}
               </li>

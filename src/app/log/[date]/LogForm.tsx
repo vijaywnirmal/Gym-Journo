@@ -568,6 +568,7 @@ export default function LogForm({
           {current && (
             <ExerciseLogPanel
               entry={current}
+              demoImages={exercises.find((e) => e.id === current.exerciseId)?.demo_images}
               positionLabel={`Exercise ${currentIndex + 1} of ${entries.length}`}
               previous={previousPerformance[current.exerciseId]}
               onUpdateSet={updateSet}

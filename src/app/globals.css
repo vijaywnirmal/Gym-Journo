@@ -18,3 +18,28 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ExerciseDemo: the end frame sits over the start frame and fades in and out. */
+.exercise-demo-end {
+  position: absolute;
+  inset: 0;
+  animation: exercise-demo-flip 2.4s ease-in-out infinite;
+}
+
+@keyframes exercise-demo-flip {
+  0%, 35% { opacity: 0; }
+  50%, 85% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .exercise-demo:has(.exercise-demo-end) {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    max-width: 32rem;
+  }
+  .exercise-demo-end {
+    position: static;
+    animation: none;
+  }
+}
