@@ -1,0 +1,216 @@
+#!/usr/bin/env node
+// Generates the free-exercise-db import: the migration that adds the exercises to the shared
+// library, and their start/end demo images under public/exercise-demos/.
+//
+//   node scripts/import-free-exercise-db.mjs
+//
+// Source: https://github.com/yuhonas/free-exercise-db (public domain, Unlicense), pinned to one
+// commit so re-running produces the same output. The migration it writes is committed like any
+// other; once it has been applied anywhere, don't regenerate it in place — write a new migration.
+//
+// What gets imported:
+// - Categories people log as training (strength, powerlifting, olympic weightlifting, plyometrics,
+//   cardio). Stretches and strongman events are left out.
+// - Each exercise's primary muscles, mapped onto this app's muscle groups (MUSCLE_GROUPS). An
+//   exercise whose muscles don't map (neck work) is skipped rather than mis-tagged.
+// - Up to two frames per exercise, resized to 480px WebP.
+// Duplicates of what's already in the library (same source exercise, or same name) are skipped
+// by the migration itself, so it's safe whatever the target database already holds.
+
+import { mkdir, writeFile, access } from "node:fs/promises";
+import path from "node:path";
+import sharp from "sharp";
+
+const COMMIT = "f00c92c7dcf1216a928a52c3706c7ce8e2f71ed5";
+const RAW = `https://raw.githubusercontent.com/yuhonas/free-exercise-db/${COMMIT}`;
+const ROOT = path.resolve(import.meta.dirname, "..");
+const IMAGE_DIR = path.join(ROOT, "public", "exercise-demos");
+const MIGRATION = path.join(ROOT, "supabase", "migrations", "0027_import_free_exercise_db.sql");
+
+const CATEGORIES = new Set(["strength", "powerlifting", "olympic weightlifting", "plyometrics", "cardio"]);
+const MAX_FRAMES = 2;
+const IMAGE_WIDTH = 480;
+const WEBP_QUALITY = 72;
+
+// Dataset muscle -> app muscle group. Mirrors how the existing library tags similar lifts
+// (Shrug -> Back, Hip Adduction -> Quads, Hip Abduction -> Glutes).
+const MUSCLE_GROUPS = {
+  abdominals: "Core",
+  abductors: "Glutes",
+  adductors: "Quads",
+  biceps: "Biceps",
+  calves: "Calves",
+  chest: "Chest",
+  forearms: "Forearms",
+  glutes: "Glutes",
+  hamstrings: "Hamstrings",
+  lats: "Back",
+  "lower back": "Back",
+  "middle back": "Back",
+  quadriceps: "Quads",
+  shoulders: "Shoulders",
+  traps: "Back",
+  triceps: "Triceps",
+};
+
+// Dataset equipment -> the app's EQUIPMENT_OPTIONS (src/lib/exerciseSearch.ts).
+const EQUIPMENT = {
+  barbell: "Barbell",
+  "e-z curl bar": "Barbell",
+  dumbbell: "Dumbbell",
+  cable: "Cable",
+  machine: "Machine",
+  "body only": "Bodyweight",
+  kettlebells: "Kettlebell",
+  bands: "Band",
+  "medicine ball": "Other",
+  "exercise ball": "Other",
+  "foam roll": "Other",
+  other: "Other",
+};
+
+function muscleGroupsOf(exercise) {
+  if (exercise.category === "cardio") return ["Cardio"];
+  return [...new Set(exercise.primaryMuscles.map((m) => MUSCLE_GROUPS[m]).filter(Boolean))];
+}
+
+async function exists(file) {
+  try {
+    await access(file);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function fetchOk(url) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`GET ${url} -> ${response.status}`);
+  return response;
+}
+
+// Writes /exercise-demos/<id>/<n>.webp for each frame (skipping ones already on disk) and returns
+// their public paths.
+async function writeFrames(exercise) {
+  const frames = exercise.images.slice(0, MAX_FRAMES);
+  const paths = [];
+  for (const [index, image] of frames.entries()) {
+    const publicPath = `/exercise-demos/${exercise.id}/${index}.webp`;
+    const file = path.join(ROOT, "public", publicPath);
+    if (!(await exists(file))) {
+      const source = Buffer.from(await (await fetchOk(`${RAW}/exercises/${image}`)).arrayBuffer());
+      await mkdir(path.dirname(file), { recursive: true });
+      await sharp(source)
+        .resize({ width: IMAGE_WIDTH, height: IMAGE_WIDTH, fit: "inside", withoutEnlargement: true })
+        .webp({ quality: WEBP_QUALITY })
+        .toFile(file);
+    }
+    paths.push(publicPath);
+  }
+  return paths;
+}
+
+function toRow(exercise, demoImages) {
+  const steps = exercise.instructions.map((s) => s.trim()).filter(Boolean);
+  return {
+    source_id: exercise.id,
+    name: exercise.name.trim(),
+    equipment: EQUIPMENT[exercise.equipment] ?? null,
+    instructions: steps.length > 0 ? steps.join("\n") : null,
+    demo_images: demoImages.length > 0 ? demoImages : null,
+    muscle_groups: muscleGroupsOf(exercise),
+  };
+}
+
+function migrationSql(rows) {
+  const json = `[\n${rows.map((row) => JSON.stringify(row)).join(",\n")}\n]`;
+  if (json.includes("$import$")) throw new Error("dataset contains the dollar-quote delimiter");
+  return `-- Imports ${rows.length} exercises from free-exercise-db (github.com/yuhonas/free-exercise-db,
+-- public domain under the Unlicense) at commit ${COMMIT}, into the shared library.
+--
+-- GENERATED by scripts/import-free-exercise-db.mjs — edit the script, not this file. Images live in
+-- public/exercise-demos/<source_id>/ (written by the same script).
+--
+-- 1. exercises.source_id records which dataset exercise a library row came from. Rows linked in
+--    0025 (by their demo image path) are backfilled, so they aren't imported a second time.
+-- 2. Library instructions may run to 4000 characters (the dataset's step-by-step guides). The
+--    app still caps what people type for their own exercises (MAX_INSTRUCTIONS_LENGTH).
+-- 3. Each dataset exercise is inserted unless the library already has it (same source_id, or the
+--    same name ignoring case), then tagged with its mapped muscle groups.
+
+alter table exercises add column source_id text;
+create unique index exercises_source_id_key on exercises (source_id) where source_id is not null;
+
+-- Two library exercises can share one source's photos (e.g. Calf Raise and Standing Calf Raise);
+-- the oldest keeps the link, the other keeps its images without one.
+update exercises e
+set source_id = linked.source_id
+from (
+  select distinct on (source_id) id, source_id
+  from (
+    select id, created_at, substring(demo_images[1] from '^/exercise-demos/([^/]+)/') as source_id
+    from exercises
+    where user_id is null and demo_images is not null
+  ) candidates
+  where source_id is not null
+  order by source_id, created_at, id
+) linked
+where e.id = linked.id;
+
+alter table exercises drop constraint exercises_instructions_length;
+alter table exercises
+  add constraint exercises_instructions_length check (instructions is null or char_length(instructions) <= 4000);
+
+create temporary table import_rows on commit drop as
+select *
+from jsonb_to_recordset($import$
+${json}
+$import$::jsonb) as r(
+  source_id text,
+  name text,
+  equipment text,
+  instructions text,
+  demo_images text[],
+  muscle_groups text[]
+);
+
+insert into exercises (user_id, name, equipment, instructions, demo_images, source_id)
+select null, r.name, r.equipment, r.instructions, r.demo_images, r.source_id
+from import_rows r
+where not exists (
+  select 1
+  from exercises e
+  where e.user_id is null
+    and (e.source_id = r.source_id or lower(e.name) = lower(r.name))
+);
+
+insert into exercise_muscle_groups (exercise_id, muscle_group_id)
+select e.id, mg.id
+from import_rows r
+join exercises e on e.source_id = r.source_id and e.user_id is null
+cross join lateral unnest(r.muscle_groups) as tag(name)
+join muscle_groups mg on mg.name = tag.name
+on conflict do nothing;
+`;
+}
+
+async function main() {
+  const dataset = await (await fetchOk(`${RAW}/dist/exercises.json`)).json();
+  const candidates = dataset.filter((ex) => CATEGORIES.has(ex.category) && muscleGroupsOf(ex).length > 0);
+
+  const seenNames = new Set();
+  const rows = [];
+  for (const exercise of candidates) {
+    const key = exercise.name.trim().toLowerCase();
+    if (seenNames.has(key)) continue;
+    seenNames.add(key);
+    rows.push(toRow(exercise, await writeFrames(exercise)));
+  }
+  rows.sort((a, b) => a.name.localeCompare(b.name));
+
+  await mkdir(IMAGE_DIR, { recursive: true });
+  await writeFile(MIGRATION, migrationSql(rows));
+  console.log(`${rows.length} exercises -> ${path.relative(ROOT, MIGRATION)}`);
+}
+
+await main();
