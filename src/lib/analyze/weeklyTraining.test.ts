@@ -112,6 +112,27 @@ describe("buildWeeklyTrainingDays — counting", () => {
   });
 });
 
+describe("buildWeeklyTrainingDays — absence days", () => {
+  const withAbsences = (performed: string[], absences: string[]) =>
+    buildWeeklyTrainingDays(new Set(performed), MONDAY, COMPLETED_WEEKS, new Set(absences));
+
+  it("lists each week's absence days, ascending", () => {
+    const result = withAbsences([], ["2026-09-17", "2026-09-15", "2026-09-08"]);
+    expect(byStart(result, "2026-09-13").absenceDates).toEqual(["2026-09-15", "2026-09-17"]);
+    expect(byStart(result, "2026-09-06").absenceDates).toEqual(["2026-09-08"]);
+  });
+
+  it("counts a day with a workout as performed, not absent", () => {
+    const result = withAbsences(["2026-09-15"], ["2026-09-15", "2026-09-16"]);
+    expect(byStart(result, "2026-09-13")).toMatchObject({ daysPerformed: 1, absenceDates: ["2026-09-16"] });
+  });
+
+  it("ignores future absences and defaults to none", () => {
+    expect(withAbsences([], ["2026-09-24"])[0].absenceDates).toEqual([]);
+    expect(weeks([]).every((w) => w.absenceDates.length === 0)).toBe(true);
+  });
+});
+
 describe("performedWorkoutDates — the canonical workout-day set feeding the weeks", () => {
   const set = (reps: number | null, weight: number | null) => ({ reps, weight });
 

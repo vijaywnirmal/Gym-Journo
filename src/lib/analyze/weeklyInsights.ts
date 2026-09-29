@@ -31,23 +31,53 @@ export function volumeStatus(sets: number, range = WEEKLY_SET_RANGE): VolumeStat
   return "within";
 }
 
+// A completed week that falls short of the goal is paused rather than breaking the streak when its
+// absence days (sick, travel, injury) cover the shortfall — but at most this many paused weeks in
+// any run of STREAK_PAUSE_WINDOW_WEEKS completed weeks, so a long break still ends it.
+export const MAX_PAUSED_WEEKS = 2;
+export const STREAK_PAUSE_WINDOW_WEEKS = 4;
+
+export type WeeklyStreak = {
+  // Weeks that met the goal. Paused weeks don't add to it.
+  weeks: number;
+  // Paused weeks inside the streak (between weeks that met the goal).
+  pausedWeeks: number;
+};
+
 // Consecutive weeks meeting the weekly goal, counting back from the most recent completed week.
 // The current week only adds to the streak once it has already met the goal — an unfinished week
 // never breaks it. `weeks` is newest first (buildWeeklyTrainingDays). A goal of null or < 1 means
 // "train at least once a week".
-export function weeklyStreak(weeks: WeeklyTrainingDays[], goalDaysPerWeek: number | null): number {
+export function weeklyStreak(weeks: WeeklyTrainingDays[], goalDaysPerWeek: number | null): WeeklyStreak {
   const goal = goalDaysPerWeek && goalDaysPerWeek >= 1 ? goalDaysPerWeek : 1;
   let streak = 0;
+  let pausedWeeks = 0;
+  let pausedSinceLastMet = 0;
+  // Completed weeks walked so far, newest first: true = paused.
+  const walked: boolean[] = [];
+
   for (const week of weeks) {
     const met = week.daysPerformed >= goal;
     if (week.isCurrentWeek) {
       if (met) streak++;
       continue;
     }
-    if (!met) break;
-    streak++;
+    if (met) {
+      streak++;
+      pausedWeeks += pausedSinceLastMet;
+      pausedSinceLastMet = 0;
+      walked.push(false);
+      continue;
+    }
+
+    const coveredByAbsence = week.daysPerformed + (week.absenceDates?.length ?? 0) >= goal;
+    const recentPauses = walked.slice(-(STREAK_PAUSE_WINDOW_WEEKS - 1)).filter(Boolean).length;
+    if (!coveredByAbsence || recentPauses >= MAX_PAUSED_WEEKS) break;
+    pausedSinceLastMet++;
+    walked.push(true);
   }
-  return streak;
+  // Paused weeks after the oldest week that met the goal aren't inside the streak.
+  return { weeks: streak, pausedWeeks };
 }
 
 export type PlanAdherence = { planned: number; performed: number };

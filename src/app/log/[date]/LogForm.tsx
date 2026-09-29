@@ -16,6 +16,7 @@ import type { PreviousPerformance } from "@/lib/queries";
 import { describePersonalRecord, type PersonalRecord } from "@/lib/analyze/personalRecords";
 import { saveLog, fetchPreviousPerformance, fetchPersonalRecords } from "./actions";
 import { toSetType } from "@/lib/setData";
+import { lighterSets, lighterSetCount } from "@/lib/analyze/comeback";
 import ExerciseLogPanel, { setsFromPrevious, type ExerciseEntry, type SetRow } from "./ExerciseLogPanel";
 import LogExercisePicker from "./LogExercisePicker";
 import RestTimer, { type RestTimerHandle } from "./RestTimer";
@@ -34,6 +35,9 @@ type Props = {
   // Signed-in user id. When set, unsynced edits are backed up on this device (per user and date)
   // so they survive the app closing before they reach the server — see lib/logBackup.ts.
   backupScope?: string | null;
+  // A lighter session after a break (lib/analyze/comeback.ts): fewer planned sets, and "Same as
+  // last time" at lighter weights. The plan itself is unchanged.
+  lighter?: boolean;
 };
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -88,11 +92,16 @@ export default function LogForm({
   initialPreviousPerformance,
   showTargets = true,
   backupScope = null,
+  lighter = false,
 }: Props) {
   const backupStorageKey = backupScope ? backupKey(backupScope, date) : null;
+  const plannedSets = (sets: number | null) => (lighter && sets !== null ? lighterSetCount(sets) : sets);
   const targetByExerciseId = new Map(
     showTargets
-      ? plan?.planned_exercises?.map((pe) => [pe.exercise_id, { sets: pe.target_sets, reps: pe.target_reps }]) ?? []
+      ? plan?.planned_exercises?.map((pe) => [
+          pe.exercise_id,
+          { sets: plannedSets(pe.target_sets), reps: pe.target_reps },
+        ]) ?? []
       : []
   );
 
@@ -120,8 +129,8 @@ export default function LogForm({
         exerciseId: pe.exercise_id,
         name: pe.exercise?.name ?? "Exercise",
         notes: "",
-        target: showTargets ? { sets: pe.target_sets, reps: pe.target_reps } : null,
-        sets: Array.from({ length: pe.target_sets ?? 3 }, () => emptySet()),
+        target: showTargets ? { sets: plannedSets(pe.target_sets), reps: pe.target_reps } : null,
+        sets: Array.from({ length: plannedSets(pe.target_sets ?? 3) ?? 3 }, () => emptySet()),
         done: false,
       })) ?? [];
 
@@ -397,7 +406,8 @@ export default function LogForm({
   function copyPrevious() {
     const entry = stateRef.current.entries[currentIndex];
     if (!entry) return;
-    const sets = setsFromPrevious(previousPerformance[entry.exerciseId]);
+    const previous = setsFromPrevious(previousPerformance[entry.exerciseId]);
+    const sets = lighter ? lighterSets(previous) : previous;
     if (sets.length === 0) return;
     updateEntries((prev) => prev.map((e, i) => (i === currentIndex ? { ...e, sets } : e)));
     scheduleSave(true);
@@ -472,6 +482,16 @@ export default function LogForm({
   return (
     <div className="flex flex-col gap-4 pb-6">
       <SaveStatus state={saveState} error={saveError} onRetry={() => scheduleSave(true)} />
+
+      {lighter && (
+        <div className="rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3" role="note">
+          <p className="text-sm font-medium text-neutral-100">Lighter session</p>
+          <p className="text-xs text-neutral-400">
+            About two thirds of the planned sets, and &ldquo;Same as last time&rdquo; fills about 90% of last
+            time&apos;s weights. Change anything you like — your plan stays as it is.
+          </p>
+        </div>
+      )}
 
       {pendingBackup && (
         <div className="rounded-xl border border-sky-900 bg-sky-950/40 px-4 py-3" role="status">

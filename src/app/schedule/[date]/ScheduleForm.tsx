@@ -7,6 +7,7 @@ import { savePlan, deletePlan } from "./actions";
 import ExerciseTargetEditor, { type ExerciseTargets } from "./ExerciseTargetEditor";
 import TemplateManager from "./TemplateManager";
 import { toExerciseTargets } from "./exerciseTargets";
+import { DAY_TYPE_LABEL, DAY_TYPE_TITLE_PLACEHOLDER, DAY_TYPES, dayTypeOf, type DayType } from "@/lib/dayType";
 
 type Props = {
   date: string;
@@ -19,7 +20,8 @@ export default function ScheduleForm({ date, muscleGroups, existingPlan, templat
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [title, setTitle] = useState(existingPlan?.title ?? "");
-  const [isRestDay, setIsRestDay] = useState(existingPlan?.is_rest_day ?? false);
+  const [dayType, setDayType] = useState<DayType>(existingPlan ? dayTypeOf(existingPlan) : "workout");
+  const isWorkout = dayType === "workout";
   const [selectedMuscles, setSelectedMuscles] = useState<Set<string>>(
     new Set(existingPlan?.muscle_groups?.map((m) => m.id) ?? [])
   );
@@ -54,7 +56,7 @@ export default function ScheduleForm({ date, muscleGroups, existingPlan, templat
       const result = await savePlan({
         date,
         title,
-        isRestDay,
+        dayType,
         muscleGroupIds: [...selectedMuscles],
         exercises: [...selectedExercises.entries()].map(([exerciseId, t]) => ({
           exerciseId,
@@ -76,38 +78,29 @@ export default function ScheduleForm({ date, muscleGroups, existingPlan, templat
   return (
     <div className="flex flex-col gap-5 pb-6">
       <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => setIsRestDay(false)}
-          className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium ${
-            !isRestDay
-              ? "border-white bg-white text-neutral-900"
-              : "border-neutral-700 text-neutral-100"
-          }`}
-        >
-          🏋️ Workout
-        </button>
-        <button
-          type="button"
-          onClick={() => setIsRestDay(true)}
-          className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium ${
-            isRestDay
-              ? "border-white bg-white text-neutral-900"
-              : "border-neutral-700 text-neutral-100"
-          }`}
-        >
-          😴 Rest / Absence
-        </button>
+        {DAY_TYPES.map((type) => (
+          <button
+            key={type}
+            type="button"
+            onClick={() => setDayType(type)}
+            aria-pressed={dayType === type}
+            className={`flex-1 rounded-lg border px-2 py-2 text-sm font-medium ${
+              dayType === type ? "border-white bg-white text-neutral-900" : "border-neutral-700 text-neutral-100"
+            }`}
+          >
+            {DAY_TYPE_LABEL[type]}
+          </button>
+        ))}
       </div>
 
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        placeholder={isRestDay ? "Reason (optional) — e.g. Sick, Travel" : "Day title (e.g. Push Day)"}
+        placeholder={DAY_TYPE_TITLE_PLACEHOLDER[dayType]}
         className="rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-base text-neutral-100 placeholder-neutral-500"
       />
 
-      {!isRestDay && (
+      {isWorkout && (
         <>
           <div>
             <p className="mb-2 text-sm font-semibold text-neutral-100">Muscle groups</p>

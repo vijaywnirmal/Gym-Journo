@@ -10,7 +10,14 @@ type SetRow = { id: string; set_number: number; reps: number | null; weight: num
 type ExerciseRow = { id: string; exercise_id: string; position: number; logged_sets: SetRow[] };
 type LogRow = { id: string; user_id: string; date: string; completed_at: string | null; logged_exercises: ExerciseRow[] };
 
-const db: { workout_logs: LogRow[]; profiles: Row[]; body_measurements: Row[]; exercises: Row[] } = {
+const db: {
+  workout_logs: LogRow[];
+  workout_plans: Row[];
+  profiles: Row[];
+  body_measurements: Row[];
+  exercises: Row[];
+} = {
+  workout_plans: [],
   workout_logs: [],
   profiles: [],
   body_measurements: [],

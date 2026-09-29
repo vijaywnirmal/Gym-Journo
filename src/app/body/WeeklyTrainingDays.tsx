@@ -23,7 +23,7 @@ export default function WeeklyTrainingDays({
               {row.inProgress ? " · in progress" : ""}
             </p>
             <p className="text-sm text-neutral-300">
-              {[row.performedLine, row.targetLine, row.differenceLine]
+              {[row.performedLine, row.targetLine, row.differenceLine, row.absenceLine]
                 .filter((line): line is string => line !== null)
                 .join(" · ")}
             </p>

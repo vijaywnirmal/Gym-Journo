@@ -17,7 +17,7 @@ const { savePlan } = await import("./actions");
 const baseInput = {
   date: "2026-09-22",
   title: "Push Day",
-  isRestDay: false,
+  dayType: "workout" as const,
   muscleGroupIds: ["mg-1"],
   exercises: [{ exerciseId: "ex-1", targetSets: 3, targetReps: 8 }],
 };
@@ -43,7 +43,7 @@ describe("savePlan", () => {
     expect(rpc).toHaveBeenCalledWith("save_workout_plan", {
       p_date: "2026-09-22",
       p_title: null,
-      p_is_rest_day: false,
+      p_off_kind: null,
       p_muscle_group_ids: ["mg-1"],
       p_exercises: [
         {
@@ -102,12 +102,32 @@ describe("savePlan", () => {
   });
 
   it("a rest day sends no muscle groups or exercises, regardless of what's still selected client-side", async () => {
-    const result = await savePlan({ ...baseInput, isRestDay: true });
+    const result = await savePlan({ ...baseInput, dayType: "rest" });
     expect(result).toEqual({ success: true });
     expect(rpc).toHaveBeenCalledWith(
       "save_workout_plan",
-      expect.objectContaining({ p_is_rest_day: true, p_muscle_group_ids: [], p_exercises: [] })
+      expect.objectContaining({ p_off_kind: "rest", p_muscle_group_ids: [], p_exercises: [] })
     );
+  });
+
+  it("saves an absence as its own kind of day off", async () => {
+    await savePlan({ ...baseInput, title: "Flu", dayType: "absence" });
+    expect(rpc).toHaveBeenCalledWith(
+      "save_workout_plan",
+      expect.objectContaining({ p_title: "Flu", p_off_kind: "absence", p_exercises: [] })
+    );
+  });
+
+  it("never sends whether the day was marked late — the database decides that", async () => {
+    await savePlan({ ...baseInput, dayType: "absence" });
+    const args = rpc.mock.calls[0][1] as Record<string, unknown>;
+    expect(Object.keys(args).some((key) => key.includes("late"))).toBe(false);
+  });
+
+  it("rejects an unknown day type before calling the RPC", async () => {
+    const result = await savePlan({ ...baseInput, dayType: "holiday" as never });
+    expect(result).toEqual({ error: "Invalid day type." });
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it("shows a generic error and never the database's own message — the RPC call is a single transaction: nothing is left half-written", async () => {
