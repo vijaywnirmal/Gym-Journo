@@ -247,10 +247,14 @@ export default function LogForm({
       void doSave();
       return;
     }
+    if (debounceTimer.current) {
+      // A newer edit is still waiting out the debounce and will save itself. Until then it is
+      // unsaved: the status stays "Saving…", the backup stays, and a page hide/close still flushes.
+      return;
+    }
     hasUnsavedRef.current = false;
     setSaveState("saved");
-    // Only drop the backup when no newer edit is still waiting on the debounce timer.
-    if (backupStorageKey && !debounceTimer.current) clearLogBackup(browserLocalStorage(), backupStorageKey);
+    if (backupStorageKey) clearLogBackup(browserLocalStorage(), backupStorageKey);
     void refreshPersonalRecords(exercisesPayload);
   }
 
@@ -266,6 +270,8 @@ export default function LogForm({
   // double-fire under React Strict Mode's dev-only double-invoke).
   function scheduleSave(immediate: boolean) {
     hasUnsavedRef.current = true;
+    // An edit waiting out the debounce isn't saved yet, so never let the status still say "Saved".
+    setSaveState("saving");
     setBackupHandled(true);
     backUpUnsyncedState();
     if (debounceTimer.current) {
