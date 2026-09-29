@@ -7,6 +7,7 @@ import {
   getTrainingConsistency,
   getWeeklyInsights,
   getAdaptSuggestions,
+  getLastPerformedWorkoutDate,
 } from "@/lib/queries";
 import WeeklyInsightsCard from "@/components/WeeklyInsightsCard";
 import { formatDate, hourIn, todayIn } from "@/lib/date";
@@ -20,19 +21,22 @@ import {
   getWorkoutCta,
 } from "@/lib/home";
 import SignOutButton from "@/components/SignOutButton";
+import { dayTypeOf } from "@/lib/dayType";
+import { comebackGapDays } from "@/lib/analyze/comeback";
 
 const TRAINING_FREQUENCY_WINDOW_DAYS = 7;
 
 export default async function TodayPage() {
   const { timeZone } = await getUserTimeZone();
   const date = todayIn(timeZone);
-  const [profile, plan, log, trainingConsistency, weeklyInsights, suggestions] = await Promise.all([
+  const [profile, plan, log, trainingConsistency, weeklyInsights, suggestions, lastWorkout] = await Promise.all([
     getProfile(),
     getPlanForDate(date),
     getLogForDate(date),
     getTrainingConsistency(TRAINING_FREQUENCY_WINDOW_DAYS),
     getWeeklyInsights(),
     getAdaptSuggestions(),
+    getLastPerformedWorkoutDate(),
   ]);
 
   const greeting = getGreeting(profile ? namePartsOf(profile).firstName : null, hourIn(timeZone));
@@ -46,6 +50,10 @@ export default async function TodayPage() {
 
   const goalDaysPerWeek = profile?.training_days_per_week ?? null;
 
+  // Welcome back after a break — unless today is already under way or is a planned day off.
+  const gapDays = !log && (!plan || !plan.is_rest_day) ? comebackGapDays(lastWorkout.date, date) : null;
+  const canGoLighter = !!plan && !plan.is_rest_day && (plan.planned_exercises?.length ?? 0) > 0;
+
   const hasNothingToday = !plan && !log;
   const recentActivity = hasNothingToday ? await getLastCompletedLog() : null;
 
@@ -58,6 +66,30 @@ export default async function TodayPage() {
         </div>
         <SignOutButton />
       </div>
+
+      {gapDays !== null && lastWorkout.date && (
+        <div className="mb-4 rounded-xl border border-sky-900 bg-sky-950/30 p-4" role="status">
+          <p className="font-semibold text-sky-100">👋 Welcome back</p>
+          <p className="mb-3 text-sm text-sky-200/80">
+            Your last workout was {gapDays} days ago ({formatDate(lastWorkout.date)}). A shorter session still counts.
+          </p>
+          {canGoLighter ? (
+            <Link
+              href={`/log/${date}?lighter=1`}
+              className="block rounded-lg bg-white px-4 py-2.5 text-center text-sm font-medium text-neutral-900"
+            >
+              Start a lighter session
+            </Link>
+          ) : (
+            <Link
+              href={`/log/${date}`}
+              className="block rounded-lg bg-white px-4 py-2.5 text-center text-sm font-medium text-neutral-900"
+            >
+              Log a short workout
+            </Link>
+          )}
+        </div>
+      )}
 
       {goalSummary && (
         <div className="mb-4 rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3">
@@ -93,7 +125,9 @@ export default async function TodayPage() {
       {plan?.is_rest_day ? (
         <div className="mb-4 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
           <div className="mb-1 flex items-center justify-between">
-            <h2 className="font-semibold text-neutral-100">😴 Rest day</h2>
+            <h2 className="font-semibold text-neutral-100">
+              {dayTypeOf(plan) === "absence" ? "⏸️ Absence" : "😴 Rest day"}
+            </h2>
             <Link href={`/schedule/${date}`} className="text-xs text-neutral-400 underline">
               Edit
             </Link>

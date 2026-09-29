@@ -185,10 +185,27 @@ describe("getWeekOverview — performed and completed are separate facts", () =>
     );
     setRpcResult(dates(d1, d2));
     const overview = await getWeekOverview(week);
-    expect(overview.get(d1)).toEqual({ title: "Push", performed: true, completed: true, isRestDay: false });
-    expect(overview.get(d2)).toEqual({ title: null, performed: true, completed: false, isRestDay: false });
-    expect(overview.get(d3)).toEqual({ title: null, performed: false, completed: true, isRestDay: false });
-    expect(overview.get(today())).toEqual({ title: null, performed: false, completed: false, isRestDay: false });
+    const none = { dayType: null, markedLate: false };
+    expect(overview.get(d1)).toEqual({ title: "Push", performed: true, completed: true, dayType: "workout", markedLate: false });
+    expect(overview.get(d2)).toEqual({ title: null, performed: true, completed: false, ...none });
+    expect(overview.get(d3)).toEqual({ title: null, performed: false, completed: true, ...none });
+    expect(overview.get(today())).toEqual({ title: null, performed: false, completed: false, ...none });
+  });
+
+  it("reads rest and absence days and whether they were marked afterwards", async () => {
+    setResults(
+      {
+        data: [
+          { date: d1, title: "Flu", is_rest_day: true, off_kind: "absence", off_marked_late: true },
+          { date: d2, title: null, is_rest_day: true, off_kind: "rest", off_marked_late: false },
+        ],
+        error: null,
+      },
+      { data: [], error: null }
+    );
+    const overview = await getWeekOverview(week);
+    expect(overview.get(d1)).toMatchObject({ title: "Flu", dayType: "absence", markedLate: true });
+    expect(overview.get(d2)).toMatchObject({ dayType: "rest", markedLate: false });
   });
 
   it("reads completion without pulling sets", async () => {

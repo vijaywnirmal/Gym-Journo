@@ -15,6 +15,7 @@ const week = (weekStart: string, weekEnd: string, daysPerformed: number, isCurre
   weekEnd,
   daysPerformed,
   performedDates: [],
+  absenceDates: [],
   isCurrentWeek,
 });
 
@@ -97,6 +98,15 @@ describe("buildWeeklyTrainingRows", () => {
     const [row] = buildWeeklyTrainingRows([week("2026-09-06", "2026-09-12", 0)], 4);
     expect(row.performedLine).toBe("Performed: 0 days");
     expect(row.differenceLine).toBe("Difference: −4 days");
+  });
+
+  it("counts absence days, and says nothing about them when there were none", () => {
+    const [row] = buildWeeklyTrainingRows(
+      [{ ...week("2026-09-06", "2026-09-12", 1), absenceDates: ["2026-09-08", "2026-09-09"] }],
+      4
+    );
+    expect(row.absenceLine).toBe("Absent: 2 days");
+    expect(buildWeeklyTrainingRows(weeks, 4).every((r) => r.absenceLine === null)).toBe(true);
   });
 
   it("with no stated target, shows performed days only — no target or difference", () => {

@@ -9,10 +9,14 @@ import HistoricalLogView from "./HistoricalLogView";
 
 export default async function LogPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ date: string }>;
+  searchParams: Promise<{ lighter?: string }>;
 }) {
   const { date } = await params;
+  // "Start a lighter session" from Today's welcome-back card (lib/analyze/comeback.ts).
+  const lighter = (await searchParams).lighter === "1";
   const supabase = await createClient();
   const {
     data: { user },
@@ -63,6 +67,7 @@ export default async function LogPage({
             existingLog={log}
             initialPreviousPerformance={initialPreviousPerformance}
             backupScope={user?.id ?? null}
+            lighter={lighter}
           />
         </>
       )}

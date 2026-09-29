@@ -41,6 +41,10 @@ export type WorkoutPlan = {
   date: string;
   title: string | null;
   is_rest_day: boolean;
+  // 'rest' | 'absence' on a day off (migration 0029); see lib/dayType.ts.
+  off_kind?: string | null;
+  // The day off was marked after its date had passed (set by the database).
+  off_marked_late?: boolean;
   muscle_groups?: MuscleGroup[];
   planned_exercises?: PlannedExercise[];
 };

@@ -33,30 +33,66 @@ describe("volumeStatus", () => {
   });
 });
 
-const week = (daysPerformed: number, isCurrentWeek = false): WeeklyTrainingDays => ({
+const week = (daysPerformed: number, isCurrentWeek = false, absenceDays = 0): WeeklyTrainingDays => ({
   weekStart: "",
   weekEnd: "",
   daysPerformed,
   performedDates: [],
+  absenceDates: Array.from({ length: absenceDays }, (_, i) => `absent-${i}`),
   isCurrentWeek,
 });
+const absent = (daysPerformed: number, absenceDays: number) => week(daysPerformed, false, absenceDays);
 
 describe("weeklyStreak", () => {
   it("counts completed weeks meeting the goal until the first miss", () => {
-    expect(weeklyStreak([week(1, true), week(3), week(4), week(2), week(3)], 3)).toBe(2);
+    expect(weeklyStreak([week(1, true), week(3), week(4), week(2), week(3)], 3)).toEqual({ weeks: 2, pausedWeeks: 0 });
   });
 
   it("adds the current week only once it has met the goal", () => {
-    expect(weeklyStreak([week(3, true), week(3)], 3)).toBe(2);
-    expect(weeklyStreak([week(0, true), week(3)], 3)).toBe(1);
+    expect(weeklyStreak([week(3, true), week(3)], 3).weeks).toBe(2);
+    expect(weeklyStreak([week(0, true), week(3)], 3).weeks).toBe(1);
   });
 
   it("treats a missing goal as at least one day a week", () => {
-    expect(weeklyStreak([week(0, true), week(1), week(1), week(0)], null)).toBe(2);
+    expect(weeklyStreak([week(0, true), week(1), week(1), week(0)], null).weeks).toBe(2);
   });
 
   it("is zero when the last completed week missed", () => {
-    expect(weeklyStreak([week(5, false), week(0)].reverse(), 3)).toBe(0);
+    expect(weeklyStreak([week(5, false), week(0)].reverse(), 3).weeks).toBe(0);
+  });
+
+  it("pauses a short week whose absence days cover the shortfall, without counting it", () => {
+    // 3 weeks met, with one week of 1 workout + 2 absence days (goal 3) in between.
+    expect(weeklyStreak([week(0, true), week(3), absent(1, 2), week(3), week(3), week(0)], 3)).toEqual({
+      weeks: 3,
+      pausedWeeks: 1,
+    });
+  });
+
+  it("breaks when the absences don't cover the shortfall", () => {
+    expect(weeklyStreak([week(0, true), week(3), absent(0, 2), week(3)], 3)).toEqual({ weeks: 1, pausedWeeks: 0 });
+  });
+
+  it("allows at most 2 paused weeks in any 4 completed weeks", () => {
+    // Two pauses in a row are fine...
+    expect(weeklyStreak([week(3), absent(0, 3), absent(0, 3), week(3), week(0)], 3)).toEqual({ weeks: 2, pausedWeeks: 2 });
+    // ...a third within the same 4 weeks ends the streak there.
+    expect(weeklyStreak([week(3), absent(0, 3), absent(0, 3), absent(0, 3), week(3)], 3)).toEqual({
+      weeks: 1,
+      pausedWeeks: 0,
+    });
+    // Pauses spread further apart all count.
+    expect(
+      weeklyStreak([week(3), absent(0, 3), week(3), week(3), week(3), absent(0, 3), week(3), week(0)], 3)
+    ).toEqual({ weeks: 5, pausedWeeks: 2 });
+  });
+
+  it("doesn't count paused weeks beyond the oldest week that met the goal", () => {
+    expect(weeklyStreak([week(3), absent(0, 3), week(0)], 3)).toEqual({ weeks: 1, pausedWeeks: 0 });
+  });
+
+  it("never pauses the current week — it just doesn't add to the streak yet", () => {
+    expect(weeklyStreak([week(0, true, 3), week(3)], 3)).toEqual({ weeks: 1, pausedWeeks: 0 });
   });
 });
 

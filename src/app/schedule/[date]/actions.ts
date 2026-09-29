@@ -3,11 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { validateTargetWeight, WEIGHT_UNITS } from "@/lib/validation";
+import { isDayType, offKindOf, type DayType } from "@/lib/dayType";
 
 export type SavePlanInput = {
   date: string;
   title: string;
-  isRestDay: boolean;
+  dayType: DayType;
   muscleGroupIds: string[];
   exercises: {
     exerciseId: string;
@@ -25,6 +26,7 @@ export async function savePlan(input: SavePlanInput) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not signed in" };
+  if (!isDayType(input.dayType)) return { error: "Invalid day type." };
 
   for (const ex of input.exercises) {
     if (ex.targetWeight != null) {
@@ -36,10 +38,10 @@ export async function savePlan(input: SavePlanInput) {
     }
   }
 
-  // A rest day carries no muscle groups or exercises — same rule the previous write path applied,
-  // now decided before the call instead of by guarding each of several separate statements.
-  const muscleGroupIds = input.isRestDay ? [] : input.muscleGroupIds;
-  const exercises = input.isRestDay ? [] : input.exercises;
+  // A day off carries no muscle groups or exercises (save_workout_plan enforces this too).
+  const offKind = offKindOf(input.dayType);
+  const muscleGroupIds = offKind ? [] : input.muscleGroupIds;
+  const exercises = offKind ? [] : input.exercises;
 
   // Single RPC call = single transaction: either the whole plan is replaced, or (on any error)
   // nothing changes — see save_workout_plan in 0018_add_save_workout_plan_rpc.sql. Replaces what
@@ -48,7 +50,8 @@ export async function savePlan(input: SavePlanInput) {
   const { data, error } = await supabase.rpc("save_workout_plan", {
     p_date: input.date,
     p_title: input.title || null,
-    p_is_rest_day: input.isRestDay,
+    // Whether a day off was marked after the fact is decided by the database, not sent from here.
+    p_off_kind: offKind,
     p_muscle_group_ids: muscleGroupIds,
     p_exercises: exercises.map((ex, i) => ({
       exercise_id: ex.exerciseId,

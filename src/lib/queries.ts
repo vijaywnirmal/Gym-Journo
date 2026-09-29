@@ -10,6 +10,7 @@ import {
 } from "@/lib/analyze/weeklyInsights";
 import { getToday } from "@/lib/userDate";
 import { windowStart } from "@/lib/analyze/definitions";
+import { dayTypeOf, type DayType } from "@/lib/dayType";
 import {
   buildWeeklyTrainingDays,
   COMPLETED_WEEKS,
@@ -133,7 +134,7 @@ export async function getUpcomingScheduleSummary(days: number): Promise<string> 
 
   const { data } = await supabase
     .from("workout_plans")
-    .select("date, title, is_rest_day, workout_plan_muscle_groups(muscle_group:muscle_groups(name))")
+    .select("date, title, is_rest_day, off_kind, workout_plan_muscle_groups(muscle_group:muscle_groups(name))")
     .eq("user_id", user.id)
     .gte("date", todayStr)
     .lte("date", untilStr)
@@ -143,6 +144,7 @@ export async function getUpcomingScheduleSummary(days: number): Promise<string> 
     date: string;
     title: string | null;
     is_rest_day: boolean;
+    off_kind?: string | null;
     workout_plan_muscle_groups: { muscle_group: { name: string } | null }[];
   };
   const rows = (data ?? []) as unknown as Row[];
@@ -151,7 +153,10 @@ export async function getUpcomingScheduleSummary(days: number): Promise<string> 
 
   return rows
     .map((row) => {
-      if (row.is_rest_day) return `${row.date}: Rest day${row.title ? ` (${row.title})` : ""}`;
+      if (row.is_rest_day) {
+        const label = dayTypeOf(row) === "absence" ? "Absence" : "Rest day";
+        return `${row.date}: ${label}${row.title ? ` (${row.title})` : ""}`;
+      }
       const muscles = row.workout_plan_muscle_groups
         .map((m) => m.muscle_group?.name)
         .filter(Boolean)
@@ -292,7 +297,10 @@ export type WeekDayOverview = {
   title: string | null;
   performed: boolean;
   completed: boolean;
-  isRestDay: boolean;
+  // What was scheduled: null when nothing was.
+  dayType: DayType | null;
+  // A day off marked after its date had passed.
+  markedLate: boolean;
 };
 
 export async function getWeekOverview(dates: string[]) {
@@ -309,7 +317,7 @@ export async function getWeekOverview(dates: string[]) {
   const [{ data: plans }, { data: logs }, performed] = await Promise.all([
     supabase
       .from("workout_plans")
-      .select("date, title, is_rest_day")
+      .select("date, title, is_rest_day, off_kind, off_marked_late")
       .eq("user_id", user.id)
       .in("date", dates),
     supabase
@@ -325,13 +333,14 @@ export async function getWeekOverview(dates: string[]) {
 
   const overview = new Map<string, WeekDayOverview>();
   for (const date of dates) {
-    overview.set(date, { title: null, performed: false, completed: false, isRestDay: false });
+    overview.set(date, { title: null, performed: false, completed: false, dayType: null, markedLate: false });
   }
   for (const plan of plans ?? []) {
     overview.set(plan.date, {
       ...overview.get(plan.date)!,
       title: plan.title,
-      isRestDay: plan.is_rest_day,
+      dayType: dayTypeOf(plan),
+      markedLate: !!plan.off_marked_late,
     });
   }
   for (const log of (logs ?? []) as { date: string; completed_at: string | null }[]) {
@@ -571,9 +580,30 @@ export async function getWeeklyTrainingDays(
   completedWeeks = COMPLETED_WEEKS
 ): Promise<WeeklyTrainingDays[]> {
   const todayStr = await getToday();
-  const dates = await getPerformedWorkoutDates(oldestWeekStart(todayStr, completedWeeks));
+  const since = oldestWeekStart(todayStr, completedWeeks);
+  const [dates, absences] = await Promise.all([getPerformedWorkoutDates(since), getAbsenceDates(since, todayStr)]);
   if (dates === null) return [];
-  return buildWeeklyTrainingDays(new Set(dates), todayStr, completedWeeks);
+  return buildWeeklyTrainingDays(new Set(dates), todayStr, completedWeeks, new Set(absences));
+}
+
+// Dates marked as an absence (sick, travel, injury) in [from, to]. [] when signed out or on a
+// query error — the streak then simply isn't paused by them.
+export async function getAbsenceDates(from: string, to: string): Promise<string[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from("workout_plans")
+    .select("date")
+    .eq("user_id", user.id)
+    .eq("off_kind", "absence")
+    .gte("date", from)
+    .lte("date", to);
+  if (error || !data) return [];
+  return data.map((row) => row.date as string);
 }
 
 export type LastPerformedWorkout = { date: string | null };

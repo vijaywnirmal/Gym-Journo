@@ -178,12 +178,22 @@ describe("formatPlannedExercise", () => {
 
 describe("formatStreak / formatAdherence (M7)", () => {
   it("says nothing without a streak", () => {
-    expect(formatStreak(0, 3)).toBeNull();
+    expect(formatStreak({ weeks: 0, pausedWeeks: 0 }, 3)).toBeNull();
+    expect(formatStreak({ weeks: 0, pausedWeeks: 1 }, 3)).toBeNull();
   });
 
   it("names the weekly goal the streak is measured against", () => {
-    expect(formatStreak(4, 3)).toBe("🔥 4-week streak of 3+ workout days");
-    expect(formatStreak(1, null)).toBe("🔥 1-week streak of at least 1 workout");
+    expect(formatStreak({ weeks: 4, pausedWeeks: 0 }, 3)).toBe("🔥 4-week streak of 3+ workout days");
+    expect(formatStreak({ weeks: 1, pausedWeeks: 0 }, null)).toBe("🔥 1-week streak of at least 1 workout");
+  });
+
+  it("says how many weeks absences paused", () => {
+    expect(formatStreak({ weeks: 5, pausedWeeks: 1 }, 3)).toBe(
+      "🔥 5-week streak of 3+ workout days · 1 week paused for absence"
+    );
+    expect(formatStreak({ weeks: 5, pausedWeeks: 2 }, 3)).toBe(
+      "🔥 5-week streak of 3+ workout days · 2 weeks paused for absence"
+    );
   });
 
   it("formats plan adherence, or nothing when no days were planned", () => {

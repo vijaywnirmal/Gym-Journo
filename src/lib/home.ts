@@ -89,11 +89,18 @@ export function getWorkoutCta(date: string, hasLog: boolean, completed: boolean)
 }
 
 // "This week" card wording (M7).
-export function formatStreak(weeks: number, goalDaysPerWeek: number | null): string | null {
-  if (weeks <= 0) return null;
+export function formatStreak(
+  streak: { weeks: number; pausedWeeks: number },
+  goalDaysPerWeek: number | null
+): string | null {
+  if (streak.weeks <= 0) return null;
   const goal = goalDaysPerWeek && goalDaysPerWeek >= 1 ? goalDaysPerWeek : 1;
   const target = goal === 1 ? "at least 1 workout" : `${goal}+ workout days`;
-  return `🔥 ${weeks}-week streak of ${target}`;
+  const paused =
+    streak.pausedWeeks > 0
+      ? ` · ${streak.pausedWeeks} week${streak.pausedWeeks === 1 ? "" : "s"} paused for absence`
+      : "";
+  return `🔥 ${streak.weeks}-week streak of ${target}${paused}`;
 }
 
 export function formatAdherence(

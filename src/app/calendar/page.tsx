@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getWeekOverview } from "@/lib/queries";
 import { formatDate, shiftDate, weekDates } from "@/lib/date";
 import { getToday } from "@/lib/userDate";
-import { formatDayStatus } from "./dayStatus";
+import { describeCalendarDay, isMissedDay } from "./dayStatus";
 
 export default async function CalendarPage({
   searchParams,
@@ -46,7 +46,11 @@ export default async function CalendarPage({
         {dates.map((date) => {
           const info = overview.get(date);
           const isToday = date === todayDate;
-          const status = info ? formatDayStatus(info) : "";
+          const { plan, status } = info
+            ? describeCalendarDay(info, date, todayDate)
+            : { plan: "Not scheduled", status: "" };
+          const missed = !!info && isMissedDay(info, date, todayDate);
+          const dayOff = info?.dayType === "rest" || info?.dayType === "absence";
           return (
             <div
               key={date}
@@ -58,14 +62,8 @@ export default async function CalendarPage({
                 <p className="text-sm font-medium text-neutral-100">
                   {formatDate(date)} {isToday && <span className="text-neutral-500">· today</span>}
                 </p>
-                <p className="text-xs text-neutral-400">
-                  {info?.isRestDay
-                    ? `😴 Rest day${info.title ? ` · ${info.title}` : ""}`
-                    : info?.title
-                      ? info.title
-                      : "Not scheduled"}
-                </p>
-                {status && <p className="text-xs text-neutral-500">{status}</p>}
+                <p className="text-xs text-neutral-400">{plan}</p>
+                {status && <p className={`text-xs ${missed ? "text-amber-400/80" : "text-neutral-500"}`}>{status}</p>}
               </div>
               <div className="flex shrink-0 gap-2">
                 <Link
@@ -74,7 +72,7 @@ export default async function CalendarPage({
                 >
                   Schedule
                 </Link>
-                {!info?.isRestDay && (
+                {!dayOff && (
                   <Link
                     href={`/log/${date}`}
                     className="rounded-lg bg-white px-2.5 py-1.5 text-xs font-medium text-neutral-900"
