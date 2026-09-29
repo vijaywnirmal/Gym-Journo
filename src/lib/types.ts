@@ -21,6 +21,9 @@ export type Profile = {
   coach_consent_at: string | null;
   // IANA timezone from the person's device; defines their "today". Null = not known yet.
   timezone: string | null;
+  // Workout reminders over web push (migration 0030). reminder_time is local, "HH:MM:SS".
+  workout_reminders?: boolean;
+  reminder_time?: string;
   onboarded: boolean;
 };
 

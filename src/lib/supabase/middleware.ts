@@ -37,6 +37,8 @@ export async function updateSession(request: NextRequest) {
   // JSON endpoints answer for themselves: a signed-out fetch gets a 401 rather than the login page's
   // HTML, and onboarding (a page flow) doesn't apply.
   const isApiRoute = pathname.startsWith("/api/");
+  // Scheduled jobs are called by the scheduler, not a person, and check their own secret.
+  if (pathname.startsWith("/api/cron/")) return supabaseResponse;
 
   if (!user && isApiRoute) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401, headers: { "Cache-Control": "no-store" } });
