@@ -10,7 +10,8 @@ import {
   readRawLogBackup,
   writeLogBackup,
 } from "@/lib/logBackup";
-import type { Exercise, WorkoutLog, WorkoutPlan } from "@/lib/types";
+import type { WorkoutLog, WorkoutPlan } from "@/lib/types";
+import type { ExerciseListItem } from "@/lib/exerciseLibrary";
 import type { PreviousPerformance } from "@/lib/queries";
 import { describePersonalRecord, type PersonalRecord } from "@/lib/analyze/personalRecords";
 import { saveLog, fetchPreviousPerformance, fetchPersonalRecords } from "./actions";
@@ -22,7 +23,6 @@ import ShareWorkoutButton from "@/components/ShareWorkoutButton";
 
 type Props = {
   date: string;
-  exercises: Exercise[];
   plan: WorkoutPlan | null;
   existingLog: WorkoutLog | null;
   initialPreviousPerformance: Record<string, PreviousPerformance | null>;
@@ -83,7 +83,6 @@ export function getUnloggedPlannedExercises(
 
 export default function LogForm({
   date,
-  exercises,
   plan,
   existingLog,
   initialPreviousPerformance,
@@ -404,14 +403,14 @@ export default function LogForm({
     scheduleSave(true);
   }
 
-  async function addExercise(exerciseId: string) {
-    const ex = exercises.find((e) => e.id === exerciseId);
-    if (!ex || entries.some((e) => e.exerciseId === exerciseId)) return;
+  async function addExercise(exercise: Pick<ExerciseListItem, "id" | "name">) {
+    const exerciseId = exercise.id;
+    if (entries.some((e) => e.exerciseId === exerciseId)) return;
     updateEntries((prev) => [
       ...prev,
       {
-        exerciseId: ex.id,
-        name: ex.name,
+        exerciseId,
+        name: exercise.name,
         notes: "",
         target: targetByExerciseId.get(exerciseId) ?? null,
         sets: [emptySet()],
@@ -568,7 +567,6 @@ export default function LogForm({
           {current && (
             <ExerciseLogPanel
               entry={current}
-              demoImages={exercises.find((e) => e.id === current.exerciseId)?.demo_images}
               positionLabel={`Exercise ${currentIndex + 1} of ${entries.length}`}
               previous={previousPerformance[current.exerciseId]}
               onUpdateSet={updateSet}
@@ -611,7 +609,6 @@ export default function LogForm({
 
       {pickerOpen ? (
         <LogExercisePicker
-          exercises={exercises}
           alreadyAdded={new Set(entries.map((e) => e.exerciseId))}
           onAdd={addExercise}
           onCancel={() => setPickerOpen(false)}

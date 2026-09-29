@@ -1,22 +1,15 @@
-import { getExercises, getMuscleGroups } from "@/lib/queries";
-import { createClient } from "@/lib/supabase/server";
-import ExerciseCreateForm from "./ExerciseCreateForm";
-import ExerciseBrowser from "./ExerciseBrowser";
+import { getMuscleGroups } from "@/lib/queries";
+import ExerciseLibrary from "./ExerciseLibrary";
 
+// The library itself loads page by page from /api/exercises (see ExerciseLibraryBrowser); only the
+// muscle groups for the create form are read here.
 export default async function ExercisesPage() {
-  const [exercises, muscleGroups] = await Promise.all([getExercises(), getMuscleGroups()]);
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const muscleGroups = await getMuscleGroups();
 
   return (
     <main className="px-4 pt-6">
       <h1 className="mb-4 text-xl font-bold">Exercise Library</h1>
-
-      <ExerciseCreateForm muscleGroups={muscleGroups} />
-
-      <ExerciseBrowser exercises={exercises} muscleGroups={muscleGroups} userId={user?.id ?? null} />
+      <ExerciseLibrary muscleGroups={muscleGroups} />
     </main>
   );
 }

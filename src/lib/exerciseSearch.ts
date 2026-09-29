@@ -1,8 +1,7 @@
-import type { Exercise } from "@/lib/types";
-
-// Exercise library search and filters — shared by the library page and the log/schedule pickers.
-// Pure. A search term matches the exercise name, its equipment or any of its muscle groups, and
-// every word of the term must match (so "db press" finds "Dumbbell Shoulder Press").
+// Exercise library search terms. Pure. A term becomes a list of words that must all match an
+// exercise's name, equipment or muscle groups (so "db press" finds "Dumbbell Shoulder Press"); the
+// matching itself runs in the database (browse_exercises, migration 0028), which normalises
+// exercise text the same way as normalize() below.
 
 export const EQUIPMENT_OPTIONS = [
   "Barbell",
@@ -15,6 +14,8 @@ export const EQUIPMENT_OPTIONS = [
   "Other",
 ] as const;
 
+export type Equipment = (typeof EQUIPMENT_OPTIONS)[number];
+
 // Common gym shorthand, expanded before matching.
 const ALIASES: Record<string, string> = {
   db: "dumbbell",
@@ -25,37 +26,24 @@ const ALIASES: Record<string, string> = {
   rdl: "romanian deadlift",
 };
 
+// Lowercase, accents and apostrophes dropped ("Farmer's" -> "farmers"), other punctuation to
+// single spaces. Keep in step with exercise_search_text in migration 0028 (which doesn't strip
+// accents; exercise names are plain ASCII, so only typed terms need it).
 function normalize(value: string): string {
   return value
     .toLowerCase()
     .normalize("NFKD")
-    .replace(/['’]/g, "") // "Farmer's" -> "farmers"
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/['’]/g, "")
     .replace(/[^a-z0-9 ]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-function searchText(ex: Exercise): string {
-  return normalize([ex.name, ex.equipment ?? "", ...(ex.muscle_groups ?? []).map((m) => m.name)].join(" "));
-}
-
-export function matchesSearch(ex: Exercise, term: string): boolean {
-  const words = normalize(term)
+// The words a search term must all match, with shorthand expanded. [] for a blank term.
+export function searchWords(term: string): string[] {
+  return normalize(term)
     .split(" ")
     .filter(Boolean)
-    .flatMap((w) => normalize(ALIASES[w] ?? w).split(" "));
-  if (words.length === 0) return true;
-  const haystack = searchText(ex);
-  return words.every((w) => haystack.includes(w));
-}
-
-export type ExerciseFilters = { term: string; muscleGroupId: string | null; equipment: string | null };
-
-export function filterExercises(exercises: Exercise[], filters: ExerciseFilters): Exercise[] {
-  return exercises.filter(
-    (ex) =>
-      matchesSearch(ex, filters.term) &&
-      (!filters.muscleGroupId || (ex.muscle_groups ?? []).some((m) => m.id === filters.muscleGroupId)) &&
-      (!filters.equipment || (ex.equipment ?? "").toLowerCase() === filters.equipment.toLowerCase())
-  );
+    .flatMap((word) => normalize(ALIASES[word] ?? word).split(" "));
 }

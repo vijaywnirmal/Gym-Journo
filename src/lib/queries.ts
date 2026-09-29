@@ -31,7 +31,6 @@ import {
   type SessionSourceLog,
 } from "@/lib/analyze/exerciseSessions";
 import type {
-  Exercise,
   MuscleGroup,
   WorkoutPlan,
   WorkoutLog,
@@ -173,17 +172,6 @@ export async function getProfile(): Promise<Profile | null> {
   return data;
 }
 
-type ExerciseRow = {
-  id: string;
-  user_id: string | null;
-  name: string;
-  equipment: string | null;
-  notes: string | null;
-  instructions?: string | null;
-  demo_images?: string[] | null;
-  exercise_muscle_groups: { muscle_group: MuscleGroup }[];
-};
-
 export async function getMuscleGroups(): Promise<MuscleGroup[]> {
   const supabase = await createClient();
   const { data, error } = await supabase.from("muscle_groups").select("*").order("name");
@@ -191,26 +179,56 @@ export async function getMuscleGroups(): Promise<MuscleGroup[]> {
   return data ?? [];
 }
 
-export async function getExercises(): Promise<Exercise[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("exercises")
-    .select(
-      "id, user_id, name, equipment, notes, instructions, demo_images, exercise_muscle_groups(muscle_group:muscle_groups(id, name))"
-    )
-    .order("name");
-  if (error) throw error;
+// The library is too large to load whole; these read only the exercises a caller needs. Row-level
+// security limits every one to what the person can see: the shared library and their own.
 
-  return ((data ?? []) as unknown as ExerciseRow[]).map((row) => ({
-    id: row.id,
-    user_id: row.user_id,
-    name: row.name,
-    equipment: row.equipment,
-    notes: row.notes,
-    instructions: row.instructions ?? null,
-    demo_images: row.demo_images ?? null,
-    muscle_groups: row.exercise_muscle_groups.map((r) => r.muscle_group),
-  }));
+// Of `ids`, the ones this person can see. Null on a query error.
+export async function findVisibleExerciseIds(ids: string[]): Promise<Set<string> | null> {
+  if (ids.length === 0) return new Set();
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("exercises").select("id").in("id", [...new Set(ids)]);
+  if (error || !data) return null;
+  return new Set(data.map((row) => row.id as string));
+}
+
+// Whether an exercise this person can see already has this name, ignoring case and surrounding
+// whitespace. Null on a query error.
+export async function visibleExerciseNamed(name: string): Promise<boolean | null> {
+  const supabase = await createClient();
+  const pattern = name.trim().replace(/[\\%_]/g, "\\$&"); // match literally, not as a LIKE pattern
+  const { data, error } = await supabase.from("exercises").select("id").ilike("name", pattern).limit(1);
+  if (error || !data) return null;
+  return data.length > 0;
+}
+
+// Names for the given exercise ids (ids this person can't see are left out).
+export async function getExerciseNames(ids: string[]): Promise<Map<string, string>> {
+  if (ids.length === 0) return new Map();
+  const supabase = await createClient();
+  const { data } = await supabase.from("exercises").select("id, name").in("id", [...new Set(ids)]);
+  return new Map((data ?? []).map((row) => [row.id as string, row.name as string]));
+}
+
+export type ExerciseOption = { id: string; name: string };
+
+// The exercises this person has logged at least once, by name — for the History and Progress
+// filters (logged_exercise_options, migration 0028). [] on a query error.
+export async function getLoggedExerciseOptions(): Promise<ExerciseOption[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("logged_exercise_options");
+  if (error || !data) return [];
+  return data as ExerciseOption[];
+}
+
+// Options for an exercise filter: the logged exercises, plus the selected one if it hasn't been
+// logged yet (e.g. opened from the logger's "View history" link), so the filter can show it.
+export async function getExerciseFilterOptions(selectedId?: string): Promise<ExerciseOption[]> {
+  const [logged, selectedName] = await Promise.all([
+    getLoggedExerciseOptions(),
+    selectedId ? getExerciseNames([selectedId]).then((names) => names.get(selectedId)) : undefined,
+  ]);
+  if (!selectedId || !selectedName || logged.some((option) => option.id === selectedId)) return logged;
+  return [{ id: selectedId, name: selectedName }, ...logged];
 }
 
 export async function getTemplates(): Promise<WorkoutTemplate[]> {
@@ -641,13 +659,12 @@ export async function getTrainingEvidence(): Promise<TrainingEvidence | null> {
   if (!user) return null;
 
   const todayStr = await getToday();
-  const [profile, performedDates, lastPerformed, measurements, exercises, recentLogs] =
+  const [profile, performedDates, lastPerformed, measurements, recentLogs] =
     await Promise.all([
       getProfile(),
       getPerformedWorkoutDates(oldestWeekStart(todayStr)),
       getLastPerformedWorkoutDate(),
       getBodyMeasurements(),
-      getExercises(),
       supabase
         .from("workout_logs")
         .select("date, logged_exercises(exercise_id, logged_sets(reps, weight))")
@@ -663,8 +680,10 @@ export async function getTrainingEvidence(): Promise<TrainingEvidence | null> {
     todayStr
   );
   const chosenIds = recentIds.slice(0, MAX_EVIDENCE_EXERCISES);
-  const namesById = new Map(exercises.map((ex) => [ex.id, ex.name]));
-  const sessions = await Promise.all(chosenIds.map((id) => getExerciseSessions(id)));
+  const [namesById, sessions] = await Promise.all([
+    getExerciseNames(chosenIds),
+    Promise.all(chosenIds.map((id) => getExerciseSessions(id))),
+  ]);
 
   return buildTrainingEvidence({
     todayStr,

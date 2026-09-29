@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import type { Exercise } from "@/lib/types";
-import ExercisePicker from "./ExercisePicker";
+import ExercisePicker, { type PickedExercise } from "./ExercisePicker";
 
+// Selected exercises by id, each with its name (for display) and optional targets.
 export type ExerciseTargets = Map<
   string,
-  { targetSets: string; targetReps: string; targetWeight: string; targetWeightUnit: string }
+  { name: string; targetSets: string; targetReps: string; targetWeight: string; targetWeightUnit: string }
 >;
 
 const EMPTY_TARGETS = { targetSets: "", targetReps: "", targetWeight: "", targetWeightUnit: "kg" };
@@ -15,21 +15,18 @@ const EMPTY_TARGETS = { targetSets: "", targetReps: "", targetWeight: "", target
 // exercises with optional target sets/reps/weight, plus an "+ Add exercise" button that opens the
 // on-demand picker rather than showing the whole library inline.
 export default function ExerciseTargetEditor({
-  exercises,
   selected,
   onChange,
 }: {
-  exercises: Exercise[];
   selected: ExerciseTargets;
   onChange: (next: ExerciseTargets) => void;
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
-  const exerciseById = new Map(exercises.map((ex) => [ex.id, ex]));
 
-  function applyPicker(ids: string[]) {
+  function applyPicker(picked: PickedExercise[]) {
     const next: ExerciseTargets = new Map();
-    for (const id of ids) {
-      next.set(id, selected.get(id) ?? { ...EMPTY_TARGETS });
+    for (const { id, name } of picked) {
+      next.set(id, selected.get(id) ?? { name, ...EMPTY_TARGETS });
     }
     onChange(next);
     setPickerOpen(false);
@@ -72,9 +69,7 @@ export default function ExerciseTargetEditor({
       {[...selected.entries()].map(([id, targets]) => (
         <div key={id} className="rounded-xl border border-neutral-800 p-3">
           <div className="mb-2 flex items-center justify-between">
-            <p className="font-medium text-neutral-100">
-              {exerciseById.get(id)?.name ?? "Exercise"}
-            </p>
+            <p className="font-medium text-neutral-100">{targets.name}</p>
             <button type="button" onClick={() => remove(id)} className="text-xs text-red-400">
               Remove
             </button>
@@ -129,8 +124,7 @@ export default function ExerciseTargetEditor({
 
       {pickerOpen && (
         <ExercisePicker
-          exercises={exercises}
-          initiallySelected={new Set(selected.keys())}
+          initiallySelected={[...selected].map(([id, targets]) => ({ id, name: targets.name }))}
           onConfirm={applyPicker}
           onCancel={() => setPickerOpen(false)}
         />

@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 // End-to-end check of getTrainingEvidence against a small in-memory stand-in for the Supabase
-// query builder (eq, lt, lte, gte, order, limit, maybeSingle, plus the embedded-exercise inner
+// query builder (eq, lt, lte, gte, in, order, limit, maybeSingle, plus the embedded-exercise inner
 // filter) across the tables the evidence reads. It models the intended behaviour; it is not the
 // real service. "Today" is pinned to Sep 21, 2026 (a Monday).
 
@@ -40,6 +40,10 @@ function query(table: keyof typeof db) {
     },
     lt(column: string, value: string) {
       filters.push((row) => (row[column] as string) < value);
+      return builder;
+    },
+    in(column: string, values: unknown[]) {
+      filters.push((row) => values.includes(row[column]));
       return builder;
     },
     order(column: string, options?: { ascending: boolean }) {

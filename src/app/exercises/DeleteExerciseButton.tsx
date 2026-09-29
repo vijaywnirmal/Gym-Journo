@@ -1,11 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { deleteExercise } from "./actions";
 
-export default function DeleteExerciseButton({ exerciseId }: { exerciseId: string }) {
-  const router = useRouter();
+export default function DeleteExerciseButton({ exerciseId, onDeleted }: { exerciseId: string; onDeleted: () => void }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -17,7 +15,7 @@ export default function DeleteExerciseButton({ exerciseId }: { exerciseId: strin
         setError(result.error);
         return;
       }
-      router.refresh();
+      onDeleted();
     });
   }
 
