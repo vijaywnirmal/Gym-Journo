@@ -44,6 +44,18 @@ merge to `master` adds one. It dry-runs first and applies them with `supabase db
 4. In Supabase → Authentication → URL Configuration, add the deployed URL's `/auth/callback` as a
    redirect URL (magic-link sign-in and password resets land there).
 
+**Workout reminders** (optional; the Profile section stays hidden until they're configured):
+
+1. Generate a VAPID key pair once: `npx web-push generate-vapid-keys`.
+2. In Vercel → Settings → Environment Variables, add `NEXT_PUBLIC_VAPID_PUBLIC_KEY`,
+   `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (e.g. `mailto:you@example.com`), `CRON_SECRET` (a long random
+   string, e.g. `openssl rand -hex 32`) and `SUPABASE_SERVICE_ROLE_KEY` if it isn't there yet, then
+   redeploy.
+3. In GitHub → Settings → Secrets and variables → Actions, add the variable `APP_URL` (the deployed
+   URL) and the secret `CRON_SECRET` (the same value). The **Send workout reminders** workflow
+   ([`.github/workflows/reminders.yml`](.github/workflows/reminders.yml)) then calls the job every 15
+   minutes. Run it by hand from the Actions tab to check the setup; it prints how many were sent.
+
 **Write migrations that the running app survives.** Vercel and the migration workflow run at the same
 time, so for a minute the old app may meet the new schema, or the new app the old one. Add before you
 remove: new columns nullable or defaulted, new function signatures alongside the old ones (the old one
@@ -58,6 +70,7 @@ can call the new), and drop old ones only in a later release once nothing uses t
 - **Log** (`/log/[date]`) — record what you actually did; pre-filled from that day's schedule if one exists, or start freeform. Add/remove sets, record reps + weight per set.
 - **Calendar** (`/calendar`) — week view of what's scheduled and what's been logged. A planned workout on a past day with nothing logged shows as "planned, not logged" — worked out from the plan and the log, never labelled by hand.
 - **Streaks and comebacks** (Today) — a week that falls short of your weekly goal is paused, not broken, when absence days cover the shortfall (at most 2 paused weeks in any 4). After 7+ days without a workout, Today welcomes you back and offers a lighter version of the day's plan: about two thirds of the sets, with "Same as last time" at ~90% weight (`lib/analyze/comeback.ts`).
+- **Workout reminders** (Profile) — opt in per device to a push notification on days with a planned workout, at a local time you choose. Rest and absence days are skipped, there's at most one a day, and none once you've logged a set. A scheduled job calls `POST /api/cron/reminders`, which asks the database who is due (`due_workout_reminders`, migration `0030`) and sends through web push; devices the push service reports gone are removed. On iPhone and iPad this needs the app added to the Home Screen (iOS 16.4+).
 - **History** (`/history`) — past logs, filterable by exercise (e.g. track bench press progress over time).
 
 Data model, RLS policies, and everything else live in [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql).

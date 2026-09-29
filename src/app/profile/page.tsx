@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import ProfileCard from "./ProfileCard";
 import DeleteAccountSection from "./DeleteAccountSection";
 import CoachConsentSection from "./CoachConsentSection";
+import RemindersSection from "./RemindersSection";
 
 export default async function ProfilePage() {
   const [profile, supabase] = await Promise.all([getProfile(), createClient()]);
@@ -20,6 +21,10 @@ export default async function ProfilePage() {
         <SignOutButton />
       </div>
       <ProfileCard initial={profileFieldsFromProfile(profile)} email={user?.email ?? null} />
+      <RemindersSection
+        enabled={profile?.workout_reminders ?? false}
+        time={(profile?.reminder_time ?? "18:00").slice(0, 5)}
+      />
       <CoachConsentSection consentedAt={profile?.coach_consent_at ?? null} />
       <Link
         href="/body"
