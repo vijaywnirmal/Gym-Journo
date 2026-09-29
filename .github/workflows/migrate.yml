@@ -1,0 +1,56 @@
+name: Migrate production database
+
+# Applies new files in supabase/migrations to the production Supabase project when they reach
+# master, so a deploy never waits on someone running SQL by hand.
+#
+# Opt-in: nothing runs until the repository variable SUPABASE_PROJECT_REF and the secrets
+# SUPABASE_ACCESS_TOKEN and SUPABASE_DB_PASSWORD are set (README → "Deploying").
+on:
+  push:
+    branches: [master]
+    paths: ["supabase/migrations/**"]
+  workflow_dispatch:
+
+# One migration run at a time, never cancelled halfway.
+concurrency:
+  group: migrate-production
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    if: vars.SUPABASE_PROJECT_REF != ''
+    runs-on: ubuntu-latest
+    # A GitHub environment, so required reviewers can be added in Settings → Environments.
+    environment: production
+    timeout-minutes: 15
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Installs the Supabase CLI version pinned in package.json.
+      - run: npm ci
+
+      - name: Link the production project
+        run: npx supabase link --project-ref "${{ vars.SUPABASE_PROJECT_REF }}"
+
+      - name: Check what would be applied
+        # `shell: bash` runs with pipefail, so a failing dry run isn't hidden by tee.
+        shell: bash
+        run: |
+          npx supabase db push --linked --dry-run 2>&1 | tee dry-run.txt
+          # An empty migration history on a database that already has the schema (migrations run by
+          # hand in the SQL editor) would make push re-run everything from 0001. Stop instead.
+          if grep -q "0001_init.sql" dry-run.txt; then
+            echo "::error::Production's migration history is missing already-applied migrations. Record them once with 'supabase migration repair --status applied <versions>' (README → Deploying), then re-run this workflow."
+            exit 1
+          fi
+
+      - name: Apply migrations
+        run: npx supabase --yes db push --linked

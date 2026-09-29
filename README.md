@@ -2,22 +2,52 @@
 
 Plan your workouts by day and muscle group, then log the sets/reps/weight you actually did. Mobile-first, built with Next.js (App Router) + Supabase.
 
-## Setup
+## Local development
 
-1. Create a project at [supabase.com](https://supabase.com).
-2. In the SQL editor, run every file in [`supabase/migrations/`](supabase/migrations) in filename order (`0001_init.sql` first). Migrations `0021` and `0027` build the shared exercise library; [`supabase/seed.sql`](supabase/seed.sql) is optional, safe to re-run, and skips exercises the library already has.
-   - If you use the Supabase CLI instead: `supabase link` then `supabase db push`, followed by `psql < supabase/seed.sql` (or paste it into the SQL editor).
-3. In Project Settings → API, copy the Project URL and `anon` public key.
-4. Copy `.env.local.example` to `.env.local` and fill in those two values.
-5. In Authentication → URL Configuration, add `http://localhost:3000/auth/callback` (and your deployed URL's equivalent) as a redirect URL — this project uses email magic-link sign-in.
-
-## Run
+Needs Node 22 and Docker. The Supabase config is in [`supabase/config.toml`](supabase/config.toml).
 
 ```bash
-npm run dev
+npm ci
+npm run db:start              # local Supabase: every migration in supabase/migrations + seed.sql
+npx supabase status -o env    # URL and keys for .env.local (see .env.local.example)
+npm run dev                   # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Sign in with your email (a magic link is sent — no password).
+Copy `.env.local.example` to `.env.local` and fill in `NEXT_PUBLIC_SUPABASE_URL` (the local API URL),
+`NEXT_PUBLIC_SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` from that output. Sign up in the app,
+or sign in with a magic link from the local mail viewer (`npx supabase status` prints its URL).
+`npm run db:reset` rebuilds the database from the migrations; `npm run db:stop` shuts it down.
+
+## Deploying
+
+Vercel deploys the app from `master`. Database changes are migrations in
+[`supabase/migrations/`](supabase/migrations), applied to production by the **Migrate production
+database** workflow ([`.github/workflows/migrate.yml`](.github/workflows/migrate.yml)) whenever a
+merge to `master` adds one. It dry-runs first and applies them with `supabase db push`.
+
+**One-time setup** (until then the workflow is skipped):
+
+1. In GitHub → Settings → Secrets and variables → Actions, add the variable `SUPABASE_PROJECT_REF`
+   (the project ref, e.g. from the dashboard URL) and the secrets `SUPABASE_ACCESS_TOKEN` (a
+   [personal access token](https://supabase.com/dashboard/account/tokens)) and
+   `SUPABASE_DB_PASSWORD` (the database password).
+2. If migrations were ever applied by hand in the SQL editor, record them in the project's migration
+   history once, so they aren't re-run:
+   ```bash
+   npx supabase link --project-ref <ref>
+   npx supabase migration list          # "Remote" is blank for migrations applied by hand
+   npx supabase migration repair --status applied 0001 0002 …   # only those actually applied
+   ```
+   The workflow refuses to run while this is needed.
+3. Optionally, add required reviewers to the `production` environment (Settings → Environments) to
+   approve each migration run.
+4. In Supabase → Authentication → URL Configuration, add the deployed URL's `/auth/callback` as a
+   redirect URL (magic-link sign-in and password resets land there).
+
+**Write migrations that the running app survives.** Vercel and the migration workflow run at the same
+time, so for a minute the old app may meet the new schema, or the new app the old one. Add before you
+remove: new columns nullable or defaulted, new function signatures alongside the old ones (the old one
+can call the new), and drop old ones only in a later release once nothing uses them.
 
 ## How it works
 
@@ -33,10 +63,13 @@ Data model, RLS policies, and everything else live in [`supabase/migrations/0001
 
 ## Tests
 
-`npm test` runs the unit tests. The SQL functions (training stats, exercise browsing) have their own checks in [`supabase/tests/`](supabase/tests), which need a database with every migration applied — e.g. a local Supabase (`supabase start`):
-
 ```bash
-for f in supabase/tests/*.sql; do psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f "$f"; done
+npm test            # unit tests (Vitest)
+npm run test:sql    # SQL checks in supabase/tests — needs `npm run db:start` and psql
+npm run test:e2e    # Playwright end-to-end specs — needs `npm run db:start`; see e2e/README.md
 ```
 
-Each runs in a transaction that is rolled back.
+The SQL checks and end-to-end specs run against a real database; each SQL file runs in a transaction
+that is rolled back. CI runs all three on every pull request: the `integration` job starts a local
+Supabase (applying every migration from scratch), then runs the SQL checks and the end-to-end specs
+against the production build.
