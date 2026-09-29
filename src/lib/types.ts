@@ -31,6 +31,7 @@ export type Exercise = {
   equipment: string | null;
   notes: string | null;
   instructions?: string | null;
+  demo_images?: string[] | null;
   muscle_groups?: MuscleGroup[];
 };
 

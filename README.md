@@ -21,7 +21,7 @@ Open [http://localhost:3000](http://localhost:3000). Sign in with your email (a 
 
 ## How it works
 
-- **Exercises** (`/exercises`) — a shared library tagged with one or more muscle groups; add your own custom exercises.
+- **Exercises** (`/exercises`) — a shared library tagged with one or more muscle groups; add your own custom exercises. Most library exercises show a two-frame start/end demo under "How to" (also in the logger via "Show demo"). The photos are resized copies from [free-exercise-db](https://github.com/yuhonas/free-exercise-db) (public domain, Unlicense), served from `public/exercise-demos/`; migration `0025` maps each exercise to its images.
 - **Schedule** (`/schedule/[date]`) — pick muscle groups for a day, pick exercises, set target sets/reps.
 - **Log** (`/log/[date]`) — record what you actually did; pre-filled from that day's schedule if one exists, or start freeform. Add/remove sets, record reps + weight per set.
 - **Calendar** (`/calendar`) — week view of what's scheduled and what's been logged.
