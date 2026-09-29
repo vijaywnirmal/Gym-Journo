@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getExercises, getLogForDate, getPlanForDate, getPreviousPerformance } from "@/lib/queries";
+import { getLogForDate, getPlanForDate, getPreviousPerformance } from "@/lib/queries";
 import { formatDate } from "@/lib/date";
 import { getToday } from "@/lib/userDate";
 import { createClient } from "@/lib/supabase/server";
@@ -17,11 +17,7 @@ export default async function LogPage({
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const [exercises, plan, log] = await Promise.all([
-    getExercises(),
-    getPlanForDate(date),
-    getLogForDate(date),
-  ]);
+  const [plan, log] = await Promise.all([getPlanForDate(date), getLogForDate(date)]);
 
   // A previously-logged day (any date other than today that already has a log) defaults to the
   // read-first summary view instead of the active-execution stepper — see HistoricalLogView.
@@ -52,7 +48,6 @@ export default async function LogPage({
       {isHistorical ? (
         <HistoricalLogView
           date={date}
-          exercises={exercises}
           plan={plan}
           existingLog={log!}
           initialPreviousPerformance={initialPreviousPerformance}
@@ -64,7 +59,6 @@ export default async function LogPage({
           {!plan?.title && <div className="mb-4" />}
           <LogForm
             date={date}
-            exercises={exercises}
             plan={plan}
             existingLog={log}
             initialPreviousPerformance={initialPreviousPerformance}

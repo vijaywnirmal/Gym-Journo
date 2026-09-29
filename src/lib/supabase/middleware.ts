@@ -34,6 +34,13 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/forgot-password") ||
     pathname.startsWith("/reset-password");
   const isOnboardingRoute = pathname.startsWith("/onboarding");
+  // JSON endpoints answer for themselves: a signed-out fetch gets a 401 rather than the login page's
+  // HTML, and onboarding (a page flow) doesn't apply.
+  const isApiRoute = pathname.startsWith("/api/");
+
+  if (!user && isApiRoute) {
+    return NextResponse.json({ error: "Not signed in" }, { status: 401, headers: { "Cache-Control": "no-store" } });
+  }
 
   if (!user && !isAuthRoute) {
     const url = request.nextUrl.clone();
@@ -41,7 +48,7 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (user && !isAuthRoute && !isOnboardingRoute) {
+  if (user && !isAuthRoute && !isOnboardingRoute && !isApiRoute) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("onboarded")

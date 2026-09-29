@@ -5,37 +5,20 @@ const getUser = vi.fn().mockResolvedValue({ data: { user: { id: "user-1" } } });
 
 type QueryResult = { data: unknown; error: unknown };
 
-// The queries under test await the query builder directly (no .single()/.maybeSingle()), so the
-// builder itself must be thenable — same shape as the mock in queries.history.test.ts. Every
-// select() consumes the next queued result (falling back to the last one), so multi-page walks
-// (getLastPerformedWorkoutDate) can be given a different page per request.
+// Table reads (plans, completion flags) and the performed_workout_dates RPC are both awaited
+// directly, so each builder is thenable. Table results are queued per from().select(); RPC results
+// are set with setRpcResult and every call's arguments are recorded.
 function makeBuilder(result: QueryResult) {
-  const calls: Record<string, unknown[][]> = {
-    eq: [],
-    gte: [],
-    lte: [],
-    lt: [],
-    order: [],
-    limit: [],
-    in: [],
-  };
-  const record = (name: string) =>
-    vi.fn((...args: unknown[]) => {
+  const calls: Record<string, unknown[][]> = { eq: [], gte: [], lte: [], lt: [], order: [], limit: [], in: [] };
+  const builder: Record<string, unknown> = { calls };
+  for (const name of Object.keys(calls)) {
+    builder[name] = vi.fn((...args: unknown[]) => {
       calls[name].push(args);
       return builder;
     });
-  const builder = {
-    calls,
-    eq: record("eq"),
-    gte: record("gte"),
-    lte: record("lte"),
-    lt: record("lt"),
-    order: record("order"),
-    limit: record("limit"),
-    in: record("in"),
-    then: (resolve: (v: QueryResult) => unknown) => Promise.resolve(result).then(resolve),
-  };
-  return builder;
+  }
+  builder.then = (resolve: (v: QueryResult) => unknown) => Promise.resolve(result).then(resolve);
+  return builder as unknown as { calls: Record<string, unknown[][]> } & PromiseLike<QueryResult>;
 }
 
 let queue: QueryResult[] = [];
@@ -56,6 +39,19 @@ const select = vi.fn((arg: string) => {
 });
 const from = vi.fn(() => ({ select }));
 
+let rpcResult: QueryResult = { data: [], error: null };
+const rpcBuilders: ReturnType<typeof makeBuilder>[] = [];
+function setRpcResult(result: QueryResult) {
+  rpcResult = result;
+  rpcBuilders.length = 0;
+}
+const rpc = vi.fn(() => {
+  const b = makeBuilder(rpcResult);
+  rpcBuilders.push(b);
+  return b;
+});
+const dates = (...ds: string[]) => ({ data: ds.map((date) => ({ date })), error: null });
+
 // These tests pin the exact queries each function sends, so the person's-today lookup (its own
 // profiles query — covered in userDate.test.ts) is stubbed to the server-local today() they assert on.
 vi.mock("@/lib/userDate", async () => {
@@ -67,7 +63,7 @@ vi.mock("@/lib/userDate", async () => {
 });
 
 vi.mock("@/lib/supabase/server", () => ({
-  createClient: async () => ({ auth: { getUser }, from }),
+  createClient: async () => ({ auth: { getUser }, from, rpc }),
 }));
 
 const {
@@ -77,119 +73,50 @@ const {
   getWeeklyTrainingDays,
 } = await import("./queries");
 
-const set = (reps: number | null, weight: number | null) => ({ reps, weight });
-const performedLog = (date: string) => ({
-  date,
-  logged_exercises: [{ logged_sets: [set(5, 80)] }],
-});
-const blankLog = (date: string) => ({
-  date,
-  logged_exercises: [{ logged_sets: [set(null, null), set(null, null)] }],
-});
-const emptyLog = (date: string) => ({ date, logged_exercises: [] });
+// Which dates count as workout days (blank sets, empty logs, future dates, completed_at ignored)
+// is decided by the performed_workout_dates SQL function; supabase/tests/stats_functions.sql
+// checks those rules against a real database. These tests cover what the app still owns: the
+// window it asks for and what it does with the answer.
 
 describe("getTrainingConsistency", () => {
   beforeEach(() => {
     getUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
-    from.mockClear();
+    rpc.mockClear();
+    setRpcResult({ data: [], error: null });
   });
 
-  it("queries an inclusive N-calendar-day window ending today — 28 days is today − 27", async () => {
-    setResults({ data: [], error: null });
+  it("asks for an inclusive N-calendar-day window ending today — 28 days is today − 27", async () => {
     await getTrainingConsistency(28);
-    expect(builders[0].calls.gte).toEqual([["date", shiftDate(today(), -27)]]);
-    expect(builders[0].calls.lte).toEqual([["date", today()]]);
+    expect(rpc).toHaveBeenCalledWith("performed_workout_dates", { p_from: shiftDate(today(), -27), p_to: today() });
   });
 
   it("2. last 7 days is today − 6", async () => {
-    setResults({ data: [], error: null });
     await getTrainingConsistency(7);
-    expect(builders[0].calls.gte).toEqual([["date", shiftDate(today(), -6)]]);
+    expect(rpc).toHaveBeenCalledWith("performed_workout_dates", { p_from: shiftDate(today(), -6), p_to: today() });
   });
 
   it("1. last 1 day is today only", async () => {
-    setResults({ data: [], error: null });
     await getTrainingConsistency(1);
-    expect(builders[0].calls.gte).toEqual([["date", today()]]);
-    expect(builders[0].calls.lte).toEqual([["date", today()]]);
+    expect(rpc).toHaveBeenCalledWith("performed_workout_dates", { p_from: today(), p_to: today() });
   });
 
-  it("fetches sets alongside dates so blank logs can be excluded", async () => {
-    setResults({ data: [], error: null });
-    await getTrainingConsistency(7);
-    expect(lastSelectArg).toContain("logged_sets(reps, weight)");
-  });
-
-  it("counts each performed log as one workout day", async () => {
-    setResults({
-      data: [
-        performedLog(shiftDate(today(), -1)),
-        performedLog(shiftDate(today(), -3)),
-        performedLog(shiftDate(today(), -5)),
-      ],
-      error: null,
-    });
-    const result = await getTrainingConsistency(28);
-    expect(result).toEqual({ windowDays: 28, daysPerformed: 3 });
-  });
-
-  it("4. a performed log dated today is counted", async () => {
-    setResults({ data: [performedLog(today())], error: null });
-    expect((await getTrainingConsistency(7)).daysPerformed).toBe(1);
-  });
-
-  it("8. an empty workout log (no exercises) is not counted", async () => {
-    setResults({ data: [emptyLog(shiftDate(today(), -1))], error: null });
-    expect((await getTrainingConsistency(7)).daysPerformed).toBe(0);
-  });
-
-  it("9. a log holding only blank planned sets is not counted", async () => {
-    setResults({
-      data: [blankLog(shiftDate(today(), -1)), performedLog(shiftDate(today(), -2))],
-      error: null,
-    });
-    expect((await getTrainingConsistency(7)).daysPerformed).toBe(1);
-  });
-
-  it("7. a future-dated log is not counted even if it comes back from the query", async () => {
-    setResults({
-      data: [performedLog(shiftDate(today(), 1)), performedLog(shiftDate(today(), -1))],
-      error: null,
-    });
-    expect((await getTrainingConsistency(7)).daysPerformed).toBe(1);
-  });
-
-  it("15. the same date appearing twice counts once", async () => {
-    setResults({
-      data: [performedLog(shiftDate(today(), -1)), performedLog(shiftDate(today(), -1))],
-      error: null,
-    });
-    expect((await getTrainingConsistency(7)).daysPerformed).toBe(1);
-  });
-
-  it("20. counts a performed but never-completed log, and doesn't filter on completed_at", async () => {
-    setResults({ data: [{ ...performedLog(shiftDate(today(), -1)), completed_at: null }], error: null });
-    const result = await getTrainingConsistency(7);
-    expect(result.daysPerformed).toBe(1);
-    const filteredColumns = [...builders[0].calls.eq, ...builders[0].calls.gte].map((c) => c[0]);
-    expect(filteredColumns).not.toContain("completed_at");
-    expect(filteredColumns).not.toContain("plan_id");
+  it("counts each workout day the database returns", async () => {
+    setRpcResult(dates(shiftDate(today(), -5), shiftDate(today(), -3), shiftDate(today(), -1)));
+    expect(await getTrainingConsistency(28)).toEqual({ windowDays: 28, daysPerformed: 3 });
   });
 
   it("returns zero for a signed-out user without querying", async () => {
     getUser.mockResolvedValue({ data: { user: null } });
-    const result = await getTrainingConsistency(28);
-    expect(result).toEqual({ windowDays: 28, daysPerformed: 0 });
-    expect(from).not.toHaveBeenCalled();
+    expect(await getTrainingConsistency(28)).toEqual({ windowDays: 28, daysPerformed: 0 });
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it("returns zero on a query error", async () => {
-    setResults({ data: null, error: { message: "boom" } });
+    setRpcResult({ data: null, error: { message: "boom" } });
     expect((await getTrainingConsistency(28)).daysPerformed).toBe(0);
   });
 
-  it("returns zero when no logs fall in the window", async () => {
-    setResults({ data: [], error: null });
+  it("returns zero when no workout days fall in the window", async () => {
     expect((await getTrainingConsistency(28)).daysPerformed).toBe(0);
   });
 });
@@ -197,65 +124,36 @@ describe("getTrainingConsistency", () => {
 describe("getLastPerformedWorkoutDate", () => {
   beforeEach(() => {
     getUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
-    from.mockClear();
+    rpc.mockClear();
+    setRpcResult({ data: [], error: null });
   });
 
-  it("orders by date descending, bounded above by today, scoped to the user", async () => {
-    setResults({ data: [performedLog("2026-09-10")], error: null });
+  it("asks for the single newest workout day up to today, with no lower bound", async () => {
+    setRpcResult(dates("2026-09-10"));
     await getLastPerformedWorkoutDate();
-    expect(builders[0].calls.order).toEqual([["date", { ascending: false }]]);
-    expect(builders[0].calls.lte).toEqual([["date", today()]]);
-    expect(builders[0].calls.eq).toEqual([["user_id", "user-1"]]);
+    expect(rpc).toHaveBeenCalledWith("performed_workout_dates", { p_from: null, p_to: today() });
+    expect(rpcBuilders[0].calls.order).toEqual([["date", { ascending: false }]]);
+    expect(rpcBuilders[0].calls.limit).toEqual([[1]]);
   });
 
-  it("returns the most recent performed date", async () => {
-    setResults({ data: [performedLog("2026-09-10"), performedLog("2026-09-01")], error: null });
+  it("returns the date the database returns", async () => {
+    setRpcResult(dates("2026-09-10"));
     expect(await getLastPerformedWorkoutDate()).toEqual({ date: "2026-09-10" });
   });
 
-  it("skips a more recent blank log and empty log in favour of the last performed one", async () => {
-    setResults({
-      data: [emptyLog("2026-09-12"), blankLog("2026-09-11"), performedLog("2026-09-10")],
-      error: null,
-    });
-    expect(await getLastPerformedWorkoutDate()).toEqual({ date: "2026-09-10" });
+  it("returns null when there is no workout day at all", async () => {
+    expect(await getLastPerformedWorkoutDate()).toEqual({ date: null });
   });
 
-  it("skips a future-dated log even if it comes back from the query", async () => {
-    setResults({
-      data: [performedLog(shiftDate(today(), 2)), performedLog("2026-09-10")],
-      error: null,
-    });
-    expect(await getLastPerformedWorkoutDate()).toEqual({ date: "2026-09-10" });
-  });
-
-  it("20. does not require completed_at — a performed but incomplete log counts", async () => {
-    setResults({ data: [{ ...performedLog("2026-09-10"), completed_at: null }], error: null });
-    const result = await getLastPerformedWorkoutDate();
-    expect(result).toEqual({ date: "2026-09-10" });
-    expect(builders[0].calls.eq.map((c) => c[0])).not.toContain("completed_at");
-  });
-
-  it("keeps walking back a page at a time when a full page holds only blank logs", async () => {
-    const blankPage = Array.from({ length: 30 }, (_, i) => blankLog(shiftDate("2026-09-01", -i)));
-    setResults(
-      { data: blankPage, error: null },
-      { data: [performedLog("2026-07-01")], error: null }
-    );
-    expect(await getLastPerformedWorkoutDate()).toEqual({ date: "2026-07-01" });
-    expect(builders).toHaveLength(2);
-    expect(builders[1].calls.lt).toEqual([["date", blankPage[29].date]]);
-  });
-
-  it("returns null when there is no performed workout at all", async () => {
-    setResults({ data: [blankLog("2026-09-10"), emptyLog("2026-09-09")], error: null });
+  it("returns null on a query error", async () => {
+    setRpcResult({ data: null, error: { message: "boom" } });
     expect(await getLastPerformedWorkoutDate()).toEqual({ date: null });
   });
 
   it("returns null for a signed-out user without querying", async () => {
     getUser.mockResolvedValue({ data: { user: null } });
     expect(await getLastPerformedWorkoutDate()).toEqual({ date: null });
-    expect(from).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalled();
   });
 });
 
@@ -263,136 +161,118 @@ describe("getWeekOverview — performed and completed are separate facts", () =>
   beforeEach(() => {
     getUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
     from.mockClear();
+    rpc.mockClear();
+    setRpcResult({ data: [], error: null });
   });
 
   const d1 = shiftDate(today(), -3);
   const d2 = shiftDate(today(), -2);
   const d3 = shiftDate(today(), -1);
   const d4 = shiftDate(today(), 2);
-  const dates = [d1, d2, d3, d4, today()];
+  const week = [d1, d2, d3, d4, today()];
 
   it("20. reports performed and completed independently for each day", async () => {
     setResults(
       { data: [{ date: d1, title: "Push", is_rest_day: false }], error: null },
       {
         data: [
-          { ...performedLog(d1), completed_at: "2026-09-01T10:00:00Z" }, // performed + completed
-          { ...performedLog(d2), completed_at: null }, // performed, not completed
-          { ...blankLog(d3), completed_at: "2026-09-02T10:00:00Z" }, // completed, nothing performed
+          { date: d1, completed_at: "2026-09-01T10:00:00Z" }, // performed + completed
+          { date: d2, completed_at: null }, // performed, not completed
+          { date: d3, completed_at: "2026-09-02T10:00:00Z" }, // completed, nothing performed
         ],
         error: null,
       }
     );
-    const overview = await getWeekOverview(dates);
+    setRpcResult(dates(d1, d2));
+    const overview = await getWeekOverview(week);
     expect(overview.get(d1)).toEqual({ title: "Push", performed: true, completed: true, isRestDay: false });
     expect(overview.get(d2)).toEqual({ title: null, performed: true, completed: false, isRestDay: false });
     expect(overview.get(d3)).toEqual({ title: null, performed: false, completed: true, isRestDay: false });
     expect(overview.get(today())).toEqual({ title: null, performed: false, completed: false, isRestDay: false });
   });
 
-  it("an empty log (no exercises) is not performed", async () => {
-    setResults(
-      { data: [], error: null },
-      { data: [{ ...emptyLog(d1), completed_at: null }], error: null }
-    );
-    expect((await getWeekOverview(dates)).get(d1)?.performed).toBe(false);
+  it("reads completion without pulling sets", async () => {
+    setResults({ data: [], error: null }, { data: [], error: null });
+    await getWeekOverview(week);
+    expect(lastSelectArg).toBe("date, completed_at");
   });
 
-  it("a future-dated performed log is not marked performed", async () => {
-    setResults({ data: [], error: null }, { data: [{ ...performedLog(d4), completed_at: null }], error: null });
-    expect((await getWeekOverview(dates)).get(d4)?.performed).toBe(false);
+  it("asks for workout days from the first date up to today, never past it", async () => {
+    setResults({ data: [], error: null }, { data: [], error: null });
+    await getWeekOverview(week);
+    expect(rpc).toHaveBeenCalledWith("performed_workout_dates", { p_from: d1, p_to: today() });
+  });
+
+  it("stops at the week's last date when the whole week is in the past", async () => {
+    const past = [shiftDate(today(), -10), shiftDate(today(), -9)];
+    setResults({ data: [], error: null }, { data: [], error: null });
+    await getWeekOverview(past);
+    expect(rpc).toHaveBeenCalledWith("performed_workout_dates", { p_from: past[0], p_to: past[1] });
+  });
+
+  it("doesn't ask at all for a week entirely in the future", async () => {
+    setResults({ data: [], error: null }, { data: [{ date: d4, completed_at: null }], error: null });
+    const overview = await getWeekOverview([d4]);
+    expect(rpc).not.toHaveBeenCalled();
+    expect(overview.get(d4)?.performed).toBe(false);
   });
 
   it("returns an empty overview for a signed-out user without querying", async () => {
     getUser.mockResolvedValue({ data: { user: null } });
-    expect((await getWeekOverview(dates)).size).toBe(0);
+    expect((await getWeekOverview(week)).size).toBe(0);
     expect(from).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalled();
   });
 });
 
 describe("getWeeklyTrainingDays", () => {
   beforeEach(() => {
     getUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
-    from.mockClear();
+    rpc.mockClear();
+    setRpcResult({ data: [], error: null });
   });
 
   const currentStart = () => weekDates(today())[0];
   const previousStart = () => shiftDate(currentStart(), -7);
 
-  it("queries from the Sunday starting the oldest completed week through today, scoped to the user", async () => {
-    setResults({ data: [], error: null });
+  it("asks from the Sunday starting the oldest completed week through today", async () => {
     await getWeeklyTrainingDays();
-    expect(builders[0].calls.gte).toEqual([["date", shiftDate(currentStart(), -56)]]);
-    expect(builders[0].calls.lte).toEqual([["date", today()]]);
-    expect(builders[0].calls.eq).toEqual([["user_id", "user-1"]]);
-    expect(lastSelectArg).toContain("logged_sets(reps, weight)");
+    expect(rpc).toHaveBeenCalledWith("performed_workout_dates", {
+      p_from: shiftDate(currentStart(), -56),
+      p_to: today(),
+    });
   });
 
   it("returns the current week plus 8 completed weeks, newest first", async () => {
-    setResults({ data: [], error: null });
     const result = await getWeeklyTrainingDays();
     expect(result).toHaveLength(9);
     expect(result[0]).toMatchObject({ weekStart: currentStart(), isCurrentWeek: true });
     expect(result[1].weekStart).toBe(previousStart());
   });
 
-  it("counts performed days per week and ignores blank, empty and future logs", async () => {
-    setResults({
-      data: [
-        performedLog(today()),
-        performedLog(shiftDate(previousStart(), 1)),
-        performedLog(shiftDate(previousStart(), 3)),
-        blankLog(shiftDate(previousStart(), 5)),
-        emptyLog(shiftDate(previousStart(), 6)),
-        performedLog(shiftDate(today(), 1)), // future
-      ],
-      error: null,
-    });
+  it("buckets the returned workout days into their weeks", async () => {
+    setRpcResult(dates(shiftDate(previousStart(), 1), shiftDate(previousStart(), 3), today()));
     const result = await getWeeklyTrainingDays();
     expect(result[0].daysPerformed).toBe(1);
     expect(result[1].daysPerformed).toBe(2);
     expect(result.slice(2).every((w) => w.daysPerformed === 0)).toBe(true);
   });
 
-  it("counts a date once however many exercises it has", async () => {
-    setResults({
-      data: [
-        {
-          date: shiftDate(previousStart(), 2),
-          logged_exercises: [
-            { logged_sets: [set(5, 80)] },
-            { logged_sets: [set(8, 60)] },
-            { logged_sets: [set(null, null)] },
-          ],
-        },
-      ],
-      error: null,
-    });
-    expect((await getWeeklyTrainingDays())[1].daysPerformed).toBe(1);
-  });
-
-  it("does not depend on completed_at", async () => {
-    setResults({
-      data: [{ ...performedLog(shiftDate(previousStart(), 2)), completed_at: null }],
-      error: null,
-    });
-    expect((await getWeeklyTrainingDays())[1].daysPerformed).toBe(1);
-    expect(builders[0].calls.eq.map((c) => c[0])).not.toContain("completed_at");
-  });
-
   it("returns nothing for a signed-out user without querying", async () => {
     getUser.mockResolvedValue({ data: { user: null } });
     expect(await getWeeklyTrainingDays()).toEqual([]);
-    expect(from).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it("returns nothing on a query error", async () => {
-    setResults({ data: null, error: { message: "boom" } });
+    setRpcResult({ data: null, error: { message: "boom" } });
     expect(await getWeeklyTrainingDays()).toEqual([]);
   });
 
-  it("15. the rolling 7-day count agrees with the same canonical definition", async () => {
-    setResults({ data: [performedLog(today()), blankLog(shiftDate(today(), -1))], error: null });
+  it("15. the rolling 7-day count and the weekly breakdown use the same database definition", async () => {
+    setRpcResult(dates(today()));
     expect((await getTrainingConsistency(7)).daysPerformed).toBe(1);
+    expect((await getWeeklyTrainingDays())[0].daysPerformed).toBe(1);
+    expect(rpc.mock.calls.every((call) => (call as unknown[])[0] === "performed_workout_dates")).toBe(true);
   });
 });

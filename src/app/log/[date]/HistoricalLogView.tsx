@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Exercise, WorkoutPlan } from "@/lib/types";
+import type { WorkoutPlan } from "@/lib/types";
 import type { PreviousPerformance, WorkoutLogWithContext } from "@/lib/queries";
 import { formatDate } from "@/lib/date";
 import { formatSetDetail } from "@/lib/setData";
@@ -10,7 +10,6 @@ import ShareWorkoutButton from "@/components/ShareWorkoutButton";
 
 type Props = {
   date: string;
-  exercises: Exercise[];
   plan: WorkoutPlan | null;
   existingLog: WorkoutLogWithContext;
   initialPreviousPerformance: Record<string, PreviousPerformance | null>;
@@ -26,7 +25,6 @@ type Props = {
 // logged actual performance (`existingLog`) is shown.
 export default function HistoricalLogView({
   date,
-  exercises,
   plan,
   existingLog,
   initialPreviousPerformance,
@@ -45,7 +43,6 @@ export default function HistoricalLogView({
         </button>
         <LogForm
           date={date}
-          exercises={exercises}
           plan={plan}
           existingLog={existingLog}
           initialPreviousPerformance={initialPreviousPerformance}

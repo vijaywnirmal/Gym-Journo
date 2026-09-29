@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getExerciseSessions, getExercises, getLogHistory, type LogHistoryPage } from "@/lib/queries";
+import { getExerciseFilterOptions, getExerciseSessions, getLogHistory, type LogHistoryPage } from "@/lib/queries";
 import { formatDate } from "@/lib/date";
 import { formatSetCompact } from "@/lib/setData";
 import {
@@ -26,7 +26,7 @@ export default async function HistoryPage({
     exerciseId
       ? Promise.resolve<LogHistoryPage>({ logs: [], hasMore: false })
       : getLogHistory({ before, pageSize: PAGE_SIZE }),
-    getExercises(),
+    getExerciseFilterOptions(exerciseId),
     // Full performed history for the selected exercise — independent of this page's `before`
     // cursor, so counts/first/last/comparisons can't depend on pagination.
     exerciseId ? getExerciseSessions(exerciseId) : Promise.resolve<ExerciseSession[]>([]),

@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import ExerciseDemo from "@/components/ExerciseDemo";
+import { useId, useState } from "react";
+import ExerciseTutorialPanel from "@/components/exercise-library/ExerciseTutorialPanel";
 import { calculatePlates, formatPlates, isPlateUnit } from "@/lib/plates";
 import {
   MAX_EXERCISE_NOTE_LENGTH,
@@ -115,7 +115,6 @@ export function plateText(set: SetRow): string | null {
 
 type Props = {
   entry: ExerciseEntry;
-  demoImages?: string[] | null;
   positionLabel: string;
   previous: PreviousPerformance | null | undefined; // undefined = still loading
   onUpdateSet: (index: number, field: keyof SetRow, value: string) => void;
@@ -171,7 +170,6 @@ export function formatRemainingPlannedSets(remaining: number | null): string | n
 
 export default function ExerciseLogPanel({
   entry,
-  demoImages,
   positionLabel,
   previous,
   onUpdateSet,
@@ -184,6 +182,8 @@ export default function ExerciseLogPanel({
   onToggleSetDone,
 }: Props) {
   const [showPlates, setShowPlates] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const tutorialPanelId = useId();
   const canCopyPrevious = !!previous && previous.sets.length > 0 && countLoggedSets(entry.sets) === 0;
   const target = targetLabel(entry.target);
   const comparisons = compareSets(entry.sets, previous);
@@ -200,13 +200,17 @@ export default function ExerciseLogPanel({
           <Link href={exerciseHistoryHref(entry.exerciseId)} className="text-xs text-neutral-500 underline">
             View history
           </Link>
-          {!!demoImages?.length && (
-            <details className="mt-1">
-              <summary className="cursor-pointer text-xs text-neutral-500">Show demo</summary>
-              <div className="mt-2">
-                <ExerciseDemo images={demoImages} name={entry.name} />
-              </div>
-            </details>
+          <button
+            type="button"
+            onClick={() => setShowTutorial((value) => !value)}
+            aria-expanded={showTutorial}
+            aria-controls={tutorialPanelId}
+            className="ml-3 text-xs text-neutral-500 underline"
+          >
+            {showTutorial ? "Hide how-to" : "How to"}
+          </button>
+          {showTutorial && (
+            <ExerciseTutorialPanel key={entry.exerciseId} exerciseId={entry.exerciseId} panelId={tutorialPanelId} />
           )}
         </div>
         <button type="button" onClick={onRemoveExercise} className="text-xs text-red-400">

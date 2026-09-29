@@ -1,90 +1,51 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import type { Exercise } from "@/lib/types";
-import { matchesSearch } from "@/lib/exerciseSearch";
+import { useState } from "react";
+import ExerciseLibraryBrowser from "@/components/exercise-library/ExerciseLibraryBrowser";
 
-// Compact, on-demand exercise picker: grouped by muscle group and collapsed by default, with a
-// search box, so the user is never shown the entire exercise library as one long expanded list.
+export type PickedExercise = { id: string; name: string };
+
+// Browse or search the library and tick exercises for a plan or template; nothing changes until
+// "Add" confirms the selection.
 export default function ExercisePicker({
-  exercises,
   initiallySelected,
   onConfirm,
   onCancel,
 }: {
-  exercises: Exercise[];
-  initiallySelected: Set<string>;
-  onConfirm: (selectedIds: string[]) => void;
+  initiallySelected: PickedExercise[];
+  onConfirm: (selected: PickedExercise[]) => void;
   onCancel: () => void;
 }) {
-  const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState<Set<string>>(new Set(initiallySelected));
+  // Insertion-ordered, so exercises keep the order they were picked in.
+  const [selected, setSelected] = useState<Map<string, string>>(
+    () => new Map(initiallySelected.map((ex) => [ex.id, ex.name]))
+  );
 
-  const groups = useMemo(() => {
-    const filtered = exercises.filter((ex) => matchesSearch(ex, search));
-    const byGroup = new Map<string, Exercise[]>();
-    for (const ex of filtered) {
-      const key = ex.muscle_groups?.[0]?.name ?? "Other";
-      byGroup.set(key, [...(byGroup.get(key) ?? []), ex]);
-    }
-    return [...byGroup.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  }, [exercises, search]);
-
-  function toggle(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+  function toggle(exercise: PickedExercise) {
+    setSelected((previous) => {
+      const next = new Map(previous);
+      if (next.has(exercise.id)) next.delete(exercise.id);
+      else next.set(exercise.id, exercise.name);
       return next;
     });
   }
 
-  const isSearching = search.trim().length > 0;
-
   return (
     <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-3">
-      <input
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search exercises"
-        className="mb-3 w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-base text-neutral-100 placeholder-neutral-500"
-      />
-
-      <div className="flex max-h-80 flex-col gap-2 overflow-y-auto">
-        {groups.length === 0 && (
-          <p className="text-sm text-neutral-500">No exercises match &quot;{search}&quot;.</p>
+      <ExerciseLibraryBrowser
+        resultsClassName="max-h-80 overflow-y-auto"
+        renderExercise={(exercise) => (
+          <label className="flex items-center gap-2 py-1 text-sm text-neutral-100">
+            <input type="checkbox" checked={selected.has(exercise.id)} onChange={() => toggle(exercise)} />
+            {exercise.name}
+          </label>
         )}
-        {groups.map(([groupName, list]) => (
-          <details
-            key={groupName}
-            open={isSearching}
-            className="rounded-lg border border-neutral-800"
-          >
-            <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-neutral-200">
-              {groupName}
-            </summary>
-            <ul className="flex flex-col gap-1 px-3 pb-2">
-              {list.map((ex) => (
-                <li key={ex.id}>
-                  <label className="flex items-center gap-2 py-1 text-sm text-neutral-100">
-                    <input
-                      type="checkbox"
-                      checked={selected.has(ex.id)}
-                      onChange={() => toggle(ex.id)}
-                    />
-                    {ex.name}
-                  </label>
-                </li>
-              ))}
-            </ul>
-          </details>
-        ))}
-      </div>
+      />
 
       <div className="mt-3 flex gap-2">
         <button
           type="button"
-          onClick={() => onConfirm([...selected])}
+          onClick={() => onConfirm([...selected].map(([id, name]) => ({ id, name })))}
           className="flex-1 rounded-lg bg-white px-4 py-2 text-sm font-medium text-neutral-900"
         >
           Add{selected.size > 0 ? ` (${selected.size})` : ""}

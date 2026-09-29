@@ -1,4 +1,4 @@
-import { getExerciseSessions, getExercises } from "@/lib/queries";
+import { getExerciseFilterOptions, getExerciseSessions } from "@/lib/queries";
 import { formatDate } from "@/lib/date";
 import {
   bestEstimatedOneRepMax,
@@ -24,7 +24,7 @@ export default async function ProgressPage({
 }) {
   const { exercise: exerciseId } = await searchParams;
   const [exercises, sessions] = await Promise.all([
-    getExercises(),
+    getExerciseFilterOptions(exerciseId),
     exerciseId ? getExerciseSessions(exerciseId) : Promise.resolve([]),
   ]);
 

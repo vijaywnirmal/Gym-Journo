@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { getExercises } from "@/lib/queries";
+import { visibleExerciseNamed } from "@/lib/queries";
 import { validateExerciseName } from "@/lib/validation";
 
 export type CreateExerciseInput = {
@@ -26,12 +26,10 @@ export async function createExercise(input: CreateExerciseInput) {
   const trimmedName = input.name.trim();
 
   // Duplicate check against everything the user can currently see (system + own custom
-  // exercises) — reuses the existing RLS-scoped query rather than a separate lookup, so the
-  // visibility boundary can never diverge from what the user is actually allowed to read.
-  const visibleExercises = await getExercises();
-  const isDuplicate = visibleExercises.some(
-    (ex) => ex.name.trim().toLowerCase() === trimmedName.toLowerCase()
-  );
+  // exercises): an RLS-scoped lookup, so the visibility boundary can never diverge from what the
+  // user is actually allowed to read. Fails closed if the check itself can't run.
+  const isDuplicate = await visibleExerciseNamed(trimmedName);
+  if (isDuplicate === null) return { error: "Something went wrong creating this exercise. Please try again." };
   if (isDuplicate) return { error: "An exercise with this name already exists." };
 
   const equipment = input.equipment.trim() || null;

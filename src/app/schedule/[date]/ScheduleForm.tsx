@@ -2,26 +2,20 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { Exercise, MuscleGroup, WorkoutPlan, WorkoutTemplate } from "@/lib/types";
+import type { MuscleGroup, WorkoutPlan, WorkoutTemplate } from "@/lib/types";
 import { savePlan, deletePlan } from "./actions";
 import ExerciseTargetEditor, { type ExerciseTargets } from "./ExerciseTargetEditor";
 import TemplateManager from "./TemplateManager";
+import { toExerciseTargets } from "./exerciseTargets";
 
 type Props = {
   date: string;
   muscleGroups: MuscleGroup[];
-  exercises: Exercise[];
   existingPlan: WorkoutPlan | null;
   templates: WorkoutTemplate[];
 };
 
-export default function ScheduleForm({
-  date,
-  muscleGroups,
-  exercises,
-  existingPlan,
-  templates,
-}: Props) {
+export default function ScheduleForm({ date, muscleGroups, existingPlan, templates }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [title, setTitle] = useState(existingPlan?.title ?? "");
@@ -29,18 +23,8 @@ export default function ScheduleForm({
   const [selectedMuscles, setSelectedMuscles] = useState<Set<string>>(
     new Set(existingPlan?.muscle_groups?.map((m) => m.id) ?? [])
   );
-  const [selectedExercises, setSelectedExercises] = useState<ExerciseTargets>(
-    new Map(
-      existingPlan?.planned_exercises?.map((pe) => [
-        pe.exercise_id,
-        {
-          targetSets: pe.target_sets?.toString() ?? "",
-          targetReps: pe.target_reps?.toString() ?? "",
-          targetWeight: pe.target_weight?.toString() ?? "",
-          targetWeightUnit: pe.target_weight_unit || "kg",
-        },
-      ]) ?? []
-    )
+  const [selectedExercises, setSelectedExercises] = useState<ExerciseTargets>(() =>
+    toExerciseTargets(existingPlan?.planned_exercises)
   );
   const [templateId, setTemplateId] = useState("");
   const [saved, setSaved] = useState(false);
@@ -60,16 +44,7 @@ export default function ScheduleForm({
     if (!id) return;
     const template = templates.find((t) => t.id === id);
     if (!template) return;
-    const next: ExerciseTargets = new Map();
-    for (const te of template.template_exercises ?? []) {
-      next.set(te.exercise_id, {
-        targetSets: te.target_sets?.toString() ?? "",
-        targetReps: te.target_reps?.toString() ?? "",
-        targetWeight: te.target_weight?.toString() ?? "",
-        targetWeightUnit: te.target_weight_unit || "kg",
-      });
-    }
-    setSelectedExercises(next);
+    setSelectedExercises(toExerciseTargets(template.template_exercises));
   }
 
   function handleSubmit() {
@@ -177,13 +152,9 @@ export default function ScheduleForm({
             </div>
           )}
 
-          <ExerciseTargetEditor
-            exercises={exercises}
-            selected={selectedExercises}
-            onChange={setSelectedExercises}
-          />
+          <ExerciseTargetEditor selected={selectedExercises} onChange={setSelectedExercises} />
 
-          <TemplateManager templates={templates} exercises={exercises} />
+          <TemplateManager templates={templates} />
         </>
       )}
 

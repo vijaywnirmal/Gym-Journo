@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 // End-to-end check of getTrainingEvidence against a small in-memory stand-in for the Supabase
-// query builder (eq, lt, lte, gte, order, limit, maybeSingle, plus the embedded-exercise inner
+// query builder (eq, lt, lte, gte, in, order, limit, maybeSingle, plus the embedded-exercise inner
 // filter) across the tables the evidence reads. It models the intended behaviour; it is not the
 // real service. "Today" is pinned to Sep 21, 2026 (a Monday).
 
@@ -40,6 +40,10 @@ function query(table: keyof typeof db) {
     },
     lt(column: string, value: string) {
       filters.push((row) => (row[column] as string) < value);
+      return builder;
+    },
+    in(column: string, values: unknown[]) {
+      filters.push((row) => values.includes(row[column]));
       return builder;
     },
     order(column: string, options?: { ascending: boolean }) {
@@ -81,8 +85,33 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
     auth: { getUser: async () => ({ data: { user: signedIn ? { id: "user-1" } : null } }) },
     from: (table: keyof typeof db) => ({ select: () => query(table) }),
+    // Stand-in for the performed_workout_dates SQL function (migration 0026), modelled with the
+    // same canonical definition it implements.
+    rpc: (fn: string, args: { p_from: string | null; p_to: string }) => {
+      if (fn !== "performed_workout_dates") throw new Error(`unexpected rpc ${fn}`);
+      let rows = db.workout_logs
+        .filter((log) => (args.p_from === null || log.date >= args.p_from) && isWorkoutDay(log, args.p_to))
+        .map((log) => ({ date: log.date }))
+        .sort((a, b) => (a.date < b.date ? -1 : 1));
+      const result = {
+        order(_column: "date", options?: { ascending: boolean }) {
+          if (options?.ascending === false) rows = [...rows].reverse();
+          return result;
+        },
+        limit(n: number) {
+          rows = rows.slice(0, n);
+          return result;
+        },
+        then(resolve: (value: { data: { date: string }[]; error: null }) => unknown) {
+          return Promise.resolve({ data: rows, error: null }).then(resolve);
+        },
+      };
+      return result;
+    },
   }),
 }));
+
+const { isWorkoutDay } = await import("@/lib/analyze/definitions");
 
 const { getTrainingEvidence, getPerformedWorkoutDates, getWeeklyTrainingDays } = await import("./queries");
 const { recentPerformedExerciseIds } = await import("@/lib/analyze/exerciseSessions");

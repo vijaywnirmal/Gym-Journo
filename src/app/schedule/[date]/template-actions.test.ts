@@ -23,9 +23,9 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
-const getExercises = vi.fn();
+const findVisibleExerciseIds = vi.fn();
 vi.mock("@/lib/queries", () => ({
-  getExercises: () => getExercises(),
+  findVisibleExerciseIds: (ids: string[]) => findVisibleExerciseIds(ids),
 }));
 
 const { saveTemplate, deleteTemplate } = await import("./template-actions");
@@ -38,8 +38,10 @@ const visibleExercises = [
 describe("saveTemplate", () => {
   beforeEach(() => {
     getUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
-    getExercises.mockReset();
-    getExercises.mockResolvedValue(visibleExercises);
+    findVisibleExerciseIds.mockReset();
+    findVisibleExerciseIds.mockImplementation(async (ids: string[]) =>
+      new Set(ids.filter((id) => visibleExercises.some((ex) => ex.id === id)))
+    );
     rpc.mockReset();
     rpc.mockResolvedValue({ data: { id: "template-1" }, error: null });
   });
@@ -153,6 +155,27 @@ describe("saveTemplate", () => {
       exercises: [{ exerciseId: "someone-elses-exercise", targetSets: null, targetReps: null }],
     });
     expect(result.error).toBe("One of the selected exercises is no longer available.");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("checks visibility of exactly the selected exercises", async () => {
+    await saveTemplate({
+      name: "Push A",
+      exercises: [
+        { exerciseId: "sys-1", targetSets: null, targetReps: null },
+        { exerciseId: "custom-1", targetSets: null, targetReps: null },
+      ],
+    });
+    expect(findVisibleExerciseIds).toHaveBeenCalledWith(["sys-1", "custom-1"]);
+  });
+
+  it("fails closed when the visibility check can't run", async () => {
+    findVisibleExerciseIds.mockResolvedValue(null);
+    const result = await saveTemplate({
+      name: "Push A",
+      exercises: [{ exerciseId: "sys-1", targetSets: null, targetReps: null }],
+    });
+    expect(result.error).toBe("Something went wrong saving this template. Please try again.");
     expect(rpc).not.toHaveBeenCalled();
   });
 
