@@ -86,6 +86,25 @@ export function getUnloggedPlannedExercises(
   return result;
 }
 
+const AUTO_ADVANCE_NOTICE_MS = 8000;
+
+// Where the logger goes after an exercise is finished: the next exercise still to do, searching
+// forward from `from` and then wrapping round to the start. Null when everything is finished.
+export function nextUnfinishedIndex(entries: Pick<ExerciseEntry, "done">[], from: number): number | null {
+  for (let step = 1; step < entries.length; step++) {
+    const index = (from + step) % entries.length;
+    if (!entries[index].done) return index;
+  }
+  return null;
+}
+
+// Ticking a set finishes the exercise when every set is now ticked, there is at least one set, and
+// the exercise isn't already finished.
+export function completesExercise(entry: { done: boolean; sets: { done?: boolean }[] }, tickedIndex: number): boolean {
+  if (entry.done || entry.sets.length === 0) return false;
+  return entry.sets.every((set, i) => (i === tickedIndex ? true : !!set.done));
+}
+
 export default function LogForm({
   date,
   plan,
@@ -140,6 +159,18 @@ export default function LogForm({
   const [workoutCompleted, setWorkoutCompleted] = useState(!!existingLog?.completed_at);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Set when ticking the last set moved the logger on by itself, so the move can be undone. The
+  // notice clears itself after a few seconds; the step list still allows going back any time.
+  const [autoAdvance, setAutoAdvance] = useState<{
+    fromIndex: number;
+    finishedName: string;
+    nextName: string;
+  } | null>(null);
+  useEffect(() => {
+    if (!autoAdvance) return;
+    const timer = setTimeout(() => setAutoAdvance(null), AUTO_ADVANCE_NOTICE_MS);
+    return () => clearTimeout(timer);
+  }, [autoAdvance]);
   const [previousPerformance, setPreviousPerformance] =
     useState<Record<string, PreviousPerformance | null>>(initialPreviousPerformance);
 
@@ -369,18 +400,47 @@ export default function LogForm({
     scheduleSave(true);
   }
 
-  // Ticking a set done starts the rest timer. The tick is on-screen only (never saved), so no save.
+  // Ticking a set done starts the rest timer. The tick is on-screen only (never saved), so no save —
+  // unless it was the last set: then the exercise is finished and the logger moves on to the next
+  // one still to do, with a moment to undo in case another set is coming.
   function toggleSetDone(index: number) {
-    const entry = stateRef.current.entries[currentIndex];
+    const latest = stateRef.current.entries;
+    const entry = latest[currentIndex];
     const becomingDone = !entry?.sets[index]?.done;
+    const finishing = becomingDone && !!entry && completesExercise(entry, index);
     updateEntries((prev) =>
       prev.map((e, i) =>
         i === currentIndex
-          ? { ...e, sets: e.sets.map((s, si) => (si === index ? { ...s, done: !s.done } : s)) }
+          ? {
+              ...e,
+              done: finishing ? true : e.done,
+              sets: e.sets.map((s, si) => (si === index ? { ...s, done: !s.done } : s)),
+            }
           : e
       )
     );
     if (becomingDone) startRest(entry);
+    if (!finishing) return;
+
+    scheduleSave(true);
+    const next = nextUnfinishedIndex(
+      latest.map((e, i) => (i === currentIndex ? { done: true } : e)),
+      currentIndex
+    );
+    if (next !== null) {
+      setCurrentIndex(next);
+      setAutoAdvance({ fromIndex: currentIndex, finishedName: entry.name, nextName: latest[next].name });
+    }
+  }
+
+  // Undo an automatic move: reopen the exercise that was just finished and go back to it.
+  function undoAutoAdvance() {
+    if (!autoAdvance) return;
+    const { fromIndex } = autoAdvance;
+    updateEntries((prev) => prev.map((e, i) => (i === fromIndex ? { ...e, done: false } : e)));
+    scheduleSave(true);
+    setCurrentIndex(fromIndex);
+    setAutoAdvance(null);
   }
 
   function removeSet(index: number) {
@@ -394,8 +454,13 @@ export default function LogForm({
     const wasDone = entries[currentIndex]?.done;
     updateEntries((prev) => prev.map((e, i) => (i === currentIndex ? { ...e, done: !e.done } : e)));
     scheduleSave(true);
-    if (!wasDone && currentIndex < entries.length - 1) {
-      setCurrentIndex((i) => i + 1);
+    setAutoAdvance(null);
+    if (!wasDone) {
+      const next = nextUnfinishedIndex(
+        entries.map((e, i) => (i === currentIndex ? { done: true } : e)),
+        currentIndex
+      );
+      if (next !== null) setCurrentIndex(next);
     }
   }
 
@@ -446,6 +511,7 @@ export default function LogForm({
 
   function goTo(index: number) {
     if (hasUnsavedRef.current) scheduleSave(true);
+    setAutoAdvance(null);
     setCurrentIndex(index);
   }
 
@@ -613,6 +679,26 @@ export default function LogForm({
               ref={restTimerRef}
               current={current ? { exerciseId: current.exerciseId, name: current.name } : null}
             />
+          )}
+
+          {autoAdvance && (
+            <div
+              role="status"
+              className="card flex items-center gap-3 border-green/30 bg-green/5 px-4 py-2.5"
+            >
+              <Icon name="checkmark" className="size-4 shrink-0 text-green" strokeWidth={2.5} />
+              <p className="min-w-0 flex-1 truncate text-sm">
+                <span className="font-medium">{autoAdvance.finishedName}</span> done. Up next:{" "}
+                <span className="font-medium">{autoAdvance.nextName}</span>
+              </p>
+              <button
+                type="button"
+                onClick={undoAutoAdvance}
+                className="h-8 shrink-0 rounded-lg px-2.5 text-sm font-semibold text-link hover:bg-fill"
+              >
+                Undo
+              </button>
+            </div>
           )}
 
           {current && (

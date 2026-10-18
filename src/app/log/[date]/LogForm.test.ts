@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  completesExercise,
   getUnloggedPlannedExercises,
   isExerciseEntryLogged,
+  nextUnfinishedIndex,
   type PlannedExerciseRef,
 } from "./LogForm";
 import type { ExerciseEntry, SetRow } from "./ExerciseLogPanel";
@@ -89,5 +91,43 @@ describe("isExerciseEntryLogged (Phase 14)", () => {
 
   it("treats whitespace-only values as not logged", () => {
     expect(isExerciseEntryLogged(entry({ sets: [{ reps: "  ", weight: " ", weightUnit: "kg", setType: "working", rpe: "" }] }))).toBe(false);
+  });
+});
+
+describe("nextUnfinishedIndex (auto-advance)", () => {
+  const steps = (...done: boolean[]) => done.map((d) => ({ done: d }));
+
+  it("goes to the next exercise still to do", () => {
+    expect(nextUnfinishedIndex(steps(true, false, false), 0)).toBe(1);
+  });
+
+  it("skips exercises that are already finished", () => {
+    expect(nextUnfinishedIndex(steps(false, true, true, false), 0)).toBe(3);
+  });
+
+  it("wraps round to an earlier exercise that was skipped", () => {
+    expect(nextUnfinishedIndex(steps(false, true, true), 2)).toBe(0);
+  });
+
+  it("returns null once everything is finished, or when there is nothing else", () => {
+    expect(nextUnfinishedIndex(steps(true, true, true), 1)).toBeNull();
+    expect(nextUnfinishedIndex(steps(false), 0)).toBeNull();
+  });
+});
+
+describe("completesExercise (auto-advance)", () => {
+  const set = (done: boolean) => ({ done });
+
+  it("is true when ticking the last unticked set", () => {
+    expect(completesExercise({ done: false, sets: [set(true), set(true), set(false)] }, 2)).toBe(true);
+  });
+
+  it("is false while other sets are still unticked", () => {
+    expect(completesExercise({ done: false, sets: [set(false), set(true), set(false)] }, 2)).toBe(false);
+  });
+
+  it("is false for an exercise that is already finished, or has no sets", () => {
+    expect(completesExercise({ done: true, sets: [set(false)] }, 0)).toBe(false);
+    expect(completesExercise({ done: false, sets: [] }, 0)).toBe(false);
   });
 });
