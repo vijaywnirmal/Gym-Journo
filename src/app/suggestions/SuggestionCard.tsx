@@ -36,18 +36,18 @@ export default function SuggestionCard(props: Props) {
   }
 
   return (
-    <div className="rounded-xl bg-surface p-4">
+    <div className="card p-4">
       <div className="flex items-baseline justify-between gap-2">
         <p className="font-semibold text-label">{props.exerciseName}</p>
         <span
           className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${
-            props.kind === "increase" ? "bg-green/12 text-green" : "bg-tint/12 text-tint"
+            props.kind === "increase" ? "bg-green/12 text-green" : "bg-accent/10 text-link"
           }`}
         >
           {props.kind === "increase" ? "Increase" : "Deload"}
         </span>
       </div>
-      <Link href={props.planHref} className="text-xs text-tint">
+      <Link href={props.planHref} className="text-xs text-link">
         {props.planLabel}
       </Link>
       <p className="mt-2 text-xl font-semibold text-label">{props.change}</p>
@@ -64,7 +64,7 @@ export default function SuggestionCard(props: Props) {
             type="button"
             onClick={() => decide(true)}
             disabled={pending}
-            className="flex-1 rounded-lg bg-tint px-3 py-2 text-sm font-medium text-white disabled:opacity-40"
+            className="flex-1 h-9 rounded-lg bg-accent px-3 text-sm font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-40"
           >
             Accept
           </button>
@@ -72,7 +72,7 @@ export default function SuggestionCard(props: Props) {
             type="button"
             onClick={() => decide(false)}
             disabled={pending}
-            className="flex-1 rounded-lg bg-fill px-3 py-2 text-sm font-medium text-label disabled:opacity-40"
+            className="flex-1 h-9 rounded-lg border border-separator px-3 text-sm font-semibold hover:bg-fill disabled:opacity-40"
           >
             Reject
           </button>

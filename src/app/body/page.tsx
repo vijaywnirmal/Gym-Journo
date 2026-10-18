@@ -12,7 +12,7 @@ import { summarizeBodyWeight } from "@/lib/analyze/bodyWeight";
 import { getTargetWeightKg } from "@/lib/home";
 import WeeklyTrainingDays from "./WeeklyTrainingDays";
 import { getToday } from "@/lib/userDate";
-import BackLink from "@/components/BackLink";
+import PageHeader from "@/components/PageHeader";
 
 export default async function BodyPage() {
   const [todayStr, measurements, training, profile, lastWorkout, weeklyTraining] = await Promise.all([
@@ -25,10 +25,12 @@ export default async function BodyPage() {
   ]);
 
   return (
-    <main className="screen-enter px-4 pt-4">
-      <BackLink href="/profile" label="Profile" />
-      <h1 className="mb-4 large-title">Body & Progress</h1>
-      <h2 className="mb-2 text-base font-semibold text-label">Weight</h2>
+    <main className="px-4 pt-6 md:px-8 md:pt-10">
+      <PageHeader
+        title="Body"
+        subtitle="Body weight and how consistently you train."
+        back={{ href: "/profile", label: "Profile" }}
+      />
       <BodyMeasurementsSection
         measurements={measurements}
         todayStr={todayStr}

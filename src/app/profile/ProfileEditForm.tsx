@@ -56,8 +56,8 @@ export default function ProfileEditForm({
     <div className="flex flex-col gap-4">
       <ProfileFields value={fields} onChange={setFields} />
 
-      <section className="rounded-xl bg-surface p-4">
-        <h2 className="mb-4 text-base font-semibold text-label">Password</h2>
+      <section className="card p-4">
+        <h2 className="mb-4 text-sm font-semibold">Password</h2>
         <PasswordFields
           password={password}
           confirmPassword={confirmPassword}
@@ -73,12 +73,12 @@ export default function ProfileEditForm({
       )}
 
       {/* Stays in view on a phone while the long form scrolls. */}
-      <div className="sticky bottom-24 z-10 -mx-1 flex gap-3 rounded-2xl border border-[var(--material-edge)] material p-2 shadow-raised">
+      <div className="material sticky bottom-20 z-10 -mx-1 flex justify-end gap-2 rounded-xl border border-separator p-2 shadow-popover md:bottom-4">
         <button
           type="button"
           onClick={onCancel}
           disabled={pending}
-          className="h-12 flex-1 rounded-xl bg-fill px-4 font-medium text-label disabled:opacity-50"
+          className="h-10 rounded-[10px] border border-separator px-4 text-sm font-semibold hover:bg-fill disabled:opacity-50"
         >
           Cancel
         </button>
@@ -86,7 +86,7 @@ export default function ProfileEditForm({
           type="button"
           onClick={handleSubmit}
           disabled={pending}
-          className="h-12 flex-[2] rounded-xl bg-tint px-4 font-medium text-white disabled:opacity-50"
+          className="h-10 rounded-[10px] bg-accent px-5 text-sm font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-50"
         >
           {pending ? "Saving…" : "Save changes"}
         </button>

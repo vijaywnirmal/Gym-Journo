@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import type { Exercise } from "@/lib/types";
-import { matchesSearch } from "@/lib/exerciseSearch";
+import ExerciseSearchList from "@/components/ExerciseSearchList";
+import Icon from "@/components/Icon";
 
-// Compact, on-demand exercise picker: grouped by muscle group and collapsed by default, with a
-// search box, so the user is never shown the entire exercise library as one long expanded list.
+// Builds up a selection of exercises to add to the plan, confirmed in one step.
 export default function ExercisePicker({
   exercises,
   initiallySelected,
@@ -17,18 +17,7 @@ export default function ExercisePicker({
   onConfirm: (selectedIds: string[]) => void;
   onCancel: () => void;
 }) {
-  const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set(initiallySelected));
-
-  const groups = useMemo(() => {
-    const filtered = exercises.filter((ex) => matchesSearch(ex, search));
-    const byGroup = new Map<string, Exercise[]>();
-    for (const ex of filtered) {
-      const key = ex.muscle_groups?.[0]?.name ?? "Other";
-      byGroup.set(key, [...(byGroup.get(key) ?? []), ex]);
-    }
-    return [...byGroup.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  }, [exercises, search]);
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -39,64 +28,46 @@ export default function ExercisePicker({
     });
   }
 
-  const isSearching = search.trim().length > 0;
-
   return (
-    <div className="rounded-xl bg-surface p-3">
-      <input
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search exercises"
-        className="mb-3 w-full rounded-lg bg-fill px-3 py-2 text-base text-label placeholder-label-3"
+    <section className="card p-4">
+      <h2 className="mb-3 text-base font-semibold">Choose exercises</h2>
+      <ExerciseSearchList
+        exercises={exercises}
+        autoFocus
+        isSelected={(ex) => selected.has(ex.id)}
+        onRowClick={(ex) => toggle(ex.id)}
+        renderAction={(ex) => {
+          const on = selected.has(ex.id);
+          return (
+            <span
+              role="checkbox"
+              aria-checked={on}
+              aria-label={ex.name}
+              className={`grid size-5 shrink-0 place-items-center rounded-md border ${
+                on ? "border-transparent bg-accent text-on-accent" : "border-label-3"
+              }`}
+            >
+              {on && <Icon name="checkmark" className="size-3.5" strokeWidth={3} />}
+            </span>
+          );
+        }}
       />
-
-      <div className="flex max-h-80 flex-col gap-2 overflow-y-auto">
-        {groups.length === 0 && (
-          <p className="text-sm text-label-2">No exercises match &quot;{search}&quot;.</p>
-        )}
-        {groups.map(([groupName, list]) => (
-          <details
-            key={groupName}
-            open={isSearching}
-            className="rounded-lg bg-fill"
-          >
-            <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-label">
-              {groupName}
-            </summary>
-            <ul className="flex flex-col gap-1 px-3 pb-2">
-              {list.map((ex) => (
-                <li key={ex.id}>
-                  <label className="flex items-center gap-2 py-1 text-sm text-label">
-                    <input
-                      type="checkbox"
-                      checked={selected.has(ex.id)}
-                      onChange={() => toggle(ex.id)}
-                    />
-                    {ex.name}
-                  </label>
-                </li>
-              ))}
-            </ul>
-          </details>
-        ))}
-      </div>
-
       <div className="mt-3 flex gap-2">
         <button
           type="button"
           onClick={() => onConfirm([...selected])}
-          className="flex-1 rounded-lg bg-tint px-4 py-2 text-sm font-medium text-white"
+          className="h-10 flex-1 rounded-[10px] bg-accent px-4 text-sm font-semibold text-on-accent hover:bg-accent-hover"
         >
-          Add{selected.size > 0 ? ` (${selected.size})` : ""}
+          {selected.size > 0 ? `Use ${selected.size} exercise${selected.size === 1 ? "" : "s"}` : "Done"}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-lg bg-fill px-4 py-2 text-sm text-label"
+          className="h-10 rounded-[10px] border border-separator px-4 text-sm font-semibold hover:bg-fill"
         >
           Cancel
         </button>
       </div>
-    </div>
+    </section>
   );
 }

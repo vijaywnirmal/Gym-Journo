@@ -9,7 +9,7 @@ import {
   getAdaptSuggestions,
 } from "@/lib/queries";
 import WeeklyInsightsCard from "@/components/WeeklyInsightsCard";
-import { formatDate, hourIn, todayIn } from "@/lib/date";
+import { formatDate, formatDateLong, hourIn, todayIn } from "@/lib/date";
 import { getUserTimeZone } from "@/lib/userDate";
 import { namePartsOf } from "@/lib/names";
 import {
@@ -19,20 +19,21 @@ import {
   getGreeting,
   getWorkoutCta,
 } from "@/lib/home";
-import SignOutButton from "@/components/SignOutButton";
+import PageHeader from "@/components/PageHeader";
 import Icon, { type IconName } from "@/components/Icon";
 
 const TRAINING_FREQUENCY_WINDOW_DAYS = 7;
 
-// One row of an inset grouped list: tinted icon tile, label, chevron.
-function ListRow({ href, icon, iconBg, label }: { href: string; icon: IconName; iconBg: string; label: string }) {
+function ShortcutCard({ href, icon, title, text }: { href: string; icon: IconName; title: string; text: string }) {
   return (
-    <Link href={href} className="flex items-center gap-3 rounded-xl px-4 py-3 active:bg-fill">
-      <span className={`grid size-7 place-items-center rounded-lg text-white ${iconBg}`}>
+    <Link href={href} className="card flex flex-col gap-3 p-4 hover:bg-fill">
+      <span className="grid size-8 place-items-center rounded-lg bg-accent/10 text-link">
         <Icon name={icon} className="size-[18px]" strokeWidth={2} />
       </span>
-      <span className="flex-1 text-base text-label">{label}</span>
-      <Icon name="chevronRight" className="size-4 text-label-3" strokeWidth={2.25} />
+      <span>
+        <span className="block text-sm font-semibold">{title}</span>
+        <span className="block text-xs text-label-2">{text}</span>
+      </span>
     </Link>
   );
 }
@@ -63,60 +64,51 @@ export default async function TodayPage() {
   const hasNothingToday = !plan && !log;
   const recentActivity = hasNothingToday ? await getLastCompletedLog() : null;
 
+  const daysDone = trainingConsistency.daysPerformed;
+  const weekProgress = goalDaysPerWeek ? Math.min(1, daysDone / goalDaysPerWeek) : null;
+
   return (
-    <main className="screen-enter px-4 pt-4">
-      <header className="mb-5 flex items-end justify-between px-1">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-label-2">{formatDate(date)}</p>
-          <h1 className="large-title">{greeting}</h1>
-        </div>
-        <SignOutButton />
-      </header>
+    <main className="px-4 pt-6 md:px-8 md:pt-10">
+      <PageHeader title={greeting} subtitle={formatDateLong(date)} />
 
       {plan?.is_rest_day ? (
-        <section className="mb-4 rounded-xl bg-surface p-5">
-          <div className="flex items-center gap-3">
-            <span className="grid size-10 place-items-center rounded-full bg-teal/15 text-teal">
-              <Icon name="moon" className="size-5" strokeWidth={2} />
-            </span>
-            <div className="flex-1">
-              <h2 className="text-xl font-semibold text-label">Rest day</h2>
-              {plan.title && <p className="text-sm text-label-2">{plan.title}</p>}
-            </div>
-            <Link href={`/schedule/${date}`} className="text-base text-tint">
-              Edit
-            </Link>
+        <section className="card mb-4 flex items-center gap-4 p-5">
+          <span className="grid size-11 shrink-0 place-items-center rounded-full bg-teal/12 text-teal">
+            <Icon name="moon" className="size-5" strokeWidth={2} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-lg font-semibold">Rest day</h2>
+            <p className="text-sm text-label-2">{plan.title ?? "Recovery is part of the plan."}</p>
           </div>
+          <Link href={`/schedule/${date}`} className="rounded-lg px-3 py-1.5 text-sm font-medium text-link hover:bg-fill">
+            Change
+          </Link>
         </section>
       ) : plan ? (
-        <section className="mb-4 rounded-xl bg-surface p-5">
-          <div className="mb-3 flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-tint">Today&apos;s workout</p>
-              <h2 className="text-2xl font-bold text-label">{plan.title ?? "Scheduled workout"}</h2>
+        <section className="card mb-4 p-5">
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="mb-0.5 text-xs font-semibold text-link">Today&apos;s workout</p>
+              <h2 className="truncate text-xl font-semibold">{plan.title ?? "Scheduled workout"}</h2>
+              {plan.muscle_groups && plan.muscle_groups.length > 0 && (
+                <p className="mt-0.5 truncate text-sm text-label-2">
+                  {plan.muscle_groups.map((mg) => mg.name).join(" · ")}
+                </p>
+              )}
             </div>
-            <Link href={`/schedule/${date}`} className="pt-1 text-base text-tint">
+            <Link
+              href={`/schedule/${date}`}
+              className="shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium text-link hover:bg-fill"
+            >
               Edit
             </Link>
           </div>
-          {plan.muscle_groups && plan.muscle_groups.length > 0 && (
-            <div className="mb-4 flex flex-wrap gap-1.5">
-              {plan.muscle_groups.map((mg) => (
-                <span key={mg.id} className="rounded-full bg-fill px-2.5 py-1 text-xs font-medium text-label">
-                  {mg.name}
-                </span>
-              ))}
-            </div>
-          )}
           {plan.planned_exercises && plan.planned_exercises.length > 0 && (
-            <>
-              <p className="mb-1 text-xs font-medium text-label-2">
-                {plan.planned_exercises.length} exercise
-                {plan.planned_exercises.length === 1 ? "" : "s"}
-              </p>
-              <ul className="mb-5 divide-y divide-separator text-sm text-label">
-                {plan.planned_exercises.map((pe) => (
-                  <li key={pe.id} className="py-2">
+            <ol className="mb-5 divide-y divide-separator border-y border-separator">
+              {plan.planned_exercises.map((pe, i) => (
+                <li key={pe.id} className="flex items-center gap-3 py-2.5 text-sm">
+                  <span className="w-5 text-right text-xs font-medium tabular-nums text-label-3">{i + 1}</span>
+                  <span className="min-w-0 flex-1 truncate">
                     {formatPlannedExercise({
                       name: pe.exercise?.name ?? "Exercise",
                       targetSets: pe.target_sets,
@@ -126,94 +118,108 @@ export default async function TodayPage() {
                       targetWeight: pe.target_weight ?? null,
                       targetWeightUnit: pe.target_weight_unit ?? "kg",
                     })}
-                  </li>
-                ))}
-              </ul>
-            </>
+                  </span>
+                </li>
+              ))}
+            </ol>
           )}
-          {log?.completed_at && (
-            <p className="mb-3 flex items-center gap-1.5 text-sm font-medium text-green">
-              <Icon name="checkmark" className="size-4" strokeWidth={2.5} />
-              Completed
-            </p>
-          )}
-          <Link
-            href={cta.href}
-            className="block rounded-lg bg-tint px-4 py-3.5 text-center text-base font-semibold text-white"
-          >
-            {cta.label}
-          </Link>
-        </section>
-      ) : (
-        <section className="mb-4 rounded-xl bg-surface p-5 text-center">
-          <span className="mx-auto mb-2 grid size-12 place-items-center rounded-full bg-fill text-label-2">
-            <Icon name="calendar" className="size-6" />
-          </span>
-          <h2 className="text-xl font-semibold text-label">Nothing scheduled</h2>
-          <p className="mb-4 text-sm text-label-2">Plan today, follow a program, or just start lifting.</p>
-          <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-3">
             <Link
               href={cta.href}
-              className="rounded-lg bg-tint px-4 py-3.5 text-base font-semibold text-white"
+              className="flex h-11 flex-1 items-center justify-center rounded-[10px] bg-accent px-4 text-[15px] font-semibold text-on-accent hover:bg-accent-hover"
             >
-              {log ? cta.label : "Log a freeform workout"}
+              {cta.label}
+            </Link>
+            {log?.completed_at && (
+              <span className="flex items-center gap-1.5 text-sm font-medium text-green">
+                <Icon name="checkmark" className="size-4" strokeWidth={2.5} />
+                Done
+              </span>
+            )}
+          </div>
+        </section>
+      ) : (
+        <section className="card mb-4 p-5">
+          <h2 className="text-lg font-semibold">Nothing planned for today</h2>
+          <p className="mb-4 text-sm text-label-2">Log what you do as you go, or plan the session first.</p>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href={cta.href}
+              className="flex h-10 items-center rounded-[10px] bg-accent px-4 text-sm font-semibold text-on-accent hover:bg-accent-hover"
+            >
+              {log ? cta.label : "Start a workout"}
             </Link>
             <Link
               href={`/schedule/${date}`}
-              className="rounded-lg bg-fill px-4 py-3.5 text-base font-semibold text-tint"
+              className="flex h-10 items-center rounded-[10px] border border-separator px-4 text-sm font-semibold hover:bg-fill"
             >
-              Schedule today
+              Plan today
             </Link>
-            <Link href="/programs" className="py-2 text-sm text-tint">
-              Or follow a program
+            <Link
+              href="/programs"
+              className="flex h-10 items-center rounded-[10px] px-3 text-sm font-medium text-link hover:bg-fill"
+            >
+              Follow a program
             </Link>
           </div>
+          {recentActivity && (
+            <p className="mt-4 border-t border-separator pt-3 text-xs text-label-2">
+              Last workout: {recentActivity.title ?? "Freeform workout"} · {formatDate(recentActivity.date)}
+            </p>
+          )}
         </section>
-      )}
-
-      {recentActivity && (
-        <p className="mb-4 px-1 text-center text-xs text-label-2">
-          Last completed workout: {recentActivity.title ?? "Freeform workout"} · {formatDate(recentActivity.date)}
-        </p>
       )}
 
       {suggestions.length > 0 && (
-        <Link href="/suggestions" className="mb-4 flex items-center gap-3 rounded-xl bg-green/12 px-4 py-3.5">
-          <Icon name="lightbulb" className="size-5 text-green" strokeWidth={2} />
-          <span className="flex-1 text-sm font-medium text-label">
-            {suggestions.length} weight suggestion{suggestions.length === 1 ? "" : "s"} for upcoming workouts
+        <Link href="/suggestions" className="card mb-4 flex items-center gap-3 px-4 py-3 hover:bg-fill">
+          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-green/12 text-green">
+            <Icon name="lightbulb" className="size-4" strokeWidth={2} />
           </span>
-          <Icon name="chevronRight" className="size-4 text-label-3" strokeWidth={2.25} />
+          <span className="min-w-0 flex-1 text-sm">
+            <span className="font-medium">
+              {suggestions.length} weight suggestion{suggestions.length === 1 ? "" : "s"}
+            </span>
+            <span className="text-label-2"> for upcoming workouts</span>
+          </span>
+          <Icon name="chevronRight" className="size-4 text-label-3" strokeWidth={2} />
         </Link>
       )}
 
-      {(goalSummary || trainingFrequency) && (
-        <section className="mb-4 grid grid-cols-2 gap-3">
-          {goalSummary && (
-            <div className={`rounded-xl bg-surface px-4 py-3 ${trainingFrequency ? "" : "col-span-2"}`}>
-              <p className="mb-1 text-xs font-medium text-label-2">Goal</p>
-              <p className="text-sm font-semibold text-label">{goalSummary.goalLine}</p>
-              {goalSummary.targetLine && <p className="text-xs text-label-2">{goalSummary.targetLine}</p>}
-            </div>
-          )}
-          {trainingFrequency && (
-            <div className={`rounded-xl bg-surface px-4 py-3 ${goalSummary ? "" : "col-span-2"}`}>
-              <p className="mb-1 text-xs font-medium text-label-2">Training frequency</p>
-              <p className="text-sm font-semibold text-label">{trainingFrequency.actualLine}</p>
-              <p className="text-xs text-label-2">{trainingFrequency.goalLine}</p>
-            </div>
-          )}
-        </section>
-      )}
+      <h2 className="section-title mt-6">This week</h2>
+      <section className="card mb-4 p-5">
+        <div className="flex items-baseline gap-2">
+          <p className="text-3xl font-semibold tabular-nums tracking-tight">
+            {daysDone}
+            {goalDaysPerWeek && <span className="text-label-3"> / {goalDaysPerWeek}</span>}
+          </p>
+          <p className="text-sm text-label-2">training days in the last {trainingConsistency.windowDays} days</p>
+        </div>
+        {weekProgress !== null && (
+          <div
+            className="mt-4 h-2 overflow-hidden rounded-full bg-fill"
+            role="img"
+            aria-label={trainingFrequency?.actualLine}
+          >
+            <div className="h-full rounded-full bg-accent" style={{ width: `${weekProgress * 100}%` }} />
+          </div>
+        )}
+        {goalSummary ? (
+          <p className="mt-3 text-sm text-label-2">
+            Goal: <span className="font-medium text-label">{goalSummary.goalLine}</span>
+            {goalSummary.targetLine && <> · {goalSummary.targetLine}</>}
+          </p>
+        ) : (
+          trainingFrequency && <p className="mt-3 text-xs text-label-2">{trainingFrequency.goalLine}</p>
+        )}
+      </section>
 
       {weeklyInsights && <WeeklyInsightsCard insights={weeklyInsights} goalDaysPerWeek={goalDaysPerWeek} />}
 
-      <h2 className="section-header">Get help</h2>
-      <nav className="mb-6 rounded-xl bg-surface p-1">
-        <ListRow href="/coach" icon="compass" iconBg="bg-tint" label="What changed? Ask Coach" />
-        <div className="ml-[3.75rem] h-px bg-separator" />
-        <ListRow href="/ai-plan" icon="sparkles" iconBg="bg-orange" label="AI diet & workout plan" />
-      </nav>
+      <h2 className="section-title mt-6">Help</h2>
+      <div className="mb-6 grid grid-cols-2 gap-3">
+        <ShortcutCard href="/coach" icon="compass" title="Ask Coach" text="What changed in my training?" />
+        <ShortcutCard href="/ai-plan" icon="sparkles" title="AI plan" text="Diet and workout plan" />
+      </div>
     </main>
   );
 }

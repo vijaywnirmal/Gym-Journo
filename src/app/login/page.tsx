@@ -109,11 +109,11 @@ function LoginForm() {
         : "Sign in with your email — we'll send you a magic link, no password needed.";
 
   return (
-    <main className="screen-enter mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6">
-      <span className="mb-6 grid size-16 place-items-center rounded-[22%] bg-tint text-white shadow-raised">
-        <Icon name="dumbbell" className="size-9" strokeWidth={2.25} />
+    <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6">
+      <span className="mb-6 grid size-12 place-items-center rounded-xl bg-accent text-on-accent">
+        <Icon name="dumbbell" className="size-7" strokeWidth={2.25} />
       </span>
-      <h1 className="mb-1 large-title">{title}</h1>
+      <h1 className="mb-1 page-title">{title}</h1>
       <p className="mb-8 text-sm text-label-2">{subtitle}</p>
 
       {mode === "magic-link" && magicLinkSent ? (
@@ -128,7 +128,7 @@ function LoginForm() {
           {resent ? (
             <p className="text-center text-sm text-green">Confirmation email sent.</p>
           ) : (
-            <button type="button" onClick={handleResend} disabled={pending} className="text-center text-sm text-tint">
+            <button type="button" onClick={handleResend} disabled={pending} className="text-center text-sm text-link">
               Didn&apos;t get it? Resend confirmation email
             </button>
           )}
@@ -149,7 +149,7 @@ function LoginForm() {
             onChange={(e) => setEmail(e.target.value)}
             required
             placeholder="you@example.com"
-            className="rounded-xl bg-fill px-4 py-3 text-base text-label placeholder-label-3"
+            className="field rounded-xl px-4 py-3 text-base"
           />
 
           {(mode === "password" || mode === "register") && (
@@ -159,12 +159,12 @@ function LoginForm() {
               onChange={(e) => setPassword(e.target.value)}
               required
               placeholder={mode === "register" ? "Password (at least 8 characters)" : "Password"}
-              className="rounded-xl bg-fill px-4 py-3 text-base text-label placeholder-label-3"
+              className="field rounded-xl px-4 py-3 text-base"
             />
           )}
 
           {mode === "password" && (
-            <Link href="/forgot-password" className="-mt-1 text-right text-xs text-tint">
+            <Link href="/forgot-password" className="-mt-1 text-right text-xs text-link">
               Forgot password?
             </Link>
           )}
@@ -175,7 +175,7 @@ function LoginForm() {
               type="button"
               onClick={handleResend}
               disabled={pending}
-              className="text-left text-sm text-tint"
+              className="text-left text-sm text-link"
             >
               Resend confirmation email
             </button>
@@ -185,7 +185,7 @@ function LoginForm() {
           <button
             type="submit"
             disabled={pending}
-            className="rounded-xl bg-tint px-4 py-3 font-medium text-white disabled:opacity-50"
+            className="h-11 rounded-[10px] bg-accent px-4 text-[15px] font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-50"
           >
             {pending
               ? mode === "register"
@@ -206,7 +206,7 @@ function LoginForm() {
                   setError(null);
                   setMode("magic-link");
                 }}
-                className="text-center text-sm text-tint"
+                className="text-center text-sm text-link"
               >
                 Sign in with a magic link instead
               </button>
@@ -218,7 +218,7 @@ function LoginForm() {
                   setError(null);
                   setMode("password");
                 }}
-                className="text-center text-sm text-tint"
+                className="text-center text-sm text-link"
               >
                 Sign in with a password instead
               </button>
@@ -230,7 +230,7 @@ function LoginForm() {
                   setError(null);
                   setMode("register");
                 }}
-                className="text-center text-sm text-tint"
+                className="text-center text-sm text-link"
               >
                 Create a new account
               </button>

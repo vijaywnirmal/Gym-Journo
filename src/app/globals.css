@@ -1,68 +1,75 @@
 @import "tailwindcss";
 
 /*
- * Design system — Apple Human Interface style, translated for the web.
+ * Design system
  *
- * Colors are Apple's adaptive system colors: one semantic token per role,
- * redefined for dark mode, so every screen follows the OS appearance.
- * Components reference roles (label, surface, tint), never raw palette steps.
+ * Calm, neutral surfaces with one accent color, so the workout data is what stands out.
+ * Every color is a semantic token redefined for dark mode; components use the roles
+ * (label, surface, accent), never raw palette steps.
+ *
+ *   background  page canvas            surface     cards and panels
+ *   fill        controls, chips        separator   borders and dividers
+ *   label       primary text           label-2/3   secondary / tertiary text
+ *   accent      primary actions        link        accent-colored text
  */
 
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
 
-  /* Backgrounds — grouped style: gray canvas, white rounded groups */
-  --background: #f2f2f7; /* systemGroupedBackground */
-  --surface: #ffffff; /* secondarySystemGroupedBackground */
+  --background: #f6f6f7;
+  --surface: #ffffff;
   --surface-raised: #ffffff;
-  --fill: rgb(118 118 128 / 0.12); /* tertiarySystemFill — controls, chips */
-  --fill-strong: rgb(120 120 128 / 0.2); /* secondarySystemFill — pressed, tracks */
+  --fill: rgb(24 24 27 / 0.05);
+  --fill-strong: rgb(24 24 27 / 0.1);
 
-  /* Labels */
-  --label: #000000;
-  --label-2: rgb(60 60 67 / 0.6);
-  --label-3: rgb(60 60 67 / 0.3);
-  --separator: rgb(60 60 67 / 0.18);
+  --label: #18181b;
+  --label-2: #5c5c66;
+  --label-3: #93939c;
+  --separator: #e5e5e9;
 
-  /* System colors */
-  --tint: #007aff; /* systemBlue */
-  --green: #34c759;
-  --red: #ff3b30;
-  --orange: #ff9500;
-  --teal: #30b0c7;
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --on-accent: #ffffff;
+  --link: #4338ca;
 
-  /* Materials */
-  --material: rgb(249 249 249 / 0.78);
-  --material-edge: rgb(0 0 0 / 0.12);
-  --shadow-raised: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px rgb(0 0 0 / 0.08);
+  --green: #15803d;
+  --red: #dc2626;
+  --orange: #c2410c;
+  --teal: #0e7490;
 
-  /* Motion — critically damped ease approximating a spring (damping 1.0, response ~0.35) */
-  --ease-spring: cubic-bezier(0.25, 1, 0.5, 1);
-  --press-scale: 0.97;
+  --material: rgb(255 255 255 / 0.85);
+  --shadow-card: 0 1px 2px rgb(24 24 27 / 0.04);
+  --shadow-popover: 0 0 0 1px rgb(24 24 27 / 0.06), 0 12px 32px -4px rgb(24 24 27 / 0.16);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #000000;
-    --surface: #1c1c1e;
-    --surface-raised: #2c2c2e;
-    --fill: rgb(118 118 128 / 0.24);
-    --fill-strong: rgb(120 120 128 / 0.36);
+    color-scheme: dark;
 
-    --label: #ffffff;
-    --label-2: rgb(235 235 245 / 0.6);
-    --label-3: rgb(235 235 245 / 0.3);
-    --separator: rgb(84 84 88 / 0.6);
+    --background: #0b0b0d;
+    --surface: #151518;
+    --surface-raised: #232328;
+    --fill: rgb(255 255 255 / 0.06);
+    --fill-strong: rgb(255 255 255 / 0.11);
 
-    --tint: #0a84ff;
-    --green: #30d158;
-    --red: #ff453a;
-    --orange: #ff9f0a;
-    --teal: #40c8e0;
+    --label: #f4f4f5;
+    --label-2: #a1a1aa;
+    --label-3: #6e6e78;
+    --separator: #27272c;
 
-    --material: rgb(22 22 24 / 0.72);
-    --material-edge: rgb(255 255 255 / 0.1);
-    --shadow-raised: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px rgb(0 0 0 / 0.5);
+    --accent: #6366f1;
+    --accent-hover: #7c7ff5;
+    --on-accent: #ffffff;
+    --link: #a5b4fc;
+
+    --green: #4ade80;
+    --red: #f87171;
+    --orange: #fb923c;
+    --teal: #22d3ee;
+
+    --material: rgb(21 21 24 / 0.85);
+    --shadow-card: none;
+    --shadow-popover: 0 0 0 1px rgb(255 255 255 / 0.08), 0 16px 40px -4px rgb(0 0 0 / 0.6);
   }
 }
 
@@ -76,50 +83,26 @@
   --color-label-2: var(--label-2);
   --color-label-3: var(--label-3);
   --color-separator: var(--separator);
-  --color-tint: var(--tint);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-on-accent: var(--on-accent);
+  --color-link: var(--link);
   --color-green: var(--green);
   --color-red: var(--red);
   --color-orange: var(--orange);
   --color-teal: var(--teal);
   --color-material: var(--material);
 
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI Variable Text",
-    "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, "Segoe UI Variable Display",
-    "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 
-  /* Continuous-feeling corners: controls 12px, grouped cards 18px */
   --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1.125rem;
-  --radius-2xl: 1.5rem;
+  --radius-lg: 0.625rem;
+  --radius-xl: 0.875rem;
+  --radius-2xl: 1.125rem;
 
-  --shadow-raised: var(--shadow-raised);
-  --ease-spring: var(--ease-spring);
-
-  /* Apple text styles: size-specific tracking and leading (iOS Dynamic Type, Large) */
-  --text-xs: 0.75rem;
-  --text-xs--line-height: 1.33;
-  --text-xs--letter-spacing: 0.01em;
-  --text-sm: 0.9375rem;
-  --text-sm--line-height: 1.33;
-  --text-sm--letter-spacing: -0.015em;
-  --text-base: 1.0625rem;
-  --text-base--line-height: 1.3;
-  --text-base--letter-spacing: -0.025em;
-  --text-lg: 1.25rem;
-  --text-lg--line-height: 1.25;
-  --text-lg--letter-spacing: -0.02em;
-  --text-xl: 1.375rem;
-  --text-xl--line-height: 1.2;
-  --text-xl--letter-spacing: -0.02em;
-  --text-2xl: 1.75rem;
-  --text-2xl--line-height: 1.15;
-  --text-2xl--letter-spacing: -0.02em;
-  --text-3xl: 2.125rem;
-  --text-3xl--line-height: 1.1;
-  --text-3xl--letter-spacing: -0.022em;
+  --shadow-card: var(--shadow-card);
+  --shadow-popover: var(--shadow-popover);
 }
 
 @layer base {
@@ -132,41 +115,32 @@
     background: var(--background);
     color: var(--label);
     font-family: var(--font-sans);
-    font-optical-sizing: auto;
-    transition: background-color 300ms ease;
+    font-feature-settings: "cv11", "ss01";
   }
 
   h1,
   h2,
   h3 {
-    font-family: var(--font-display);
+    letter-spacing: -0.015em;
   }
 
   ::selection {
-    background: color-mix(in srgb, var(--tint) 30%, transparent);
+    background: color-mix(in srgb, var(--accent) 25%, transparent);
   }
 
   :focus-visible {
-    outline: 3px solid color-mix(in srgb, var(--tint) 55%, transparent);
+    outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
 
   input,
-  select,
   textarea {
-    caret-color: var(--tint);
-    accent-color: var(--tint);
+    caret-color: var(--accent);
   }
 
-  /* iOS-style pop-up button: the platform arrow is replaced by an up/down chevron in the tint color.
-     Selects that draw their own chevron opt out with appearance-none. */
-  select:not(.appearance-none) {
-    appearance: none;
-    padding-right: 1.6em !important;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%23007aff' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 4.75 6 2.25l2.5 2.5M3.5 7.25 6 9.75l2.5-2.5'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 0.45em center;
-    background-size: 0.75em;
+  input:focus-visible,
+  textarea:focus-visible {
+    outline: none;
   }
 
   input[type="number"] {
@@ -179,113 +153,133 @@
     margin: 0;
   }
 
-  input:focus,
-  select:focus,
-  textarea:focus {
-    outline: none;
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--tint) 35%, transparent);
+  /* Thin, theme-colored scrollbars wherever a panel scrolls. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--fill-strong) transparent;
   }
 
-  /* Response: feedback on press, instantly; release eases back like a spring. */
-  a[class*="rounded"],
   button {
-    transition:
-      transform 380ms var(--ease-spring),
-      opacity 150ms ease,
-      background-color 200ms ease;
-  }
-
-  a[class*="rounded"]:active,
-  button:not(:disabled):active {
-    transform: scale(var(--press-scale));
-    opacity: 0.75;
-    transition:
-      transform 80ms ease-out,
-      opacity 80ms ease-out;
+    cursor: pointer;
   }
 
   button:disabled {
     cursor: default;
   }
-}
 
-@layer components {
-  /* Large title — the screen's name, with tight optical tracking */
-  .large-title {
-    font-family: var(--font-display);
-    font-size: var(--text-3xl);
-    line-height: 1.1;
-    letter-spacing: -0.022em;
-    font-weight: 700;
-  }
-
-  /* Section header above a grouped list, iOS style */
-  .section-header {
-    padding-inline: 1rem;
-    margin-bottom: 0.375rem;
-    font-size: 0.8125rem;
-    line-height: 1.3;
-    letter-spacing: -0.005em;
-    text-transform: uppercase;
-    color: var(--label-2);
-  }
-
-  /* Translucent chrome: content scrolls underneath */
-  .material {
-    background: var(--material);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
-    backdrop-filter: blur(24px) saturate(180%);
-  }
-
-  /* Materialize sheets/popovers: scale + fade from their anchor */
-  .materialize {
-    animation: materialize 360ms var(--ease-spring) both;
-  }
-
-  @keyframes materialize {
-    from {
-      opacity: 0;
-      transform: scale(0.96) translateY(4px);
-    }
-  }
-
-  /* Screens arrive with a short, gentle rise */
-  .screen-enter {
-    animation: screen-enter 420ms var(--ease-spring) both;
-  }
-
-  @keyframes screen-enter {
-    from {
-      opacity: 0;
-      transform: translateY(6px);
-    }
-  }
-}
-
-/* Accessibility — reduced motion becomes a cross-fade, never nothing */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 200ms !important;
-    animation-timing-function: ease !important;
-    scroll-behavior: auto !important;
-  }
-
-  .materialize,
-  .screen-enter {
-    animation-name: fade-in;
+  /* Instant press feedback: no delay, no long transition on the way down. */
+  a[class*="rounded"],
+  button {
+    transition:
+      transform 160ms ease-out,
+      background-color 120ms ease,
+      color 120ms ease,
+      opacity 120ms ease;
   }
 
   a[class*="rounded"]:active,
   button:not(:disabled):active {
-    transform: none;
+    transform: scale(0.98);
+    transition-duration: 0ms;
+  }
+}
+
+@layer components {
+  .page-title {
+    font-size: 1.625rem;
+    line-height: 2rem;
+    font-weight: 650;
+    letter-spacing: -0.02em;
   }
 
-  @keyframes fade-in {
+  /* Section title above a group of cards */
+  .section-title {
+    margin-bottom: 0.5rem;
+    font-size: 0.8125rem;
+    line-height: 1.25rem;
+    font-weight: 600;
+    color: var(--label-2);
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--separator);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Text fields, selects and date triggers share one look. */
+  .control,
+  .field {
+    background: var(--surface);
+    border: 1px solid var(--separator);
+    color: var(--label);
+    transition:
+      border-color 120ms ease,
+      box-shadow 120ms ease;
+  }
+
+  .control:hover:not(:disabled),
+  .field:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--label) 22%, transparent);
+  }
+
+  .control[aria-expanded="true"],
+  .field:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+    outline: none;
+  }
+
+  .control:disabled,
+  .field:disabled {
+    opacity: 0.55;
+  }
+
+  .field::placeholder {
+    color: var(--label-3);
+  }
+
+  .popover {
+    background: var(--surface-raised);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-popover);
+    animation: popover-in 120ms ease-out;
+  }
+
+  @keyframes popover-in {
     from {
       opacity: 0;
+      transform: scale(0.98);
     }
+  }
+
+  .material {
+    background: var(--material);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    backdrop-filter: blur(16px) saturate(160%);
+  }
+
+  .skeleton {
+    background: var(--fill);
+    border-radius: var(--radius-lg);
+    animation: skeleton-pulse 1.4s ease-in-out infinite;
+  }
+
+  @keyframes skeleton-pulse {
+    50% {
+      opacity: 0.55;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
   }
 }
 
@@ -299,14 +293,7 @@
 
 @media (prefers-contrast: more) {
   :root {
-    --separator: var(--label-2);
-    --label-2: color-mix(in srgb, var(--label) 80%, transparent);
-  }
-
-  .material {
-    background: var(--surface);
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-    border-color: var(--label) !important;
+    --separator: var(--label-3);
+    --label-2: var(--label);
   }
 }

@@ -124,7 +124,7 @@ export default function RestTimer({ ref, current }: Props) {
   if (!running) {
     if (!current) return null;
     return (
-      <div className="flex items-center gap-2 rounded-xl bg-surface px-3 py-2">
+      <div className="flex items-center gap-2 card px-3 py-2">
         <span className="text-xs text-label-2">Rest</span>
         <div className="flex rounded-lg bg-fill p-0.5" role="group" aria-label={`Rest time for ${current.name}`}>
           {REST_PRESETS_SEC.map((s) => (
@@ -134,7 +134,7 @@ export default function RestTimer({ ref, current }: Props) {
               onClick={() => choosePreset(s)}
               aria-pressed={currentPreset === s}
               className={`rounded-md px-2 py-1 text-xs font-medium tabular-nums ${
-                currentPreset === s ? "bg-surface-raised text-label shadow-raised" : "text-label-2"
+                currentPreset === s ? "bg-surface-raised text-label shadow-sm" : "text-label-2"
               }`}
             >
               {formatClock(s)}
@@ -144,7 +144,7 @@ export default function RestTimer({ ref, current }: Props) {
         <button
           type="button"
           onClick={() => start(current.exerciseId, current.name)}
-          className="ml-auto rounded-full bg-tint px-3 py-1.5 text-xs font-semibold text-white"
+          className="ml-auto h-8 rounded-lg bg-accent px-3 text-xs font-semibold text-on-accent hover:bg-accent-hover"
         >
           Start rest
         </button>
@@ -154,14 +154,14 @@ export default function RestTimer({ ref, current }: Props) {
 
   return (
     <div
-      className={`materialize material sticky top-2 z-20 flex items-center gap-2 rounded-xl border border-[var(--material-edge)] px-4 py-2.5 shadow-raised ${
+      className={`material sticky top-2 z-20 flex items-center gap-2 rounded-xl border border-separator px-4 py-2.5 shadow-sm ${
         finished ? "ring-2 ring-green" : ""
       }`}
       role="timer"
       aria-live={finished ? "assertive" : "off"}
     >
       <div className="min-w-0">
-        <p className={`text-3xl font-semibold tabular-nums ${finished ? "text-green" : "text-tint"}`}>
+        <p className={`text-3xl font-semibold tabular-nums ${finished ? "text-green" : "text-link"}`}>
           {finished ? "Go!" : formatClock(remaining ?? 0)}
         </p>
         <p className="truncate text-xs text-label-2">
@@ -173,21 +173,21 @@ export default function RestTimer({ ref, current }: Props) {
           type="button"
           onClick={() => adjust(-ADJUST_STEP_SEC)}
           disabled={finished}
-          className="rounded-full bg-fill px-2.5 py-1.5 text-xs font-medium text-label tabular-nums disabled:opacity-40"
+          className="h-8 rounded-lg border border-separator px-2.5 text-xs font-medium tabular-nums hover:bg-fill disabled:opacity-40"
         >
           −{ADJUST_STEP_SEC}s
         </button>
         <button
           type="button"
           onClick={() => adjust(ADJUST_STEP_SEC)}
-          className="rounded-full bg-fill px-2.5 py-1.5 text-xs font-medium text-label tabular-nums"
+          className="h-8 rounded-lg border border-separator px-2.5 text-xs font-medium tabular-nums hover:bg-fill"
         >
           +{ADJUST_STEP_SEC}s
         </button>
         <button
           type="button"
           onClick={() => setRunning(null)}
-          className="rounded-full bg-fill px-2.5 py-1.5 text-xs font-medium text-label tabular-nums"
+          className="h-8 rounded-lg border border-separator px-2.5 text-xs font-medium tabular-nums hover:bg-fill"
         >
           {finished ? "Dismiss" : "Skip"}
         </button>

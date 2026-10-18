@@ -1,11 +1,14 @@
 import Link from "next/link";
 import Icon from "@/components/Icon";
 
-// iOS-style back button: chevron plus the previous screen's name, in the tint color.
+// Link back to the parent screen, shown above a sub-page's title.
 export default function BackLink({ href, label }: { href: string; label: string }) {
   return (
-    <Link href={href} className="-ml-2 mb-1 inline-flex items-center gap-0.5 rounded-lg py-1 pr-2 text-base text-tint">
-      <Icon name="chevronLeft" className="size-6" strokeWidth={2.25} />
+    <Link
+      href={href}
+      className="-ml-1.5 mb-2 inline-flex h-8 items-center gap-0.5 rounded-lg pr-2 pl-0.5 text-sm font-medium text-label-2 hover:bg-fill hover:text-label"
+    >
+      <Icon name="chevronLeft" className="size-[18px]" strokeWidth={2} />
       {label}
     </Link>
   );

@@ -160,7 +160,9 @@ describe("Latest weight card ignores future-dated measurements", () => {
   });
   const card = (measurements: BodyMeasurement[]) => {
     const out = renderToStaticMarkup(createElement(BodyMeasurementsSection, { measurements, todayStr: today() }));
-    return out.slice(out.indexOf("Latest weight"), out.indexOf("</div>", out.indexOf("Latest weight")));
+    // The card's visible text, from its label to the end of the card.
+    const start = out.indexOf("Latest weight");
+    return out.slice(start, out.indexOf("</section>", start)).replace(/<[^>]+>/g, "");
   };
 
   it("7. shows the newest non-future record, not a future one", () => {

@@ -1,5 +1,6 @@
 import { getAiPlans, getNutritionForDate, getProfile } from "@/lib/queries";
 import { getToday } from "@/lib/userDate";
+import PageHeader from "@/components/PageHeader";
 import AIPlanForm from "./AIPlanForm";
 
 export default async function AIPlanPage() {
@@ -10,12 +11,12 @@ export default async function AIPlanPage() {
   ]);
 
   return (
-    <main className="screen-enter px-4 pt-4">
-      <h1 className="mb-1 large-title">AI Plan</h1>
-      <p className="mb-6 text-sm text-label-2">
-        Get a personalized diet and workout plan based on your profile, training history, and
-        schedule.
-      </p>
+    <main className="px-4 pt-6 md:px-8 md:pt-10">
+      <PageHeader
+        title="AI plan"
+        subtitle="A diet and workout plan built from your profile, training history and schedule."
+        back={{ href: "/", label: "Today" }}
+      />
       <AIPlanForm
         hasProfile={!!(profile?.date_of_birth && profile?.height_cm && profile?.weight_kg)}
         pastPlans={pastPlans}

@@ -13,8 +13,8 @@ export default function WeeklyTrainingDays({
   const rows = buildWeeklyTrainingRows(weeks, targetDaysPerWeek);
 
   return (
-    <div className="rounded-xl bg-surface p-4">
-      <h2 className="mb-3 text-base font-semibold text-label">Weekly training days</h2>
+    <div className="card p-4">
+      <h2 className="mb-3 text-sm font-semibold">Weekly training days</h2>
       <ul className="flex flex-col gap-3">
         {rows.map((row) => (
           <li key={row.key}>

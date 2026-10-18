@@ -1,17 +1,17 @@
 import { PROGRAMS } from "@/lib/programs";
 import { getToday } from "@/lib/userDate";
+import PageHeader from "@/components/PageHeader";
 import ProgramPicker from "./ProgramPicker";
-import BackLink from "@/components/BackLink";
 
 export default async function ProgramsPage() {
   const today = await getToday();
   return (
-    <main className="screen-enter px-4 pt-4">
-      <BackLink href="/calendar" label="Calendar" />
-      <h1 className="mb-1 large-title">Programs</h1>
-      <p className="mb-4 text-sm text-label-2">
-        Pick a program and it&apos;s scheduled onto your calendar. Days you&apos;ve already planned are left as they are.
-      </p>
+    <main className="px-4 pt-6 md:px-8 md:pt-10">
+      <PageHeader
+        title="Programs"
+        subtitle="Pick a program and it's added to your calendar. Days you've already planned stay as they are."
+        back={{ href: "/calendar", label: "Calendar" }}
+      />
       <ProgramPicker programs={PROGRAMS} today={today} />
     </main>
   );

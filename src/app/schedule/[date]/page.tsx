@@ -1,7 +1,8 @@
+import { notFound } from "next/navigation";
 import { getExercises, getMuscleGroups, getPlanForDate, getTemplates } from "@/lib/queries";
-import { formatDate } from "@/lib/date";
+import { formatDate, isValidIsoDate } from "@/lib/date";
+import PageHeader from "@/components/PageHeader";
 import ScheduleForm from "./ScheduleForm";
-import BackLink from "@/components/BackLink";
 
 export default async function SchedulePage({
   params,
@@ -9,6 +10,7 @@ export default async function SchedulePage({
   params: Promise<{ date: string }>;
 }) {
   const { date } = await params;
+  if (!isValidIsoDate(date)) notFound();
   const [muscleGroups, exercises, plan, templates] = await Promise.all([
     getMuscleGroups(),
     getExercises(),
@@ -17,9 +19,12 @@ export default async function SchedulePage({
   ]);
 
   return (
-    <main className="screen-enter px-4 pt-4">
-      <BackLink href="/calendar" label="Calendar" />
-      <h1 className="mb-4 large-title">Schedule for {formatDate(date)}</h1>
+    <main className="px-4 pt-6 md:px-8 md:pt-10">
+      <PageHeader
+        title={`Plan ${formatDate(date)}`}
+        subtitle={plan ? "Edit what you plan to do this day." : "Decide what you'll do this day."}
+        back={{ href: "/calendar", label: "Calendar" }}
+      />
       <ScheduleForm
         date={date}
         muscleGroups={muscleGroups}

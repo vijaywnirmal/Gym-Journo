@@ -1,7 +1,7 @@
 import type { SVGProps } from "react";
 
-// A small set of line icons drawn on a 24px grid in the spirit of SF Symbols: 1.75 stroke, round caps,
-// sized from the surrounding font so they scale with text.
+// The app's line icons, drawn on a 24px grid with a 1.75 stroke and round caps. They take their size
+// from the surrounding font so they scale with text.
 const PATHS = {
   today: <><path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z" /></>,
   calendar: (
@@ -32,6 +32,27 @@ const PATHS = {
   ),
   chevronRight: <path d="m9.5 5.5 6.5 6.5-6.5 6.5" />,
   chevronLeft: <path d="M14.5 5.5 8 12l6.5 6.5" />,
+  chevronDown: <path d="m6 9.5 6 6 6-6" />,
+  chevronUpDown: <path d="m8 9.5 4-4 4 4M8 14.5l4 4 4-4" />,
+  search: (
+    <>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m20 20-4.2-4.2" />
+    </>
+  ),
+  close: <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" />,
+  trash: (
+    <>
+      <path d="M4.5 7h15M10 11v6M14 11v6M9 7V4.5h6V7" />
+      <path d="M6.5 7l.8 12a1.5 1.5 0 0 0 1.5 1.5h6.4a1.5 1.5 0 0 0 1.5-1.5l.8-12" />
+    </>
+  ),
+  body: (
+    <>
+      <circle cx="12" cy="4.75" r="2" />
+      <path d="M6 9h12M12 9v5.5M9.5 21l2.5-6.5 2.5 6.5" />
+    </>
+  ),
   sparkles: (
     <>
       <path d="M11 3.5c.6 3.7 2.3 5.4 6 6-3.7.6-5.4 2.3-6 6-.6-3.7-2.3-5.4-6-6 3.7-.6 5.4-2.3 6-6Z" />

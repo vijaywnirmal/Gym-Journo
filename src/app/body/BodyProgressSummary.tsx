@@ -30,8 +30,8 @@ export default function BodyProgressSummary({
   todayStr: string;
 }) {
   return (
-    <div className="rounded-xl bg-surface p-4">
-      <h2 className="mb-3 text-base font-semibold text-label">
+    <div className="card p-4">
+      <h2 className="mb-3 text-sm font-semibold">
         Last {training.windowDays} days
       </h2>
 

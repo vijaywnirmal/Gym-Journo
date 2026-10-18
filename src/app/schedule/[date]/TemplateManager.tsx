@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Exercise, WorkoutTemplate } from "@/lib/types";
+import Disclosure from "@/components/ui/Disclosure";
+import Icon from "@/components/Icon";
 import ExerciseTargetEditor, { type ExerciseTargets } from "./ExerciseTargetEditor";
 import { deleteTemplate, saveTemplate } from "./template-actions";
 
@@ -20,7 +22,7 @@ function templateToTargets(template: WorkoutTemplate): ExerciseTargets {
 }
 
 // Lightweight template management (create/rename+re-select exercises/delete), folded into the
-// scheduling flow rather than a new page or nav item.
+// scheduling flow rather than a new page or nav item. Deleting asks once more.
 export default function TemplateManager({
   templates,
   exercises,
@@ -34,6 +36,7 @@ export default function TemplateManager({
   const [name, setName] = useState("");
   const [selected, setSelected] = useState<ExerciseTargets>(new Map());
   const [error, setError] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   function startCreate() {
     setEditingId("new");
@@ -80,98 +83,125 @@ export default function TemplateManager({
   function handleDelete(templateId: string) {
     startTransition(async () => {
       await deleteTemplate(templateId);
+      setConfirmDeleteId(null);
       router.refresh();
     });
   }
 
   return (
-    <details className="rounded-xl bg-surface p-4">
-      <summary className="cursor-pointer text-sm font-medium text-label">
-        Manage templates
-      </summary>
+    <Disclosure
+      className="card"
+      summaryClassName="px-4 py-3"
+      panelClassName="flex flex-col gap-3 px-4 pb-4"
+      summary={
+        <span>
+          <span className="block text-sm font-semibold">Workout templates</span>
+          <span className="block text-xs text-label-2">Save a set of exercises to reuse on any day.</span>
+        </span>
+      }
+    >
+      {templates.length === 0 && editingId === null && (
+        <p className="text-sm text-label-2">No templates yet.</p>
+      )}
 
-      <div className="mt-4 flex flex-col gap-3">
-        {templates.length === 0 && editingId === null && (
-          <p className="text-sm text-label-2">No templates yet.</p>
-        )}
+      {editingId === null && templates.length > 0 && (
+        <ul className="divide-y divide-separator rounded-[10px] border border-separator">
+          {templates.map((template) => {
+            const count = template.template_exercises?.length ?? 0;
+            return (
+              <li key={template.id} className="flex items-center gap-2 px-3 py-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{template.name}</p>
+                  <p className="text-xs text-label-3">
+                    {count} exercise{count === 1 ? "" : "s"}
+                  </p>
+                </div>
+                {confirmDeleteId === template.id ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeleteId(null)}
+                      className="h-8 rounded-lg px-2.5 text-sm font-medium hover:bg-fill"
+                    >
+                      Keep
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(template.id)}
+                      disabled={pending}
+                      className="h-8 rounded-lg bg-red px-2.5 text-sm font-semibold text-white disabled:opacity-50"
+                    >
+                      Delete
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => startEdit(template)}
+                      className="h-8 rounded-lg px-2.5 text-sm font-medium text-link hover:bg-fill"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeleteId(template.id)}
+                      aria-label={`Delete ${template.name}`}
+                      className="grid size-8 place-items-center rounded-lg text-label-3 hover:bg-fill hover:text-red"
+                    >
+                      <Icon name="trash" className="size-4" />
+                    </button>
+                  </>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
 
-        {editingId === null &&
-          templates.map((template) => (
-            <div
-              key={template.id}
-              className="flex items-center justify-between rounded-lg bg-fill px-3 py-2"
-            >
-              <div>
-                <p className="text-sm font-medium text-label">{template.name}</p>
-                <p className="text-xs text-label-2">
-                  {template.template_exercises?.length ?? 0} exercise
-                  {(template.template_exercises?.length ?? 0) === 1 ? "" : "s"}
-                </p>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => startEdit(template)}
-                  className="text-xs text-tint"
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(template.id)}
-                  disabled={pending}
-                  className="text-xs text-red disabled:opacity-50"
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))}
+      {editingId === null && (
+        <button
+          type="button"
+          onClick={startCreate}
+          className="flex h-9 items-center gap-1 self-start rounded-lg px-2.5 text-sm font-semibold text-link hover:bg-fill"
+        >
+          <Icon name="plus" className="size-4" strokeWidth={2.5} />
+          New template
+        </button>
+      )}
 
-        {editingId === null && (
-          <button
-            type="button"
-            onClick={startCreate}
-            className="self-start text-sm text-tint"
-          >
-            + New template
-          </button>
-        )}
-
-        {editingId !== null && (
-          <div className="flex flex-col gap-3 rounded-lg bg-fill p-3">
+      {editingId !== null && (
+        <div className="flex flex-col gap-3 rounded-[10px] border border-separator p-3">
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-medium">Template name</span>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Template name (e.g. Push A)"
-              className="rounded-lg bg-fill px-3 py-2 text-base text-label placeholder-label-3"
+              placeholder="e.g. Push A"
+              className="field h-11 w-full rounded-[10px] px-3.5 text-base"
             />
-            <ExerciseTargetEditor
-              exercises={exercises}
-              selected={selected}
-              onChange={setSelected}
-            />
-            {error && <p className="text-sm text-red">{error}</p>}
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={pending}
-                className="rounded-lg bg-tint px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-              >
-                {pending ? "Saving..." : "Save template"}
-              </button>
-              <button
-                type="button"
-                onClick={cancel}
-                className="rounded-lg bg-fill px-4 py-2 text-sm text-label"
-              >
-                Cancel
-              </button>
-            </div>
+          </label>
+          <ExerciseTargetEditor exercises={exercises} selected={selected} onChange={setSelected} />
+          {error && <p className="text-sm text-red">{error}</p>}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={pending}
+              className="h-10 rounded-[10px] bg-accent px-4 text-sm font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-50"
+            >
+              {pending ? "Saving…" : "Save template"}
+            </button>
+            <button
+              type="button"
+              onClick={cancel}
+              className="h-10 rounded-[10px] border border-separator px-4 text-sm font-semibold hover:bg-fill"
+            >
+              Cancel
+            </button>
           </div>
-        )}
-      </div>
-    </details>
+        </div>
+      )}
+    </Disclosure>
   );
 }

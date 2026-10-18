@@ -43,7 +43,7 @@ export default function ShareWorkoutButton({ date }: { date: string }) {
         type="button"
         onClick={share}
         disabled={state === "working"}
-        className="rounded-xl bg-fill px-4 py-3 text-sm font-medium text-label disabled:opacity-40"
+        className="h-11 rounded-[10px] border border-separator px-4 text-sm font-semibold hover:bg-fill disabled:opacity-40"
       >
         {state === "working" ? "Preparing image…" : "Share workout"}
       </button>

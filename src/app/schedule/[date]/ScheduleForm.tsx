@@ -3,6 +3,10 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Exercise, MuscleGroup, WorkoutPlan, WorkoutTemplate } from "@/lib/types";
+import SegmentedControl from "@/components/ui/SegmentedControl";
+import Select from "@/components/ui/Select";
+import ToggleChip from "@/components/ui/ToggleChip";
+import Icon from "@/components/Icon";
 import { savePlan, deletePlan } from "./actions";
 import ExerciseTargetEditor, { type ExerciseTargets } from "./ExerciseTargetEditor";
 import TemplateManager from "./TemplateManager";
@@ -44,6 +48,7 @@ export default function ScheduleForm({
   );
   const [templateId, setTemplateId] = useState("");
   const [saved, setSaved] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function toggleMuscle(id: string) {
@@ -70,6 +75,7 @@ export default function ScheduleForm({
       });
     }
     setSelectedExercises(next);
+    if (!title.trim()) setTitle(template.name);
   }
 
   function handleSubmit() {
@@ -94,123 +100,135 @@ export default function ScheduleForm({
         router.refresh();
         return;
       }
-      setError(result.error ?? "Couldn't save your schedule. Please try again.");
+      setError(result.error ?? "Couldn't save your plan. Please try again.");
     });
   }
 
   return (
-    <div className="flex flex-col gap-5 pb-6">
-      <div className="flex rounded-lg bg-fill p-0.5" role="group" aria-label="Day type">
-        <button
-          type="button"
-          onClick={() => setIsRestDay(false)}
-          aria-pressed={!isRestDay}
-          className={`flex-1 rounded-[0.6rem] px-3 py-1.5 text-sm font-semibold ${
-            !isRestDay ? "bg-surface-raised text-label shadow-raised" : "text-label-2"
-          }`}
-        >
-          Workout
-        </button>
-        <button
-          type="button"
-          onClick={() => setIsRestDay(true)}
-          aria-pressed={isRestDay}
-          className={`flex-1 rounded-[0.6rem] px-3 py-1.5 text-sm font-semibold ${
-            isRestDay ? "bg-surface-raised text-label shadow-raised" : "text-label-2"
-          }`}
-        >
-          Rest / Absence
-        </button>
-      </div>
-
-      <input
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder={isRestDay ? "Reason (optional) — e.g. Sick, Travel" : "Day title (e.g. Push Day)"}
-        className="rounded-lg bg-fill px-3 py-2 text-base text-label placeholder-label-3"
+    <div className="flex flex-col gap-4 pb-6">
+      <SegmentedControl
+        value={isRestDay ? "rest" : "workout"}
+        onChange={(v) => setIsRestDay(v === "rest")}
+        options={[
+          { value: "workout", label: "Workout" },
+          { value: "rest", label: "Rest or time off" },
+        ]}
+        ariaLabel="Day type"
+        className="w-full"
       />
 
-      {!isRestDay && (
-        <>
+      <section className="card flex flex-col gap-4 p-4">
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-medium">{isRestDay ? "Reason" : "Name"}</span>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder={isRestDay ? "Optional — e.g. Sick, Travel" : "e.g. Push day"}
+            className="field h-11 w-full rounded-[10px] px-3.5 text-base"
+          />
+        </label>
+
+        {!isRestDay && (
           <div>
-            <p className="mb-2 text-sm font-semibold text-label">Muscle groups</p>
+            <span className="mb-2 block text-sm font-medium">Muscle groups</span>
             <div className="flex flex-wrap gap-2">
               {muscleGroups.map((mg) => (
-                <button
-                  key={mg.id}
-                  type="button"
-                  onClick={() => toggleMuscle(mg.id)}
-                  className={`rounded-full px-3 py-1.5 text-sm font-medium ${
-                    selectedMuscles.has(mg.id)
-                      ? "bg-tint text-white"
-                      : "bg-fill text-label"
-                  }`}
-                >
+                <ToggleChip key={mg.id} pressed={selectedMuscles.has(mg.id)} onChange={() => toggleMuscle(mg.id)}>
                   {mg.name}
-                </button>
+                </ToggleChip>
               ))}
             </div>
           </div>
+        )}
+      </section>
 
+      {!isRestDay && (
+        <section className="card flex flex-col gap-4 p-4">
           {templates.length > 0 && (
             <div>
-              <label className="mb-1 block text-xs font-medium text-label-2">
-                Use a template
-              </label>
-              <select
+              <span className="mb-1.5 block text-sm font-medium">Start from a template</span>
+              <Select
                 value={templateId}
-                onChange={(e) => applyTemplate(e.target.value)}
-                className="w-full rounded-lg bg-fill px-3 py-2 text-base text-label"
-              >
-                <option value="">Select a template...</option>
-                {templates.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-              <p className="mt-1 text-xs text-label-2">
-                Applying a template replaces the exercises below until you save.
-              </p>
+                onChange={applyTemplate}
+                options={templates.map((t) => ({
+                  value: t.id,
+                  label: t.name,
+                  hint: `${t.template_exercises?.length ?? 0} exercises`,
+                }))}
+                placeholder="Choose a template"
+                ariaLabel="Template"
+                size="lg"
+                className="w-full"
+              />
+              {templateId && (
+                <p className="mt-1.5 text-xs text-label-2">Template applied — nothing is saved until you save the plan.</p>
+              )}
             </div>
           )}
-
-          <ExerciseTargetEditor
-            exercises={exercises}
-            selected={selectedExercises}
-            onChange={setSelectedExercises}
-          />
-
-          <TemplateManager templates={templates} exercises={exercises} />
-        </>
+          <ExerciseTargetEditor exercises={exercises} selected={selectedExercises} onChange={setSelectedExercises} />
+        </section>
       )}
 
-      {saved && <p className="text-sm text-green">Saved!</p>}
-      {error && <p className="text-sm text-red">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-red">
+          {error}
+        </p>
+      )}
 
-      <button
-        type="button"
-        onClick={handleSubmit}
-        disabled={pending}
-        className="rounded-xl bg-tint px-4 py-3 font-medium text-white disabled:opacity-50"
-      >
-        {pending ? "Saving..." : "Save schedule"}
-      </button>
-
-      {existingPlan && (
+      <div className="flex items-center gap-3">
         <button
           type="button"
-          onClick={() =>
-            startTransition(async () => {
-              await deletePlan(existingPlan.id, date);
-              router.refresh();
-            })
-          }
-          className="text-sm text-red"
+          onClick={handleSubmit}
+          disabled={pending}
+          className="h-11 flex-1 rounded-[10px] bg-accent px-4 text-[15px] font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-50"
         >
-          Delete this day&apos;s plan
+          {pending ? "Saving…" : "Save plan"}
         </button>
-      )}
+        {saved && !pending && (
+          <span className="flex items-center gap-1 text-sm font-medium text-green" role="status">
+            <Icon name="checkmark" className="size-4" strokeWidth={2.5} />
+            Saved
+          </span>
+        )}
+      </div>
+
+      {existingPlan &&
+        (confirmingDelete ? (
+          <div className="flex flex-wrap items-center gap-2 rounded-[10px] border border-red/30 bg-red/5 p-3">
+            <p className="mr-auto text-sm">Remove the plan for this day?</p>
+            <button
+              type="button"
+              onClick={() => setConfirmingDelete(false)}
+              className="h-8 rounded-lg border border-separator px-3 text-sm font-medium hover:bg-fill"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() =>
+                startTransition(async () => {
+                  await deletePlan(existingPlan.id, date);
+                  setConfirmingDelete(false);
+                  router.refresh();
+                })
+              }
+              className="h-8 rounded-lg bg-red px-3 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              Remove plan
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setConfirmingDelete(true)}
+            className="h-9 self-center rounded-lg px-3 text-sm font-medium text-red hover:bg-red/10"
+          >
+            Remove this day&apos;s plan
+          </button>
+        ))}
+
+      {!isRestDay && <TemplateManager templates={templates} exercises={exercises} />}
     </div>
   );
 }

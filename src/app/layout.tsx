@@ -1,10 +1,14 @@
 import type { Metadata, Viewport } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import BottomNav from "@/components/BottomNav";
+import AppNav from "@/components/AppNav";
 import TimezoneSync from "@/components/TimezoneSync";
 import OfflineBanner from "@/components/OfflineBanner";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import { getUserTimeZone } from "@/lib/userDate";
+
+const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
+const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Gym Journal & Scheduler",
@@ -18,19 +22,22 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f2f2f7" },
-    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+    { media: "(prefers-color-scheme: light)", color: "#f6f6f7" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b0b0d" },
   ],
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const { signedIn, timeZone } = await getUserTimeZone();
   return (
-    <html lang="en" className="h-full antialiased">
-      <body className="flex min-h-full flex-col bg-background text-label">
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+      <body className="min-h-full bg-background text-label">
         <OfflineBanner />
-        <div className="mx-auto w-full max-w-md flex-1 pt-[env(safe-area-inset-top)] pb-28">{children}</div>
-        <BottomNav />
+        <AppNav />
+        {/* Phones: content above the bottom bar. Wider screens: content beside the sidebar. */}
+        <div className="pt-[env(safe-area-inset-top)] pb-24 md:pb-10 md:pl-60">
+          <div className="mx-auto w-full max-w-2xl">{children}</div>
+        </div>
         {signedIn && <TimezoneSync stored={timeZone} />}
         <ServiceWorkerRegister />
       </body>

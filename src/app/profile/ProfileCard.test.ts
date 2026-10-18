@@ -7,7 +7,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: 
 vi.mock("./actions", () => ({ updateProfile: vi.fn() }));
 
 const { default: ProfileCard } = await import("./ProfileCard");
-const { default: ProfileFields } = await import("@/components/ProfileFields");
+const { default: ProfileFields, GENDER_OPTIONS } = await import("@/components/ProfileFields");
 
 const fields: ProfileFieldsValue = {
   firstName: "Vijay",
@@ -78,15 +78,19 @@ describe("ProfileFields (edit and onboarding)", () => {
   });
 
   it("offers each gender option plus 'Prefer not to say', with a prompt to choose", () => {
-    for (const label of ["Select gender", "Male", "Female", "Other", "Prefer not to say"]) {
-      expect(html).toContain(`>${label}</option>`);
-    }
+    expect(GENDER_OPTIONS.map((o) => o.label)).toEqual(
+      expect.arrayContaining(["Male", "Female", "Other", "Prefer not to say"])
+    );
+    const unset = renderToStaticMarkup(createElement(ProfileFields, { value: { ...fields, gender: "" }, onChange: () => {} }));
+    expect(unset).toMatch(/aria-label="Gender"[^>]*>[\s\S]*?Select gender/);
   });
 
   it("gives every text control, dropdown and date field the same height", () => {
-    const controls = html.match(/<(input|select)\b[^>]*>/g) ?? [];
+    // Text inputs, the custom dropdowns (role=combobox) and the date picker trigger.
+    const controls =
+      html.match(/<input\b[^>]*>|<button\b[^>]*(role="combobox"|aria-haspopup="dialog")[^>]*>/g) ?? [];
     expect(controls.length).toBeGreaterThanOrEqual(8);
-    for (const c of controls) expect(c).toContain("h-12");
+    for (const c of controls) expect(c).toContain("h-11");
   });
 
   it("wraps each control in a label so clicking the label focuses it", () => {

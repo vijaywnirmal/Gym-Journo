@@ -68,7 +68,7 @@ export default function OnboardingForm() {
         type="button"
         onClick={handleSubmit}
         disabled={pending}
-        className="rounded-xl bg-tint px-4 py-3 font-medium text-white disabled:opacity-50"
+        className="h-11 rounded-[10px] bg-accent px-4 text-[15px] font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-50"
       >
         {pending ? "Saving..." : "Finish setup"}
       </button>

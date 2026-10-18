@@ -13,8 +13,8 @@ export default function BodyWeightFacts({
   const lines = facts ? buildBodyWeightLines(facts, targetWeightKg) : null;
 
   return (
-    <div className="rounded-xl bg-surface p-4">
-      <h2 className="mb-3 text-base font-semibold text-label">Body weight</h2>
+    <div className="card p-4">
+      <h2 className="mb-3 text-sm font-semibold">Body weight</h2>
       {lines ? (
         <div className="flex flex-col gap-1 text-sm text-label">
           <p>{lines.latestLine}</p>

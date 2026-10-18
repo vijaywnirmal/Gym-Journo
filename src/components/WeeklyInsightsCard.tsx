@@ -24,9 +24,9 @@ export default function WeeklyInsightsCard({
   const pct = (n: number) => `${(n / scaleMax) * 100}%`;
 
   return (
-    <section className="mb-4 rounded-xl bg-surface px-4 py-4">
+    <section className="mb-4 card px-4 py-4">
       <div className="mb-2 flex items-baseline justify-between">
-        <p className="text-xs font-medium text-label-2">This week · sets per muscle</p>
+        <h3 className="text-sm font-semibold">Hard sets per muscle</h3>
         <p className="text-[11px] text-label-3">
           guide {WEEKLY_SET_RANGE.min}–{WEEKLY_SET_RANGE.max}
         </p>

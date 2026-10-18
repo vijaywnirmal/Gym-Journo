@@ -42,12 +42,12 @@ export default function CoachChat() {
           maxLength={MAX_COACH_QUESTION_LENGTH}
           rows={3}
           placeholder="Ask about what your records show…"
-          className="w-full rounded-lg bg-fill px-3 py-2.5 text-base text-label"
+          className="field w-full rounded-lg px-3 py-2.5 text-base"
         />
         <button
           type="submit"
           disabled={pending || question.trim() === ""}
-          className="rounded-lg bg-tint px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"
+          className="h-10 rounded-[10px] bg-accent px-4 text-sm font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-50"
         >
           {pending ? "Checking your records…" : "Ask Coach"}
         </button>
@@ -79,7 +79,7 @@ export default function CoachChat() {
         <CoachReplyView reply={result.reply} sources={result.sources} />
       ) : result ? (
         <p
-          className={`rounded-xl bg-surface p-4 text-sm ${
+          className={`card p-4 text-sm ${
             result.status === "blocked" || result.status === "empty" ? "text-label" : "text-label-2"
           }`}
         >

@@ -36,11 +36,11 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <main className="screen-enter mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6">
-      <span className="mb-6 grid size-16 place-items-center rounded-[22%] bg-tint text-white shadow-raised">
-        <Icon name="dumbbell" className="size-9" strokeWidth={2.25} />
+    <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6">
+      <span className="mb-6 grid size-12 place-items-center rounded-xl bg-accent text-on-accent">
+        <Icon name="dumbbell" className="size-7" strokeWidth={2.25} />
       </span>
-      <h1 className="mb-1 large-title">Set a new password</h1>
+      <h1 className="mb-1 page-title">Set a new password</h1>
       <p className="mb-8 text-sm text-label-2">Choose a new password for your account.</p>
 
       {done ? (
@@ -61,7 +61,7 @@ export default function ResetPasswordPage() {
             onChange={(e) => setPassword(e.target.value)}
             required
             placeholder="New password (at least 8 characters)"
-            className="rounded-xl bg-fill px-4 py-3 text-base text-label placeholder-label-3"
+            className="field rounded-xl px-4 py-3 text-base"
           />
           <input
             type="password"
@@ -69,7 +69,7 @@ export default function ResetPasswordPage() {
             onChange={(e) => setConfirmPassword(e.target.value)}
             required
             placeholder="Confirm new password"
-            className="rounded-xl bg-fill px-4 py-3 text-base text-label placeholder-label-3"
+            className="field rounded-xl px-4 py-3 text-base"
           />
 
           {error && <p className="text-sm text-red">{error}</p>}
@@ -77,7 +77,7 @@ export default function ResetPasswordPage() {
           <button
             type="submit"
             disabled={pending}
-            className="rounded-xl bg-tint px-4 py-3 font-medium text-white disabled:opacity-50"
+            className="h-11 rounded-[10px] bg-accent px-4 text-[15px] font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-50"
           >
             {pending ? "Saving..." : "Update password"}
           </button>

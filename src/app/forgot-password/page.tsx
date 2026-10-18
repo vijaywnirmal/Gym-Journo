@@ -26,11 +26,11 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <main className="screen-enter mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6">
-      <span className="mb-6 grid size-16 place-items-center rounded-[22%] bg-tint text-white shadow-raised">
-        <Icon name="dumbbell" className="size-9" strokeWidth={2.25} />
+    <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6">
+      <span className="mb-6 grid size-12 place-items-center rounded-xl bg-accent text-on-accent">
+        <Icon name="dumbbell" className="size-7" strokeWidth={2.25} />
       </span>
-      <h1 className="mb-1 large-title">Reset your password</h1>
+      <h1 className="mb-1 page-title">Reset your password</h1>
       <p className="mb-8 text-sm text-label-2">
         Enter your email and we&apos;ll send you a link to reset your password.
       </p>
@@ -53,7 +53,7 @@ export default function ForgotPasswordPage() {
             onChange={(e) => setEmail(e.target.value)}
             required
             placeholder="you@example.com"
-            className="rounded-xl bg-fill px-4 py-3 text-base text-label placeholder-label-3"
+            className="field rounded-xl px-4 py-3 text-base"
           />
 
           {error && <p className="text-sm text-red">{error}</p>}
@@ -61,14 +61,14 @@ export default function ForgotPasswordPage() {
           <button
             type="submit"
             disabled={pending}
-            className="rounded-xl bg-tint px-4 py-3 font-medium text-white disabled:opacity-50"
+            className="h-11 rounded-[10px] bg-accent px-4 text-[15px] font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-50"
           >
             {pending ? "Sending..." : "Send reset link"}
           </button>
         </form>
       )}
 
-      <Link href="/login" className="mt-6 text-center text-sm text-tint">
+      <Link href="/login" className="mt-6 text-center text-sm text-link">
         Back to sign in
       </Link>
     </main>

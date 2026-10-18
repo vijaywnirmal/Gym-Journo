@@ -10,9 +10,11 @@ import {
 } from "@/lib/analyze/weeklyInsights";
 import { getToday } from "@/lib/userDate";
 import {
+  isPerformedExercise,
   isWorkoutDay,
   performedWorkoutDates,
   windowStart,
+  type SetLike,
   type WorkoutLogLike,
 } from "@/lib/analyze/definitions";
 import {
@@ -413,6 +415,37 @@ export async function getExerciseSessions(exerciseId: string): Promise<ExerciseS
   if (error || !data) return [];
 
   return buildExerciseSessions(data as unknown as SessionSourceLog[], exerciseId, todayStr);
+}
+
+// The exercises the person performed most recently (newest first, each once), for "recently
+// performed" shortcuts. Looks at the last few weeks of logs on or before today.
+export async function getRecentlyPerformedExerciseIds(limit = 8): Promise<string[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const todayStr = await getToday();
+  const { data, error } = await supabase
+    .from("workout_logs")
+    .select("date, logged_exercises(exercise_id, position, logged_sets(reps, weight))")
+    .eq("user_id", user.id)
+    .lte("date", todayStr)
+    .order("date", { ascending: false })
+    .limit(20);
+  if (error || !data) return [];
+
+  type Row = { logged_exercises: { exercise_id: string; position: number; logged_sets: SetLike[] | null }[] | null };
+  const ids: string[] = [];
+  for (const log of data as unknown as Row[]) {
+    const exercises = [...(log.logged_exercises ?? [])].sort((a, b) => a.position - b.position);
+    for (const le of exercises) {
+      if (!ids.includes(le.exercise_id) && isPerformedExercise(le)) ids.push(le.exercise_id);
+      if (ids.length >= limit) return ids;
+    }
+  }
+  return ids;
 }
 
 export type LastCompletedLog = {

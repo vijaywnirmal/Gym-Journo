@@ -17,7 +17,7 @@ export default function CoachReplyView({
   sources: CoachSource[];
 }) {
   return (
-    <div className="rounded-xl bg-surface p-4">
+    <div className="card p-4">
       <ul className="flex flex-col gap-3">
         {reply.statements.map((statement, i) => (
           <li key={i}>
