@@ -85,25 +85,25 @@ export default function TemplateManager({
   }
 
   return (
-    <details className="rounded-xl border border-neutral-800 p-4">
-      <summary className="cursor-pointer text-sm font-medium text-neutral-100">
+    <details className="rounded-xl bg-surface p-4">
+      <summary className="cursor-pointer text-sm font-medium text-label">
         Manage templates
       </summary>
 
       <div className="mt-4 flex flex-col gap-3">
         {templates.length === 0 && editingId === null && (
-          <p className="text-sm text-neutral-500">No templates yet.</p>
+          <p className="text-sm text-label-2">No templates yet.</p>
         )}
 
         {editingId === null &&
           templates.map((template) => (
             <div
               key={template.id}
-              className="flex items-center justify-between rounded-lg border border-neutral-800 px-3 py-2"
+              className="flex items-center justify-between rounded-lg bg-fill px-3 py-2"
             >
               <div>
-                <p className="text-sm font-medium text-neutral-100">{template.name}</p>
-                <p className="text-xs text-neutral-500">
+                <p className="text-sm font-medium text-label">{template.name}</p>
+                <p className="text-xs text-label-2">
                   {template.template_exercises?.length ?? 0} exercise
                   {(template.template_exercises?.length ?? 0) === 1 ? "" : "s"}
                 </p>
@@ -112,7 +112,7 @@ export default function TemplateManager({
                 <button
                   type="button"
                   onClick={() => startEdit(template)}
-                  className="text-xs text-neutral-300 underline"
+                  className="text-xs text-tint"
                 >
                   Edit
                 </button>
@@ -120,7 +120,7 @@ export default function TemplateManager({
                   type="button"
                   onClick={() => handleDelete(template.id)}
                   disabled={pending}
-                  className="text-xs text-red-400 disabled:opacity-50"
+                  className="text-xs text-red disabled:opacity-50"
                 >
                   Delete
                 </button>
@@ -132,39 +132,39 @@ export default function TemplateManager({
           <button
             type="button"
             onClick={startCreate}
-            className="self-start text-sm text-neutral-300 underline"
+            className="self-start text-sm text-tint"
           >
             + New template
           </button>
         )}
 
         {editingId !== null && (
-          <div className="flex flex-col gap-3 rounded-lg border border-neutral-800 p-3">
+          <div className="flex flex-col gap-3 rounded-lg bg-fill p-3">
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Template name (e.g. Push A)"
-              className="rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-base text-neutral-100 placeholder-neutral-500"
+              className="rounded-lg bg-fill px-3 py-2 text-base text-label placeholder-label-3"
             />
             <ExerciseTargetEditor
               exercises={exercises}
               selected={selected}
               onChange={setSelected}
             />
-            {error && <p className="text-sm text-red-400">{error}</p>}
+            {error && <p className="text-sm text-red">{error}</p>}
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={handleSave}
                 disabled={pending}
-                className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-neutral-900 disabled:opacity-50"
+                className="rounded-lg bg-tint px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
               >
                 {pending ? "Saving..." : "Save template"}
               </button>
               <button
                 type="button"
                 onClick={cancel}
-                className="rounded-lg border border-neutral-700 px-4 py-2 text-sm text-neutral-300"
+                className="rounded-lg bg-fill px-4 py-2 text-sm text-label"
               >
                 Cancel
               </button>

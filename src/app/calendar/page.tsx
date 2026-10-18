@@ -3,6 +3,7 @@ import { getWeekOverview } from "@/lib/queries";
 import { formatDate, shiftDate, weekDates } from "@/lib/date";
 import { getToday } from "@/lib/userDate";
 import { formatDayStatus } from "./dayStatus";
+import Icon from "@/components/Icon";
 
 export default async function CalendarPage({
   searchParams,
@@ -16,76 +17,79 @@ export default async function CalendarPage({
   const overview = await getWeekOverview(dates);
 
   return (
-    <main className="px-4 pt-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-bold">Calendar</h1>
-        <Link href="/programs" className="text-sm text-neutral-400 underline">
+    <main className="screen-enter px-4 pt-4">
+      <header className="mb-4 flex items-end justify-between px-1">
+        <h1 className="large-title">Calendar</h1>
+        <Link href="/programs" className="pb-1 text-base text-tint">
           Programs
         </Link>
-      </div>
+      </header>
 
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between rounded-full bg-fill p-1">
         <Link
           href={`/calendar?week=${shiftDate(centerDate, -7)}`}
-          className="rounded-lg border border-neutral-700 px-3 py-1.5 text-sm text-neutral-100"
+          aria-label="Previous week"
+          className="grid size-9 place-items-center rounded-full text-tint"
         >
-          ← Prev
+          <Icon name="chevronLeft" className="size-5" strokeWidth={2.25} />
         </Link>
-        <Link href="/calendar" className="text-sm text-neutral-400">
+        <Link href="/calendar" className="rounded-full px-4 py-1.5 text-sm font-semibold text-label">
           This week
         </Link>
         <Link
           href={`/calendar?week=${shiftDate(centerDate, 7)}`}
-          className="rounded-lg border border-neutral-700 px-3 py-1.5 text-sm text-neutral-100"
+          aria-label="Next week"
+          className="grid size-9 place-items-center rounded-full text-tint"
         >
-          Next →
+          <Icon name="chevronRight" className="size-5" strokeWidth={2.25} />
         </Link>
       </div>
 
-      <div className="flex flex-col gap-2 pb-6">
-        {dates.map((date) => {
+      <ul className="mb-6 overflow-hidden rounded-xl bg-surface">
+        {dates.map((date, i) => {
           const info = overview.get(date);
           const isToday = date === todayDate;
           return (
-            <div
-              key={date}
-              className={`flex items-center justify-between rounded-xl border p-3 ${
-                isToday ? "border-neutral-100" : "border-neutral-800"
-              }`}
-            >
-              <div>
-                <p className="text-sm font-medium text-neutral-100">
-                  {formatDate(date)} {isToday && <span className="text-neutral-500">· today</span>}
+            <li key={date} className="relative flex items-center justify-between gap-3 px-4 py-3">
+              {i > 0 && <span className="absolute inset-x-4 top-0 h-px bg-separator" aria-hidden />}
+              <div className="min-w-0">
+                <p className={`text-base font-semibold ${isToday ? "text-tint" : "text-label"}`}>
+                  {formatDate(date)}
+                  {isToday && (
+                    <span className="ml-2 rounded-full bg-tint px-2 py-0.5 align-middle text-[11px] font-semibold text-white">
+                      Today
+                    </span>
+                  )}
                 </p>
-                <p className="text-xs text-neutral-400">
+                <p className="truncate text-sm text-label-2">
                   {info?.isRestDay
-                    ? `😴 Rest day${info.title ? ` · ${info.title}` : ""}`
+                    ? `Rest day${info.title ? ` · ${info.title}` : ""}`
                     : info?.title
                       ? info.title
                       : "Not scheduled"}
                   {info ? formatDayStatus(info) : ""}
                 </p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex shrink-0 gap-2">
                 <Link
                   href={`/schedule/${date}`}
-                  className="rounded-lg border border-neutral-700 px-2.5 py-1.5 text-xs font-medium text-neutral-100"
+                  className="rounded-full bg-fill px-3 py-1.5 text-sm font-semibold text-tint"
                 >
-                  Schedule
+                  Plan
                 </Link>
                 {!info?.isRestDay && (
                   <Link
                     href={`/log/${date}`}
-                    className="rounded-lg bg-white px-2.5 py-1.5 text-xs font-medium text-neutral-900"
+                    className="rounded-full bg-tint px-3 py-1.5 text-sm font-semibold text-white"
                   >
                     Log
                   </Link>
                 )}
               </div>
-            </div>
+            </li>
           );
         })}
-      </div>
+      </ul>
     </main>
   );
 }

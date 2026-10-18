@@ -13,10 +13,10 @@ export default function BodyWeightFacts({
   const lines = facts ? buildBodyWeightLines(facts, targetWeightKg) : null;
 
   return (
-    <div className="rounded-xl border border-neutral-800 p-4">
-      <h2 className="mb-3 text-sm font-semibold text-neutral-200">Body weight</h2>
+    <div className="rounded-xl bg-surface p-4">
+      <h2 className="mb-3 text-base font-semibold text-label">Body weight</h2>
       {lines ? (
-        <div className="flex flex-col gap-1 text-sm text-neutral-300">
+        <div className="flex flex-col gap-1 text-sm text-label">
           <p>{lines.latestLine}</p>
           {lines.earliestLine && <p>{lines.earliestLine}</p>}
           {lines.changeLine && <p>{lines.changeLine}</p>}
@@ -26,7 +26,7 @@ export default function BodyWeightFacts({
           {lines.distanceLine && <p>{lines.distanceLine}</p>}
         </div>
       ) : (
-        <p className="text-sm text-neutral-500">No weight measurements recorded yet.</p>
+        <p className="text-sm text-label-2">No weight measurements recorded yet.</p>
       )}
     </div>
   );

@@ -42,31 +42,31 @@ export default function ExercisePicker({
   const isSearching = search.trim().length > 0;
 
   return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-3">
+    <div className="rounded-xl bg-surface p-3">
       <input
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         placeholder="Search exercises"
-        className="mb-3 w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-base text-neutral-100 placeholder-neutral-500"
+        className="mb-3 w-full rounded-lg bg-fill px-3 py-2 text-base text-label placeholder-label-3"
       />
 
       <div className="flex max-h-80 flex-col gap-2 overflow-y-auto">
         {groups.length === 0 && (
-          <p className="text-sm text-neutral-500">No exercises match &quot;{search}&quot;.</p>
+          <p className="text-sm text-label-2">No exercises match &quot;{search}&quot;.</p>
         )}
         {groups.map(([groupName, list]) => (
           <details
             key={groupName}
             open={isSearching}
-            className="rounded-lg border border-neutral-800"
+            className="rounded-lg bg-fill"
           >
-            <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-neutral-200">
+            <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-label">
               {groupName}
             </summary>
             <ul className="flex flex-col gap-1 px-3 pb-2">
               {list.map((ex) => (
                 <li key={ex.id}>
-                  <label className="flex items-center gap-2 py-1 text-sm text-neutral-100">
+                  <label className="flex items-center gap-2 py-1 text-sm text-label">
                     <input
                       type="checkbox"
                       checked={selected.has(ex.id)}
@@ -85,14 +85,14 @@ export default function ExercisePicker({
         <button
           type="button"
           onClick={() => onConfirm([...selected])}
-          className="flex-1 rounded-lg bg-white px-4 py-2 text-sm font-medium text-neutral-900"
+          className="flex-1 rounded-lg bg-tint px-4 py-2 text-sm font-medium text-white"
         >
           Add{selected.size > 0 ? ` (${selected.size})` : ""}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-lg border border-neutral-700 px-4 py-2 text-sm text-neutral-300"
+          className="rounded-lg bg-fill px-4 py-2 text-sm text-label"
         >
           Cancel
         </button>

@@ -10,9 +10,9 @@ export default async function AIPlanPage() {
   ]);
 
   return (
-    <main className="px-4 pt-6">
-      <h1 className="mb-1 text-xl font-bold text-neutral-100">✨ AI Plan</h1>
-      <p className="mb-6 text-sm text-neutral-400">
+    <main className="screen-enter px-4 pt-4">
+      <h1 className="mb-1 large-title">AI Plan</h1>
+      <p className="mb-6 text-sm text-label-2">
         Get a personalized diet and workout plan based on your profile, training history, and
         schedule.
       </p>

@@ -43,12 +43,12 @@ export default function ShareWorkoutButton({ date }: { date: string }) {
         type="button"
         onClick={share}
         disabled={state === "working"}
-        className="rounded-xl border border-neutral-700 px-4 py-3 text-sm font-medium text-neutral-100 disabled:opacity-40"
+        className="rounded-xl bg-fill px-4 py-3 text-sm font-medium text-label disabled:opacity-40"
       >
-        {state === "working" ? "Preparing image…" : "📤 Share workout"}
+        {state === "working" ? "Preparing image…" : "Share workout"}
       </button>
       {state === "error" && (
-        <p className="text-center text-xs text-red-400">Couldn&apos;t create the image. Check your connection and try again.</p>
+        <p className="text-center text-xs text-red">Couldn&apos;t create the image. Check your connection and try again.</p>
       )}
     </div>
   );

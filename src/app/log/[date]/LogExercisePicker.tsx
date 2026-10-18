@@ -33,22 +33,22 @@ export default function LogExercisePicker({
   const isSearching = search.trim().length > 0;
 
   return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-3">
+    <div className="rounded-xl bg-surface p-3">
       <input
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         placeholder="Search exercises"
         autoFocus
-        className="mb-3 w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-base text-neutral-100 placeholder-neutral-500"
+        className="mb-3 w-full rounded-lg bg-fill px-3 py-2 text-base text-label placeholder-label-3"
       />
 
       <div className="flex max-h-72 flex-col gap-2 overflow-y-auto">
         {groups.length === 0 && (
-          <p className="text-sm text-neutral-500">No exercises match &quot;{search}&quot;.</p>
+          <p className="text-sm text-label-2">No exercises match &quot;{search}&quot;.</p>
         )}
         {groups.map(([groupName, list]) => (
-          <details key={groupName} open={isSearching} className="rounded-lg border border-neutral-800">
-            <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-neutral-200">
+          <details key={groupName} open={isSearching} className="rounded-lg bg-fill">
+            <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-label">
               {groupName}
             </summary>
             <ul className="flex flex-col gap-1 px-3 pb-2">
@@ -60,10 +60,10 @@ export default function LogExercisePicker({
                       type="button"
                       disabled={added}
                       onClick={() => onAdd(ex.id)}
-                      className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-sm text-neutral-100 disabled:opacity-40"
+                      className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-sm text-label disabled:opacity-40"
                     >
                       {ex.name}
-                      <span className="text-xs text-neutral-500">{added ? "Added" : "+ Add"}</span>
+                      <span className="text-xs text-label-2">{added ? "Added" : "+ Add"}</span>
                     </button>
                   </li>
                 );
@@ -76,7 +76,7 @@ export default function LogExercisePicker({
       <button
         type="button"
         onClick={onCancel}
-        className="mt-3 w-full rounded-lg border border-neutral-700 px-4 py-2 text-sm text-neutral-300"
+        className="mt-3 w-full rounded-lg bg-fill px-4 py-2 text-sm text-label"
       >
         Close
       </button>

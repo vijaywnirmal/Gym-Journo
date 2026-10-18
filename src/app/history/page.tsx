@@ -67,28 +67,28 @@ export default async function HistoryPage({
       : null;
 
   return (
-    <main className="px-4 pt-6">
-      <h1 className="mb-4 text-xl font-bold">History</h1>
+    <main className="screen-enter px-4 pt-4">
+      <h1 className="mb-4 large-title">History</h1>
 
       <div className="mb-5">
         <ExerciseFilter exercises={exercises} selectedId={exerciseId} />
       </div>
 
       {selectedExerciseName && (
-        <h2 className="mb-1 text-lg font-semibold text-neutral-100">{selectedExerciseName}</h2>
+        <h2 className="mb-1 text-xl font-semibold text-label">{selectedExerciseName}</h2>
       )}
 
       {(recurrenceLines || sessionSummaryText) && (
         <div className="mb-3">
           {recurrenceLines && (
             <>
-              <p className="text-sm text-neutral-200">{recurrenceLines.countLine}</p>
-              <p className="text-xs text-neutral-500">{recurrenceLines.firstLine}</p>
-              <p className="text-xs text-neutral-500">{recurrenceLines.lastLine}</p>
+              <p className="text-sm text-label">{recurrenceLines.countLine}</p>
+              <p className="text-xs text-label-2">{recurrenceLines.firstLine}</p>
+              <p className="text-xs text-label-2">{recurrenceLines.lastLine}</p>
             </>
           )}
           {sessionSummaryText && (
-            <p className="mt-1 text-xs text-neutral-500">{sessionSummaryText}</p>
+            <p className="mt-1 text-xs text-label-2">{sessionSummaryText}</p>
           )}
         </div>
       )}
@@ -96,14 +96,14 @@ export default async function HistoryPage({
       <div className="flex flex-col gap-3 pb-4">
         {selectedExerciseName
           ? sessionViews.length === 0 && (
-              <p className="text-sm text-neutral-500">
+              <p className="text-sm text-label-2">
                 {before
                   ? "No older performed sessions."
                   : "No performed sessions recorded for this exercise yet."}
               </p>
             )
           : logs.length === 0 && (
-              <p className="text-sm text-neutral-500">
+              <p className="text-sm text-label-2">
                 {before ? "No older workouts." : "No workouts logged yet."}
               </p>
             )}
@@ -114,18 +114,18 @@ export default async function HistoryPage({
                 <Link
                   key={view.date}
                   href={`/log/${view.date}`}
-                  className="block rounded-xl border border-neutral-800 p-4"
+                  className="block rounded-xl bg-surface p-4"
                 >
-                  <p className="font-semibold text-neutral-100">{formatDate(view.date)}</p>
-                  {gapText && <p className="mb-2 text-xs text-neutral-500">{gapText}</p>}
-                  <ul className={`flex flex-col gap-1 text-sm text-neutral-300 ${gapText ? "" : "mt-2"}`}>
+                  <p className="font-semibold text-label">{formatDate(view.date)}</p>
+                  {gapText && <p className="mb-2 text-xs text-label-2">{gapText}</p>}
+                  <ul className={`flex flex-col gap-1 text-sm text-label ${gapText ? "" : "mt-2"}`}>
                     {view.sets.map(({ set, comparison }) => {
                       const change = formatSetChange(comparison);
                       return (
                         <li key={set.setNumber} className="flex flex-wrap items-baseline gap-x-2">
-                          <span className="w-12 text-neutral-500">Set {set.setNumber}</span>
+                          <span className="w-12 text-label-2">Set {set.setNumber}</span>
                           <span>{formatPerformedSet(set)}</span>
-                          {change && <span className="text-xs text-neutral-500">{change}</span>}
+                          {change && <span className="text-xs text-label-2">{change}</span>}
                         </li>
                       );
                     })}
@@ -137,18 +137,18 @@ export default async function HistoryPage({
               <Link
                 key={log.id}
                 href={`/log/${log.date}`}
-                className="block rounded-xl border border-neutral-800 p-4"
+                className="block rounded-xl bg-surface p-4"
               >
                 <div className="mb-1 flex items-center justify-between">
-                  <p className="font-semibold text-neutral-100">{formatDate(log.date)}</p>
-                  {log.completed_at && <span className="text-xs text-green-400">Completed</span>}
+                  <p className="font-semibold text-label">{formatDate(log.date)}</p>
+                  {log.completed_at && <span className="text-xs text-green">Completed</span>}
                 </div>
-                <p className="mb-2 text-xs text-neutral-500">{log.planTitle ?? "Freeform workout"}</p>
-                <ul className="flex flex-col gap-1 text-sm text-neutral-300">
+                <p className="mb-2 text-xs text-label-2">{log.planTitle ?? "Freeform workout"}</p>
+                <ul className="flex flex-col gap-1 text-sm text-label">
                   {log.logged_exercises?.map((le) => (
                     <li key={le.id}>
-                      <span className="font-medium text-neutral-100">{le.exercise?.name}</span>{" "}
-                      <span className="text-neutral-400">
+                      <span className="font-medium text-label">{le.exercise?.name}</span>{" "}
+                      <span className="text-label-2">
                         —{" "}
                         {le.logged_sets
                           ?.map(formatSetCompact)
@@ -157,14 +157,14 @@ export default async function HistoryPage({
                     </li>
                   ))}
                 </ul>
-                {log.notes && <p className="mt-2 text-xs text-neutral-500">📝 {log.notes}</p>}
+                {log.notes && <p className="mt-2 text-xs text-label-2">{log.notes}</p>}
               </Link>
             ))}
       </div>
 
       <div className="flex items-center justify-between pb-6 text-sm">
         {before ? (
-          <Link href={backToRecentHref} className="text-neutral-400 underline">
+          <Link href={backToRecentHref} className="text-tint">
             ↑ Back to most recent
           </Link>
         ) : (
@@ -173,7 +173,7 @@ export default async function HistoryPage({
         {hasMore && oldestDateOnPage && (
           <Link
             href={`/history?${filterQuery}before=${oldestDateOnPage}`}
-            className="text-neutral-400 underline"
+            className="text-tint"
           >
             Load older ↓
           </Link>

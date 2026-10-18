@@ -28,42 +28,42 @@ export default function CoachConsentSection({ consentedAt }: { consentedAt: stri
   }
 
   return (
-    <section className="mt-5 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
-      <h2 className="mb-1 text-sm font-semibold text-neutral-100">Coach</h2>
-      <p className="mb-3 text-xs text-neutral-400">{COACH_CONSENT.summary}</p>
+    <section className="mt-5 rounded-xl bg-surface p-4">
+      <h2 className="mb-1 text-base font-semibold text-label">Coach</h2>
+      <p className="mb-3 text-xs text-label-2">{COACH_CONSENT.summary}</p>
 
-      <p className="mb-1 text-xs font-medium text-neutral-300">What is sent</p>
-      <ul className="mb-3 list-disc pl-5 text-xs text-neutral-400">
+      <p className="mb-1 text-xs font-medium text-label">What is sent</p>
+      <ul className="mb-3 list-disc pl-5 text-xs text-label-2">
         {COACH_CONSENT.shared.map((item) => (
           <li key={item}>{item}</li>
         ))}
       </ul>
 
-      <p className="mb-1 text-xs font-medium text-neutral-300">What is not sent</p>
-      <ul className="mb-3 list-disc pl-5 text-xs text-neutral-400">
+      <p className="mb-1 text-xs font-medium text-label">What is not sent</p>
+      <ul className="mb-3 list-disc pl-5 text-xs text-label-2">
         {COACH_CONSENT.notShared.map((item) => (
           <li key={item}>{item}</li>
         ))}
       </ul>
 
-      <p className="mb-2 text-xs text-neutral-400">{COACH_CONSENT.dataUse}</p>
-      <p className="mb-2 text-xs text-neutral-400">{COACH_CONSENT.kept}</p>
-      <p className="mb-2 text-xs text-neutral-400">{COACH_CONSENT.withdraw}</p>
-      <p className="mb-3 text-xs text-neutral-500">{COACH_CONSENT.limits}</p>
+      <p className="mb-2 text-xs text-label-2">{COACH_CONSENT.dataUse}</p>
+      <p className="mb-2 text-xs text-label-2">{COACH_CONSENT.kept}</p>
+      <p className="mb-2 text-xs text-label-2">{COACH_CONSENT.withdraw}</p>
+      <p className="mb-3 text-xs text-label-2">{COACH_CONSENT.limits}</p>
 
       {consented ? (
         <div className="flex flex-wrap items-center gap-3">
-          <p className="text-xs text-green-400">
+          <p className="text-xs text-green">
             Allowed since {formatDateLong(consentedAt.slice(0, 10))}
           </p>
-          <Link href="/coach" className="text-xs text-neutral-300 underline">
+          <Link href="/coach" className="text-xs text-tint">
             Open Coach
           </Link>
           <button
             type="button"
             onClick={() => change(false)}
             disabled={pending}
-            className="ml-auto rounded-lg border border-neutral-700 px-3 py-1.5 text-xs font-medium text-neutral-300 disabled:opacity-50"
+            className="ml-auto rounded-lg bg-fill px-3 py-1.5 text-xs font-medium text-label disabled:opacity-50"
           >
             Withdraw consent
           </button>
@@ -73,13 +73,13 @@ export default function CoachConsentSection({ consentedAt }: { consentedAt: stri
           type="button"
           onClick={() => change(true)}
           disabled={pending}
-          className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-neutral-900 disabled:opacity-50"
+          className="rounded-lg bg-tint px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
         >
           Allow Coach to use my training data
         </button>
       )}
 
-      {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
+      {error && <p className="mt-2 text-xs text-red">{error}</p>}
     </section>
   );
 }

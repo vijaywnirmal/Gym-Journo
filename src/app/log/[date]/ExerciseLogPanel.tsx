@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Icon from "@/components/Icon";
 import { useState } from "react";
 import { calculatePlates, formatPlates, isPlateUnit } from "@/lib/plates";
 import {
@@ -189,36 +190,36 @@ export default function ExerciseLogPanel({
   );
 
   return (
-    <div className="rounded-xl border border-neutral-800 p-4">
+    <div className="rounded-xl bg-surface p-4">
       <div className="mb-3 flex items-start justify-between">
         <div>
-          <p className="text-xs text-neutral-500">{positionLabel}</p>
-          <h2 className="text-lg font-semibold text-neutral-100">{entry.name}</h2>
-          <Link href={exerciseHistoryHref(entry.exerciseId)} className="text-xs text-neutral-500 underline">
+          <p className="text-xs text-label-2">{positionLabel}</p>
+          <h2 className="text-xl font-semibold text-label">{entry.name}</h2>
+          <Link href={exerciseHistoryHref(entry.exerciseId)} className="text-xs text-tint">
             View history
           </Link>
         </div>
-        <button type="button" onClick={onRemoveExercise} className="text-xs text-red-400">
+        <button type="button" onClick={onRemoveExercise} className="text-xs text-red">
           Remove
         </button>
       </div>
 
       {target && (
-        <p className="mb-1 text-sm text-neutral-400">
-          Target: <span className="text-neutral-200">{target}</span>
+        <p className="mb-1 text-sm text-label-2">
+          Target: <span className="text-label">{target}</span>
         </p>
       )}
 
       {remainingPlannedSets && (
-        <p className="mb-3 text-xs text-neutral-500">{remainingPlannedSets}</p>
+        <p className="mb-3 text-xs text-label-2">{remainingPlannedSets}</p>
       )}
 
       {previous === undefined ? (
-        <p className="mb-3 text-xs text-neutral-600">Loading last time…</p>
+        <p className="mb-3 text-xs text-label-3">Loading last time…</p>
       ) : previous ? (
-        <div className="mb-3 rounded-lg bg-neutral-900 px-3 py-2">
-          <p className="text-xs font-medium text-neutral-400">Last time</p>
-          <p className="text-sm text-neutral-200">
+        <div className="mb-3 rounded-lg bg-fill px-3 py-2">
+          <p className="text-xs font-medium text-label-2">Last time</p>
+          <p className="text-sm text-label">
             {previous.sets
               .map((s) => `${s.weight ?? "?"}${s.weightUnit} × ${s.reps ?? "?"}`)
               .join(", ")}
@@ -227,14 +228,14 @@ export default function ExerciseLogPanel({
             <button
               type="button"
               onClick={onCopyPrevious}
-              className="mt-2 rounded-lg border border-neutral-700 px-3 py-1.5 text-xs font-medium text-neutral-100"
+              className="mt-2 rounded-full bg-tint/12 px-3 py-1.5 text-xs font-semibold text-tint"
             >
-              ↺ Same as last time
+              Same as last time
             </button>
           )}
         </div>
       ) : (
-        <p className="mb-3 text-xs text-neutral-600">No previous record for this exercise yet.</p>
+        <p className="mb-3 text-xs text-label-3">No previous record for this exercise yet.</p>
       )}
 
       <div className="flex flex-col gap-2">
@@ -251,8 +252,8 @@ export default function ExerciseLogPanel({
                   title={SET_TYPE_LABEL[set.setType]}
                   className={`h-7 w-7 shrink-0 rounded-md text-sm ${
                     SET_TYPE_BADGE[set.setType]
-                      ? "bg-amber-900/50 font-semibold text-amber-300"
-                      : "text-neutral-500"
+                      ? "bg-orange/12 font-semibold text-orange"
+                      : "text-label-2"
                   }`}
                 >
                   {SET_TYPE_BADGE[set.setType] ?? i + 1}
@@ -263,32 +264,32 @@ export default function ExerciseLogPanel({
                   placeholder="weight"
                   value={set.weight}
                   onChange={(e) => onUpdateSet(i, "weight", e.target.value)}
-                  className="w-20 rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-2.5 text-base text-neutral-100"
+                  className="w-20 rounded-lg bg-fill px-2 py-2.5 text-base text-label"
                 />
                 <select
                   value={set.weightUnit}
                   onChange={(e) => onUpdateSet(i, "weightUnit", e.target.value)}
-                  className="rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-2.5 text-base text-neutral-100"
+                  className="rounded-lg bg-fill px-2 py-2.5 text-base text-label"
                 >
                   <option value="kg">kg</option>
                   <option value="lb">lb</option>
                 </select>
-                <span className="text-neutral-500">×</span>
+                <span className="text-label-2">×</span>
                 <input
                   type="number"
                   inputMode="numeric"
                   placeholder="reps"
                   value={set.reps}
                   onChange={(e) => onUpdateSet(i, "reps", e.target.value)}
-                  className="w-16 rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-2.5 text-base text-neutral-100"
+                  className="w-16 rounded-lg bg-fill px-2 py-2.5 text-base text-label"
                 />
                 <button
                   type="button"
                   onClick={() => onRemoveSet(i)}
                   aria-label={`Remove set ${i + 1}`}
-                  className="ml-auto flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-700 text-neutral-400"
+                  className="ml-auto flex h-9 w-9 items-center justify-center rounded-full bg-fill text-label-2"
                 >
-                  ✕
+                  <Icon name="plus" className="size-4 rotate-45" strokeWidth={2.25} />
                 </button>
               </div>
               <div className="flex items-center gap-2 pl-9">
@@ -297,19 +298,18 @@ export default function ExerciseLogPanel({
                   onClick={() => onToggleSetDone(i)}
                   aria-pressed={!!set.done}
                   aria-label={set.done ? `Set ${i + 1} done. Undo` : `Mark set ${i + 1} done and start rest`}
-                  className={`rounded-md border px-2 py-1 text-xs font-medium ${
-                    set.done
-                      ? "border-green-800 bg-green-950 text-green-400"
-                      : "border-neutral-700 text-neutral-300"
+                  className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                    set.done ? "bg-green text-white" : "bg-fill text-label-2"
                   }`}
                 >
-                  {set.done ? "✓ Done" : "✓"}
+                  <Icon name="checkmark" className="size-3.5" strokeWidth={2.75} />
+                  {set.done ? "Done" : null}
                 </button>
                 <select
                   value={set.rpe}
                   onChange={(e) => onUpdateSet(i, "rpe", e.target.value)}
                   aria-label={`Set ${i + 1} effort (RPE)`}
-                  className="rounded-md border border-neutral-800 bg-neutral-900 px-1.5 py-1 text-xs text-neutral-300"
+                  className="rounded-full bg-fill px-2.5 py-1 text-xs text-label"
                 >
                   <option value="">RPE –</option>
                   {RPE_OPTIONS.map((r) => (
@@ -318,9 +318,9 @@ export default function ExerciseLogPanel({
                     </option>
                   ))}
                 </select>
-                {comparisonText && <p className="text-xs text-neutral-500">{comparisonText}</p>}
+                {comparisonText && <p className="text-xs text-label-2">{comparisonText}</p>}
               </div>
-              {plates && <p className="pl-9 text-xs text-amber-300/80">{plates}</p>}
+              {plates && <p className="pl-9 text-xs text-orange">{plates}</p>}
             </div>
           );
         })}
@@ -329,25 +329,26 @@ export default function ExerciseLogPanel({
           <button
             type="button"
             onClick={onAddSet}
-            className="rounded-lg border border-neutral-700 px-3 py-1.5 text-sm font-medium text-neutral-100"
+            className="flex items-center gap-1 rounded-full bg-tint/12 px-3 py-1.5 text-sm font-semibold text-tint"
           >
-            + Add set
+            <Icon name="plus" className="size-4" strokeWidth={2.5} />
+            Add set
           </button>
           <button
             type="button"
             onClick={() => setShowPlates((v) => !v)}
             aria-pressed={showPlates}
             className={`ml-auto rounded-lg px-3 py-1.5 text-xs ${
-              showPlates ? "bg-neutral-800 text-neutral-100" : "text-neutral-400"
+              showPlates ? "bg-fill text-label" : "text-label-2"
             }`}
           >
             Plates
           </button>
         </div>
         {showPlates && (
-          <p className="text-xs text-neutral-600">Standard plates on a 20 kg / 45 lb bar.</p>
+          <p className="text-xs text-label-3">Standard plates on a 20 kg / 45 lb bar.</p>
         )}
-        <p className="text-xs text-neutral-600">Tap a set number to mark it warm-up (W), drop (D) or to failure (F).</p>
+        <p className="text-xs text-label-3">Tap a set number to mark it warm-up (W), drop (D) or to failure (F).</p>
       </div>
 
       <textarea
@@ -357,19 +358,17 @@ export default function ExerciseLogPanel({
         placeholder="Note for this exercise (seat height, grip…)"
         rows={2}
         aria-label={`Note for ${entry.name}`}
-        className="mt-3 w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-base text-neutral-100 placeholder-neutral-600"
+        className="mt-3 w-full rounded-lg bg-fill px-3 py-2 text-base text-label placeholder-label-3"
       />
 
       <button
         type="button"
         onClick={onToggleDone}
-        className={`mt-4 w-full rounded-lg px-4 py-2.5 text-sm font-medium ${
-          entry.done
-            ? "border border-neutral-700 text-neutral-300"
-            : "bg-white text-neutral-900"
+        className={`mt-4 w-full rounded-lg px-4 py-3 text-base font-semibold ${
+          entry.done ? "bg-fill text-label" : "bg-tint text-white"
         }`}
       >
-        {entry.done ? "Undo complete" : "✓ Complete exercise"}
+        {entry.done ? "Undo complete" : "Complete exercise"}
       </button>
     </div>
   );

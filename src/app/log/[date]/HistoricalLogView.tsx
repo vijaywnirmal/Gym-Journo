@@ -39,9 +39,9 @@ export default function HistoricalLogView({
         <button
           type="button"
           onClick={() => setMode("summary")}
-          className="self-start text-sm text-neutral-400 underline"
+          className="self-start text-sm text-tint"
         >
-          ← Back to summary
+          Back to summary
         </button>
         <LogForm
           date={date}
@@ -59,58 +59,58 @@ export default function HistoricalLogView({
     <div className="flex flex-col gap-4 pb-6">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm text-neutral-500">{formatDate(date)}</p>
-          <h2 className="text-lg font-semibold text-neutral-100">
+          <p className="text-sm text-label-2">{formatDate(date)}</p>
+          <h2 className="text-xl font-semibold text-label">
             {existingLog.planTitle ?? "Freeform workout"}
           </h2>
         </div>
         {existingLog.completed_at ? (
-          <span className="text-xs font-medium text-green-400">Completed ✓</span>
+          <span className="text-xs font-medium text-green">Completed ✓</span>
         ) : (
-          <span className="text-xs font-medium text-neutral-500">In progress</span>
+          <span className="text-xs font-medium text-label-2">In progress</span>
         )}
       </div>
 
       <div className="flex flex-col gap-3">
         {(existingLog.logged_exercises ?? []).length === 0 && (
-          <p className="text-sm text-neutral-500">No exercises were logged this day.</p>
+          <p className="text-sm text-label-2">No exercises were logged this day.</p>
         )}
         {existingLog.logged_exercises?.map((le) => (
-          <div key={le.id} className="rounded-xl border border-neutral-800 p-4">
-            <p className="mb-2 font-medium text-neutral-100">{le.exercise?.name ?? "Exercise"}</p>
-            <ul className="flex flex-col gap-1 text-sm text-neutral-300">
+          <div key={le.id} className="rounded-xl bg-surface p-4">
+            <p className="mb-2 font-medium text-label">{le.exercise?.name ?? "Exercise"}</p>
+            <ul className="flex flex-col gap-1 text-sm text-label">
               {(le.logged_sets ?? []).map((s) => (
                 <li key={s.id} className="flex items-center gap-2">
-                  <span className="w-5 text-neutral-500">{s.set_number}</span>
+                  <span className="w-5 text-label-2">{s.set_number}</span>
                   <span>
                     {s.weight ?? "?"}
                     {s.weight_unit} × {s.reps ?? "?"}
                   </span>
                   {formatSetDetail(s.set_type, s.rpe) && (
-                    <span className="text-xs text-neutral-500">{formatSetDetail(s.set_type, s.rpe)}</span>
+                    <span className="text-xs text-label-2">{formatSetDetail(s.set_type, s.rpe)}</span>
                   )}
                 </li>
               ))}
               {(le.logged_sets ?? []).length === 0 && (
-                <li className="text-neutral-500">No sets recorded.</li>
+                <li className="text-label-2">No sets recorded.</li>
               )}
             </ul>
-            {le.notes && <p className="mt-2 text-xs text-neutral-400">📝 {le.notes}</p>}
+            {le.notes && <p className="mt-2 text-xs text-label-2">{le.notes}</p>}
           </div>
         ))}
       </div>
 
       {existingLog.notes && (
-        <div className="rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3">
-          <p className="mb-1 text-xs font-medium text-neutral-400">Notes</p>
-          <p className="text-sm text-neutral-200">{existingLog.notes}</p>
+        <div className="rounded-xl bg-surface px-4 py-3">
+          <p className="mb-1 text-xs font-medium text-label-2">Notes</p>
+          <p className="text-sm text-label">{existingLog.notes}</p>
         </div>
       )}
 
       <button
         type="button"
         onClick={() => setMode("edit")}
-        className="rounded-xl border border-neutral-700 px-4 py-3 text-sm font-medium text-neutral-100"
+        className="rounded-xl bg-fill px-4 py-3 text-sm font-medium text-label"
       >
         Edit workout
       </button>

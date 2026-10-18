@@ -56,8 +56,8 @@ export default function ProfileEditForm({
     <div className="flex flex-col gap-4">
       <ProfileFields value={fields} onChange={setFields} />
 
-      <section className="rounded-xl border border-neutral-800 bg-neutral-900/40 p-4">
-        <h2 className="mb-4 text-sm font-semibold text-neutral-100">Password</h2>
+      <section className="rounded-xl bg-surface p-4">
+        <h2 className="mb-4 text-base font-semibold text-label">Password</h2>
         <PasswordFields
           password={password}
           confirmPassword={confirmPassword}
@@ -67,18 +67,18 @@ export default function ProfileEditForm({
       </section>
 
       {error && (
-        <p role="alert" className="text-sm text-red-400">
+        <p role="alert" className="text-sm text-red">
           {error}
         </p>
       )}
 
       {/* Stays in view on a phone while the long form scrolls. */}
-      <div className="sticky bottom-20 z-10 -mx-4 flex gap-3 border-t border-neutral-800 bg-neutral-950/95 px-4 py-3 backdrop-blur">
+      <div className="sticky bottom-24 z-10 -mx-1 flex gap-3 rounded-2xl border border-[var(--material-edge)] material p-2 shadow-raised">
         <button
           type="button"
           onClick={onCancel}
           disabled={pending}
-          className="h-12 flex-1 rounded-xl border border-neutral-700 px-4 font-medium text-neutral-200 disabled:opacity-50"
+          className="h-12 flex-1 rounded-xl bg-fill px-4 font-medium text-label disabled:opacity-50"
         >
           Cancel
         </button>
@@ -86,7 +86,7 @@ export default function ProfileEditForm({
           type="button"
           onClick={handleSubmit}
           disabled={pending}
-          className="h-12 flex-[2] rounded-xl bg-white px-4 font-medium text-neutral-900 disabled:opacity-50"
+          className="h-12 flex-[2] rounded-xl bg-tint px-4 font-medium text-white disabled:opacity-50"
         >
           {pending ? "Saving…" : "Save changes"}
         </button>

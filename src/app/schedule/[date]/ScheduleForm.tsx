@@ -100,28 +100,26 @@ export default function ScheduleForm({
 
   return (
     <div className="flex flex-col gap-5 pb-6">
-      <div className="flex gap-2">
+      <div className="flex rounded-lg bg-fill p-0.5" role="group" aria-label="Day type">
         <button
           type="button"
           onClick={() => setIsRestDay(false)}
-          className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium ${
-            !isRestDay
-              ? "border-white bg-white text-neutral-900"
-              : "border-neutral-700 text-neutral-100"
+          aria-pressed={!isRestDay}
+          className={`flex-1 rounded-[0.6rem] px-3 py-1.5 text-sm font-semibold ${
+            !isRestDay ? "bg-surface-raised text-label shadow-raised" : "text-label-2"
           }`}
         >
-          🏋️ Workout
+          Workout
         </button>
         <button
           type="button"
           onClick={() => setIsRestDay(true)}
-          className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium ${
-            isRestDay
-              ? "border-white bg-white text-neutral-900"
-              : "border-neutral-700 text-neutral-100"
+          aria-pressed={isRestDay}
+          className={`flex-1 rounded-[0.6rem] px-3 py-1.5 text-sm font-semibold ${
+            isRestDay ? "bg-surface-raised text-label shadow-raised" : "text-label-2"
           }`}
         >
-          😴 Rest / Absence
+          Rest / Absence
         </button>
       </div>
 
@@ -129,23 +127,23 @@ export default function ScheduleForm({
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         placeholder={isRestDay ? "Reason (optional) — e.g. Sick, Travel" : "Day title (e.g. Push Day)"}
-        className="rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-base text-neutral-100 placeholder-neutral-500"
+        className="rounded-lg bg-fill px-3 py-2 text-base text-label placeholder-label-3"
       />
 
       {!isRestDay && (
         <>
           <div>
-            <p className="mb-2 text-sm font-semibold text-neutral-100">Muscle groups</p>
+            <p className="mb-2 text-sm font-semibold text-label">Muscle groups</p>
             <div className="flex flex-wrap gap-2">
               {muscleGroups.map((mg) => (
                 <button
                   key={mg.id}
                   type="button"
                   onClick={() => toggleMuscle(mg.id)}
-                  className={`rounded-full border px-3 py-1.5 text-sm ${
+                  className={`rounded-full px-3 py-1.5 text-sm font-medium ${
                     selectedMuscles.has(mg.id)
-                      ? "border-white bg-white text-neutral-900"
-                      : "border-neutral-700 text-neutral-100"
+                      ? "bg-tint text-white"
+                      : "bg-fill text-label"
                   }`}
                 >
                   {mg.name}
@@ -156,13 +154,13 @@ export default function ScheduleForm({
 
           {templates.length > 0 && (
             <div>
-              <label className="mb-1 block text-xs font-medium text-neutral-400">
+              <label className="mb-1 block text-xs font-medium text-label-2">
                 Use a template
               </label>
               <select
                 value={templateId}
                 onChange={(e) => applyTemplate(e.target.value)}
-                className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-base text-neutral-100"
+                className="w-full rounded-lg bg-fill px-3 py-2 text-base text-label"
               >
                 <option value="">Select a template...</option>
                 {templates.map((t) => (
@@ -171,7 +169,7 @@ export default function ScheduleForm({
                   </option>
                 ))}
               </select>
-              <p className="mt-1 text-xs text-neutral-500">
+              <p className="mt-1 text-xs text-label-2">
                 Applying a template replaces the exercises below until you save.
               </p>
             </div>
@@ -187,14 +185,14 @@ export default function ScheduleForm({
         </>
       )}
 
-      {saved && <p className="text-sm text-green-400">Saved!</p>}
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {saved && <p className="text-sm text-green">Saved!</p>}
+      {error && <p className="text-sm text-red">{error}</p>}
 
       <button
         type="button"
         onClick={handleSubmit}
         disabled={pending}
-        className="rounded-xl bg-white px-4 py-3 font-medium text-neutral-900 disabled:opacity-50"
+        className="rounded-xl bg-tint px-4 py-3 font-medium text-white disabled:opacity-50"
       >
         {pending ? "Saving..." : "Save schedule"}
       </button>
@@ -208,7 +206,7 @@ export default function ScheduleForm({
               router.refresh();
             })
           }
-          className="text-sm text-red-400"
+          className="text-sm text-red"
         >
           Delete this day&apos;s plan
         </button>

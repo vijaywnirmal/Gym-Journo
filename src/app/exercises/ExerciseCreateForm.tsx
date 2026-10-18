@@ -46,8 +46,8 @@ export default function ExerciseCreateForm({ muscleGroups }: { muscleGroups: Mus
   }
 
   return (
-    <details className="mb-6 rounded-xl border border-neutral-800 p-4">
-      <summary className="cursor-pointer text-sm font-medium text-neutral-100">
+    <details className="mb-6 rounded-xl bg-surface p-4">
+      <summary className="cursor-pointer text-sm font-medium text-label">
         + Add custom exercise
       </summary>
       <div className="mt-4 flex flex-col gap-3">
@@ -55,13 +55,13 @@ export default function ExerciseCreateForm({ muscleGroups }: { muscleGroups: Mus
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Exercise name"
-          className="rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-base text-neutral-100 placeholder-neutral-500"
+          className="rounded-lg bg-fill px-3 py-2 text-base text-label placeholder-label-3"
         />
         <select
           value={equipment}
           onChange={(e) => setEquipment(e.target.value)}
           aria-label="Equipment"
-          className="rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-base text-neutral-100"
+          className="rounded-lg bg-fill px-3 py-2 text-base text-label"
         >
           <option value="">Equipment (optional)</option>
           {EQUIPMENT_OPTIONS.map((eq) => (
@@ -76,15 +76,15 @@ export default function ExerciseCreateForm({ muscleGroups }: { muscleGroups: Mus
           placeholder="How to do it (optional)"
           maxLength={1000}
           rows={2}
-          className="rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-base text-neutral-100 placeholder-neutral-500"
+          className="rounded-lg bg-fill px-3 py-2 text-base text-label placeholder-label-3"
         />
         <div>
-          <p className="mb-2 text-xs font-medium text-neutral-400">Muscle groups</p>
+          <p className="mb-2 text-xs font-medium text-label-2">Muscle groups</p>
           <div className="flex flex-wrap gap-2">
             {muscleGroups.map((mg) => (
               <label
                 key={mg.id}
-                className="flex items-center gap-1.5 rounded-full border border-neutral-700 px-3 py-1.5 text-sm text-neutral-100 has-checked:border-white has-checked:bg-white has-checked:text-neutral-900"
+                className="flex items-center gap-1.5 rounded-full bg-fill px-3 py-1.5 text-sm text-label has-checked:bg-tint has-checked:text-white"
               >
                 <input
                   type="checkbox"
@@ -98,13 +98,13 @@ export default function ExerciseCreateForm({ muscleGroups }: { muscleGroups: Mus
           </div>
         </div>
 
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && <p className="text-sm text-red">{error}</p>}
 
         <button
           type="button"
           onClick={handleSubmit}
           disabled={pending}
-          className="rounded-lg bg-white px-4 py-2.5 font-medium text-neutral-900 disabled:opacity-50"
+          className="rounded-lg bg-tint px-4 py-2.5 font-medium text-white disabled:opacity-50"
         >
           {pending ? "Adding..." : "Add exercise"}
         </button>

@@ -11,11 +11,11 @@ const PADDING = 10;
 
 export default function TrendChart({ points, unit }: { points: TrendPoint[]; unit: string }) {
   if (points.length === 0) {
-    return <p className="text-sm text-neutral-500">Not enough data yet.</p>;
+    return <p className="text-sm text-label-2">Not enough data yet.</p>;
   }
   if (points.length === 1) {
     return (
-      <p className="text-sm text-neutral-300">
+      <p className="text-sm text-label">
         {points[0].value.toFixed(1)} {unit} on {formatDate(points[0].date)} — need at least two
         sessions for a trend.
       </p>
@@ -47,7 +47,7 @@ export default function TrendChart({ points, unit }: { points: TrendPoint[]; uni
           <circle key={points[i].date} cx={c.x} cy={c.y} r={2.5} fill="white" />
         ))}
       </svg>
-      <div className="mt-1 flex justify-between text-xs text-neutral-500">
+      <div className="mt-1 flex justify-between text-xs text-label-2">
         <span>{formatDate(points[0].date)}</span>
         <span>
           {max.toFixed(1)} {unit} peak

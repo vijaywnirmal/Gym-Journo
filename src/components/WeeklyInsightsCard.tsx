@@ -3,9 +3,9 @@ import { volumeStatus, weeklyStreak, WEEKLY_SET_RANGE } from "@/lib/analyze/week
 import { formatAdherence, formatStreak } from "@/lib/home";
 
 const STATUS_STYLE = {
-  below: { bar: "bg-neutral-500", text: "text-neutral-400", label: "below range" },
-  within: { bar: "bg-green-500", text: "text-green-400", label: "in range" },
-  above: { bar: "bg-amber-500", text: "text-amber-400", label: "above range" },
+  below: { bar: "bg-label-3", text: "text-label-2", label: "below range" },
+  within: { bar: "bg-green", text: "text-green", label: "in range" },
+  above: { bar: "bg-orange", text: "text-orange", label: "above range" },
 } as const;
 
 // Hard sets per muscle group this week against the 10–20 sets/week guideline, plus streak and plan
@@ -24,19 +24,19 @@ export default function WeeklyInsightsCard({
   const pct = (n: number) => `${(n / scaleMax) * 100}%`;
 
   return (
-    <div className="mb-4 rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3">
+    <section className="mb-4 rounded-xl bg-surface px-4 py-4">
       <div className="mb-2 flex items-baseline justify-between">
-        <p className="text-xs font-medium text-neutral-500">This week · sets per muscle</p>
-        <p className="text-[10px] text-neutral-600">
+        <p className="text-xs font-medium text-label-2">This week · sets per muscle</p>
+        <p className="text-[11px] text-label-3">
           guide {WEEKLY_SET_RANGE.min}–{WEEKLY_SET_RANGE.max}
         </p>
       </div>
 
-      {streak && <p className="mb-1 text-sm text-neutral-100">{streak}</p>}
-      {adherence && <p className="mb-2 text-xs text-neutral-400">{adherence}</p>}
+      {streak && <p className="mb-1 text-sm text-label">{streak}</p>}
+      {adherence && <p className="mb-2 text-xs text-label-2">{adherence}</p>}
 
       {insights.thisWeek.length === 0 ? (
-        <p className="text-sm text-neutral-500">No working sets logged this week yet.</p>
+        <p className="text-sm text-label-2">No working sets logged this week yet.</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {insights.thisWeek.map((m) => {
@@ -45,19 +45,19 @@ export default function WeeklyInsightsCard({
             return (
               <li key={m.muscleGroupId}>
                 <div className="flex items-baseline justify-between text-xs">
-                  <span className="text-neutral-200">{m.name}</span>
+                  <span className="text-label">{m.name}</span>
                   <span className={style.text}>
                     {m.sets} set{m.sets === 1 ? "" : "s"} · {style.label}
-                    <span className="text-neutral-600"> · last week {last}</span>
+                    <span className="text-label-3"> · last week {last}</span>
                   </span>
                 </div>
                 <div
-                  className="relative mt-1 h-2 overflow-hidden rounded-full bg-neutral-800"
+                  className="relative mt-1 h-2 overflow-hidden rounded-full bg-fill"
                   role="img"
                   aria-label={`${m.name}: ${m.sets} sets this week, ${style.label}`}
                 >
                   <div
-                    className="absolute inset-y-0 bg-neutral-700"
+                    className="absolute inset-y-0 bg-fill-strong"
                     style={{ left: pct(WEEKLY_SET_RANGE.min), width: pct(WEEKLY_SET_RANGE.max - WEEKLY_SET_RANGE.min) }}
                   />
                   <div className={`absolute inset-y-0 left-0 rounded-full ${style.bar}`} style={{ width: pct(m.sets) }} />
@@ -67,6 +67,6 @@ export default function WeeklyInsightsCard({
           })}
         </ul>
       )}
-    </div>
+    </section>
   );
 }

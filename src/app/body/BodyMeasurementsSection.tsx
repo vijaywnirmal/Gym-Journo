@@ -75,30 +75,30 @@ export default function BodyMeasurementsSection({
 
   return (
     <div className="flex flex-col gap-4 pb-6">
-      <div className="rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3">
-        <p className="text-xs font-medium text-neutral-400">Latest weight</p>
-        <p className="text-2xl font-bold text-neutral-100">
+      <div className="rounded-xl bg-surface px-4 py-3">
+        <p className="text-xs font-medium text-label-2">Latest weight</p>
+        <p className="text-2xl font-bold text-label">
           {latest ? `${latest.weight_kg} kg` : "—"}
         </p>
-        {latest && <p className="text-xs text-neutral-500">{formatDate(latest.date)}</p>}
+        {latest && <p className="text-xs text-label-2">{formatDate(latest.date)}</p>}
       </div>
 
       {progressSummary}
 
       {editingId !== null ? (
-        <div className="flex flex-col gap-3 rounded-xl border border-neutral-800 p-4">
+        <div className="flex flex-col gap-3 rounded-xl bg-surface p-4">
           <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-400">Date</label>
+            <label className="mb-1 block text-xs font-medium text-label-2">Date</label>
             <input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
               disabled={editingId !== "new"}
-              className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-base text-neutral-100 disabled:opacity-60"
+              className="w-full rounded-lg bg-fill px-3 py-2 text-base text-label disabled:opacity-60"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-400">Weight (kg)</label>
+            <label className="mb-1 block text-xs font-medium text-label-2">Weight (kg)</label>
             <input
               type="number"
               min={0}
@@ -106,34 +106,34 @@ export default function BodyMeasurementsSection({
               value={weightKg}
               onChange={(e) => setWeightKg(e.target.value)}
               placeholder="70"
-              className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-base text-neutral-100 placeholder-neutral-500"
+              className="w-full rounded-lg bg-fill px-3 py-2 text-base text-label placeholder-label-3"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-400">
+            <label className="mb-1 block text-xs font-medium text-label-2">
               Note (optional)
             </label>
             <input
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="How are you feeling?"
-              className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-base text-neutral-100 placeholder-neutral-500"
+              className="w-full rounded-lg bg-fill px-3 py-2 text-base text-label placeholder-label-3"
             />
           </div>
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <p className="text-sm text-red">{error}</p>}
           <div className="flex gap-2">
             <button
               type="button"
               onClick={handleSave}
               disabled={pending}
-              className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-neutral-900 disabled:opacity-50"
+              className="rounded-lg bg-tint px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
             >
               {pending ? "Saving..." : "Save"}
             </button>
             <button
               type="button"
               onClick={cancel}
-              className="rounded-lg border border-neutral-700 px-4 py-2 text-sm text-neutral-300"
+              className="rounded-lg bg-fill px-4 py-2 text-sm text-label"
             >
               Cancel
             </button>
@@ -143,7 +143,7 @@ export default function BodyMeasurementsSection({
         <button
           type="button"
           onClick={startAdd}
-          className="rounded-lg border border-neutral-700 px-4 py-2.5 text-sm font-medium text-neutral-100"
+          className="rounded-lg bg-fill px-4 py-2.5 text-sm font-medium text-label"
         >
           + Add entry
         </button>
@@ -151,17 +151,17 @@ export default function BodyMeasurementsSection({
 
       <div className="flex flex-col gap-2">
         {measurements.length === 0 && (
-          <p className="text-sm text-neutral-500">No weight entries yet.</p>
+          <p className="text-sm text-label-2">No weight entries yet.</p>
         )}
         {measurements.map((m) => (
-          <div key={m.id} className="rounded-xl border border-neutral-800 p-4">
+          <div key={m.id} className="rounded-xl bg-surface p-4">
             <div className="mb-1 flex items-center justify-between">
-              <p className="font-medium text-neutral-100">{formatDate(m.date)}</p>
+              <p className="font-medium text-label">{formatDate(m.date)}</p>
               <div className="flex gap-3">
                 <button
                   type="button"
                   onClick={() => startEdit(m)}
-                  className="text-xs text-neutral-300 underline"
+                  className="text-xs text-tint"
                 >
                   Edit
                 </button>
@@ -169,14 +169,14 @@ export default function BodyMeasurementsSection({
                   type="button"
                   onClick={() => handleDelete(m.id)}
                   disabled={pending}
-                  className="text-xs text-red-400 disabled:opacity-50"
+                  className="text-xs text-red disabled:opacity-50"
                 >
                   Delete
                 </button>
               </div>
             </div>
-            <p className="text-sm text-neutral-300">{m.weight_kg} kg</p>
-            {m.notes && <p className="mt-1 text-xs text-neutral-500">{m.notes}</p>}
+            <p className="text-sm text-label">{m.weight_kg} kg</p>
+            {m.notes && <p className="mt-1 text-xs text-label-2">{m.notes}</p>}
           </div>
         ))}
       </div>

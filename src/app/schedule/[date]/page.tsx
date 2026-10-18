@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { getExercises, getMuscleGroups, getPlanForDate, getTemplates } from "@/lib/queries";
 import { formatDate } from "@/lib/date";
 import ScheduleForm from "./ScheduleForm";
+import BackLink from "@/components/BackLink";
 
 export default async function SchedulePage({
   params,
@@ -17,11 +17,9 @@ export default async function SchedulePage({
   ]);
 
   return (
-    <main className="px-4 pt-6">
-      <Link href="/calendar" className="mb-1 inline-block text-sm text-neutral-500">
-        ← Calendar
-      </Link>
-      <h1 className="mb-4 text-xl font-bold">Schedule for {formatDate(date)}</h1>
+    <main className="screen-enter px-4 pt-4">
+      <BackLink href="/calendar" label="Calendar" />
+      <h1 className="mb-4 large-title">Schedule for {formatDate(date)}</h1>
       <ScheduleForm
         date={date}
         muscleGroups={muscleGroups}

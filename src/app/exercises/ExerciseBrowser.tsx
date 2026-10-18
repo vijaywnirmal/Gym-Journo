@@ -47,7 +47,7 @@ export default function ExerciseBrowser({ exercises, muscleGroups, userId }: Pro
         onChange={(e) => setTerm(e.target.value)}
         placeholder="Search exercises, muscles or equipment"
         aria-label="Search exercises"
-        className="rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-base text-neutral-100 placeholder-neutral-500"
+        className="rounded-lg bg-fill px-3 py-2 text-base text-label placeholder-label-3"
       />
 
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1" role="group" aria-label="Filter by muscle group">
@@ -59,8 +59,8 @@ export default function ExerciseBrowser({ exercises, muscleGroups, userId }: Pro
               type="button"
               onClick={() => setMuscleGroupId(active ? null : mg.id)}
               aria-pressed={active}
-              className={`shrink-0 rounded-full border px-3 py-1 text-xs ${
-                active ? "border-white bg-white text-neutral-900" : "border-neutral-700 text-neutral-300"
+              className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${
+                active ? "bg-tint text-white" : "bg-fill text-label"
               }`}
             >
               {mg.name}
@@ -74,7 +74,7 @@ export default function ExerciseBrowser({ exercises, muscleGroups, userId }: Pro
           value={equipment ?? ""}
           onChange={(e) => setEquipment(e.target.value || null)}
           aria-label="Filter by equipment"
-          className="rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
+          className="rounded-lg bg-fill px-2 py-1.5 text-sm text-label"
         >
           <option value="">All equipment</option>
           {EQUIPMENT_OPTIONS.map((eq) => (
@@ -83,30 +83,30 @@ export default function ExerciseBrowser({ exercises, muscleGroups, userId }: Pro
             </option>
           ))}
         </select>
-        <span className="text-xs text-neutral-500">
+        <span className="text-xs text-label-2">
           {filtered.length} exercise{filtered.length === 1 ? "" : "s"}
         </span>
         {filtering && (
-          <button type="button" onClick={clearFilters} className="ml-auto text-xs text-neutral-400 underline">
+          <button type="button" onClick={clearFilters} className="ml-auto text-xs text-tint">
             Clear
           </button>
         )}
       </div>
 
-      {filtered.length === 0 && <p className="text-sm text-neutral-500">No exercises match these filters.</p>}
+      {filtered.length === 0 && <p className="text-sm text-label-2">No exercises match these filters.</p>}
 
       {grouped.map(([groupName, list]) => (
-        <details key={`${groupName}-${filtering}`} open={filtering} className="rounded-xl border border-neutral-800">
-          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-neutral-200">
+        <details key={`${groupName}-${filtering}`} open={filtering} className="rounded-xl bg-surface">
+          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-label">
             {groupName} ({list.length})
           </summary>
           <ul className="flex flex-col gap-2 px-4 pb-4">
             {list.map((ex) => (
-              <li key={ex.id} className="rounded-xl border border-neutral-800 px-4 py-3">
+              <li key={ex.id} className="rounded-xl bg-fill px-4 py-3">
                 <div className="flex items-center justify-between gap-2">
                   <div>
-                    <p className="font-medium text-neutral-100">{ex.name}</p>
-                    <p className="text-xs text-neutral-400">
+                    <p className="font-medium text-label">{ex.name}</p>
+                    <p className="text-xs text-label-2">
                       {ex.equipment ?? "—"}
                       {ex.muscle_groups && ex.muscle_groups.length > 0
                         ? ` · ${ex.muscle_groups.map((m) => m.name).join(", ")}`
@@ -117,8 +117,8 @@ export default function ExerciseBrowser({ exercises, muscleGroups, userId }: Pro
                 </div>
                 {ex.instructions && (
                   <details className="mt-2">
-                    <summary className="cursor-pointer text-xs text-neutral-400">How to</summary>
-                    <p className="mt-1 text-sm text-neutral-300">{ex.instructions}</p>
+                    <summary className="cursor-pointer text-xs text-label-2">How to</summary>
+                    <p className="mt-1 text-sm text-label">{ex.instructions}</p>
                   </details>
                 )}
               </li>

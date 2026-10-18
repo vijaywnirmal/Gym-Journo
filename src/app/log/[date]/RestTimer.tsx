@@ -124,17 +124,17 @@ export default function RestTimer({ ref, current }: Props) {
   if (!running) {
     if (!current) return null;
     return (
-      <div className="flex items-center gap-2 rounded-xl border border-neutral-800 px-3 py-2">
-        <span className="text-xs text-neutral-500">Rest</span>
-        <div className="flex gap-1" role="group" aria-label={`Rest time for ${current.name}`}>
+      <div className="flex items-center gap-2 rounded-xl bg-surface px-3 py-2">
+        <span className="text-xs text-label-2">Rest</span>
+        <div className="flex rounded-lg bg-fill p-0.5" role="group" aria-label={`Rest time for ${current.name}`}>
           {REST_PRESETS_SEC.map((s) => (
             <button
               key={s}
               type="button"
               onClick={() => choosePreset(s)}
               aria-pressed={currentPreset === s}
-              className={`rounded-md px-2 py-1 text-xs ${
-                currentPreset === s ? "bg-neutral-700 text-neutral-100" : "text-neutral-400"
+              className={`rounded-md px-2 py-1 text-xs font-medium tabular-nums ${
+                currentPreset === s ? "bg-surface-raised text-label shadow-raised" : "text-label-2"
               }`}
             >
               {formatClock(s)}
@@ -144,7 +144,7 @@ export default function RestTimer({ ref, current }: Props) {
         <button
           type="button"
           onClick={() => start(current.exerciseId, current.name)}
-          className="ml-auto rounded-lg border border-neutral-700 px-3 py-1 text-xs font-medium text-neutral-100"
+          className="ml-auto rounded-full bg-tint px-3 py-1.5 text-xs font-semibold text-white"
         >
           Start rest
         </button>
@@ -154,17 +154,17 @@ export default function RestTimer({ ref, current }: Props) {
 
   return (
     <div
-      className={`sticky top-2 z-20 flex items-center gap-2 rounded-xl border px-3 py-2 backdrop-blur ${
-        finished ? "border-green-800 bg-green-950/80" : "border-sky-900 bg-neutral-950/90"
+      className={`materialize material sticky top-2 z-20 flex items-center gap-2 rounded-xl border border-[var(--material-edge)] px-4 py-2.5 shadow-raised ${
+        finished ? "ring-2 ring-green" : ""
       }`}
       role="timer"
       aria-live={finished ? "assertive" : "off"}
     >
       <div className="min-w-0">
-        <p className={`font-mono text-2xl font-semibold ${finished ? "text-green-400" : "text-sky-300"}`}>
+        <p className={`text-3xl font-semibold tabular-nums ${finished ? "text-green" : "text-tint"}`}>
           {finished ? "Go!" : formatClock(remaining ?? 0)}
         </p>
-        <p className="truncate text-xs text-neutral-500">
+        <p className="truncate text-xs text-label-2">
           {finished ? "Rest over" : "Resting"} · {running.exerciseName}
         </p>
       </div>
@@ -173,21 +173,21 @@ export default function RestTimer({ ref, current }: Props) {
           type="button"
           onClick={() => adjust(-ADJUST_STEP_SEC)}
           disabled={finished}
-          className="rounded-lg border border-neutral-700 px-2 py-1.5 text-xs text-neutral-200 disabled:opacity-40"
+          className="rounded-full bg-fill px-2.5 py-1.5 text-xs font-medium text-label tabular-nums disabled:opacity-40"
         >
           −{ADJUST_STEP_SEC}s
         </button>
         <button
           type="button"
           onClick={() => adjust(ADJUST_STEP_SEC)}
-          className="rounded-lg border border-neutral-700 px-2 py-1.5 text-xs text-neutral-200"
+          className="rounded-full bg-fill px-2.5 py-1.5 text-xs font-medium text-label tabular-nums"
         >
           +{ADJUST_STEP_SEC}s
         </button>
         <button
           type="button"
           onClick={() => setRunning(null)}
-          className="rounded-lg border border-neutral-700 px-2 py-1.5 text-xs text-neutral-200"
+          className="rounded-full bg-fill px-2.5 py-1.5 text-xs font-medium text-label tabular-nums"
         >
           {finished ? "Dismiss" : "Skip"}
         </button>

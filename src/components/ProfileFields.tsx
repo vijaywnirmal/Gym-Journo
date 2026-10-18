@@ -24,9 +24,9 @@ export type { ProfileFieldsValue };
 // One height and one look for every control, so text inputs, dropdowns and the date field line up.
 // `color-scheme: dark` makes the browser's own date picker and dropdown list dark too.
 const controlClass =
-  "h-12 w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 text-base text-neutral-100 placeholder-neutral-500 [color-scheme:dark] focus:border-neutral-400 focus:outline-none";
-const labelClass = "mb-1.5 block text-xs font-medium text-neutral-300";
-const hintClass = "mt-1.5 text-xs text-neutral-500";
+  "h-12 w-full rounded-lg bg-fill px-3 text-base text-label placeholder-label-3 focus:outline-none";
+const labelClass = "mb-1.5 block text-xs font-medium text-label";
+const hintClass = "mt-1.5 text-xs text-label-2";
 
 // The label wraps its control, so clicking the label focuses the field and screen readers announce it.
 function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
@@ -60,7 +60,7 @@ function Select({
       <svg
         aria-hidden="true"
         viewBox="0 0 20 20"
-        className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400"
+        className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-label-2"
         fill="none"
         stroke="currentColor"
         strokeWidth="2"
@@ -75,8 +75,8 @@ function Select({
 
 function Card({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="rounded-xl border border-neutral-800 bg-neutral-900/40 p-4">
-      <h2 className="mb-4 text-sm font-semibold text-neutral-100">{title}</h2>
+    <section className="rounded-xl bg-surface p-4">
+      <h2 className="mb-4 text-base font-semibold text-label">{title}</h2>
       <div className="flex flex-col gap-4">{children}</div>
     </section>
   );
@@ -263,7 +263,7 @@ export function PasswordFields({
           <button
             type="button"
             onClick={() => setShow((s) => !s)}
-            className="h-12 rounded-lg border border-neutral-700 px-4 text-sm text-neutral-300"
+            className="h-12 rounded-lg bg-fill px-4 text-sm text-label"
           >
             {show ? "Hide" : "Show"}
           </button>

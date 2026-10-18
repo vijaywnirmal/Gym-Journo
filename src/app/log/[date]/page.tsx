@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { getExercises, getLogForDate, getPlanForDate, getPreviousPerformance } from "@/lib/queries";
 import { formatDate } from "@/lib/date";
 import { getToday } from "@/lib/userDate";
@@ -6,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { PreviousPerformance } from "@/lib/queries";
 import LogForm from "./LogForm";
 import HistoricalLogView from "./HistoricalLogView";
+import BackLink from "@/components/BackLink";
 
 export default async function LogPage({
   params,
@@ -45,10 +45,8 @@ export default async function LogPage({
     Object.fromEntries(previousEntries);
 
   return (
-    <main className="px-4 pt-6">
-      <Link href="/calendar" className="mb-1 inline-block text-sm text-neutral-500">
-        ← Calendar
-      </Link>
+    <main className="screen-enter px-4 pt-4">
+      <BackLink href="/calendar" label="Calendar" />
       {isHistorical ? (
         <HistoricalLogView
           date={date}
@@ -59,8 +57,8 @@ export default async function LogPage({
         />
       ) : (
         <>
-          <h1 className="mb-1 text-xl font-bold">Log for {formatDate(date)}</h1>
-          {plan?.title && <p className="mb-4 text-sm text-neutral-500">Scheduled: {plan.title}</p>}
+          <h1 className="mb-1 large-title">Log for {formatDate(date)}</h1>
+          {plan?.title && <p className="mb-4 text-sm text-label-2">Scheduled: {plan.title}</p>}
           {!plan?.title && <div className="mb-4" />}
           <LogForm
             date={date}

@@ -27,11 +27,11 @@ export default function DeleteExerciseButton({ exerciseId }: { exerciseId: strin
         type="button"
         onClick={handleDelete}
         disabled={pending}
-        className="text-xs text-red-400 disabled:opacity-50"
+        className="text-xs text-red disabled:opacity-50"
       >
         {pending ? "Deleting..." : "Delete"}
       </button>
-      {error && <p className="mt-1 max-w-[10rem] text-xs text-red-400">{error}</p>}
+      {error && <p className="mt-1 max-w-[10rem] text-xs text-red">{error}</p>}
     </div>
   );
 }

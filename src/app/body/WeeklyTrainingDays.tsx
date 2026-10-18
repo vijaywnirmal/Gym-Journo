@@ -13,16 +13,16 @@ export default function WeeklyTrainingDays({
   const rows = buildWeeklyTrainingRows(weeks, targetDaysPerWeek);
 
   return (
-    <div className="rounded-xl border border-neutral-800 p-4">
-      <h2 className="mb-3 text-sm font-semibold text-neutral-200">Weekly training days</h2>
+    <div className="rounded-xl bg-surface p-4">
+      <h2 className="mb-3 text-base font-semibold text-label">Weekly training days</h2>
       <ul className="flex flex-col gap-3">
         {rows.map((row) => (
           <li key={row.key}>
-            <p className="text-xs text-neutral-500">
+            <p className="text-xs text-label-2">
               {row.label}
               {row.inProgress ? " · in progress" : ""}
             </p>
-            <p className="text-sm text-neutral-300">
+            <p className="text-sm text-label">
               {[row.performedLine, row.targetLine, row.differenceLine]
                 .filter((line): line is string => line !== null)
                 .join(" · ")}

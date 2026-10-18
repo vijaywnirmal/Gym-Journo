@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import TimezoneSync from "@/components/TimezoneSync";
@@ -7,40 +6,30 @@ import OfflineBanner from "@/components/OfflineBanner";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import { getUserTimeZone } from "@/lib/userDate";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
   title: "Gym Journal & Scheduler",
   description: "Plan your workouts and log what you actually do.",
-  appleWebApp: { capable: true, title: "Gym Journo", statusBarStyle: "black-translucent" },
+  appleWebApp: { capable: true, title: "Gym Journo", statusBarStyle: "default" },
   icons: { apple: "/icons/apple-touch-icon.png" },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  themeColor: "#0a0a0a",
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f2f2f7" },
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+  ],
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const { signedIn, timeZone } = await getUserTimeZone();
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col bg-neutral-950 text-neutral-100">
+    <html lang="en" className="h-full antialiased">
+      <body className="flex min-h-full flex-col bg-background text-label">
         <OfflineBanner />
-        <div className="mx-auto w-full max-w-md flex-1 pb-20">{children}</div>
+        <div className="mx-auto w-full max-w-md flex-1 pt-[env(safe-area-inset-top)] pb-28">{children}</div>
         <BottomNav />
         {signedIn && <TimezoneSync stored={timeZone} />}
         <ServiceWorkerRegister />

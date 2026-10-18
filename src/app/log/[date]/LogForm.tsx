@@ -18,6 +18,7 @@ import { toSetType } from "@/lib/setData";
 import ExerciseLogPanel, { setsFromPrevious, type ExerciseEntry, type SetRow } from "./ExerciseLogPanel";
 import LogExercisePicker from "./LogExercisePicker";
 import RestTimer, { type RestTimerHandle } from "./RestTimer";
+import Icon from "@/components/Icon";
 import ShareWorkoutButton from "@/components/ShareWorkoutButton";
 
 type Props = {
@@ -469,8 +470,8 @@ export default function LogForm({
       <SaveStatus state={saveState} error={saveError} onRetry={() => scheduleSave(true)} />
 
       {pendingBackup && (
-        <div className="rounded-xl border border-sky-900 bg-sky-950/40 px-4 py-3" role="status">
-          <p className="text-sm text-sky-200">
+        <div className="rounded-xl bg-tint/12 px-4 py-3" role="status">
+          <p className="text-sm text-tint">
             This device has changes to this workout from {formatBackupTime(pendingBackup.savedAt)} that
             didn&apos;t sync.
           </p>
@@ -478,14 +479,14 @@ export default function LogForm({
             <button
               type="button"
               onClick={restoreBackup}
-              className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-neutral-900"
+              className="rounded-lg bg-tint px-3 py-1.5 text-xs font-medium text-white"
             >
               Restore and sync
             </button>
             <button
               type="button"
               onClick={discardBackup}
-              className="rounded-lg border border-neutral-700 px-3 py-1.5 text-xs font-medium text-neutral-300"
+              className="rounded-lg bg-fill px-3 py-1.5 text-xs font-medium text-label"
             >
               Discard
             </button>
@@ -494,21 +495,24 @@ export default function LogForm({
       )}
 
       {workoutCompleted && (
-        <div className="rounded-xl border border-green-900 bg-green-950/40 px-4 py-2.5">
-          <p className="text-sm font-medium text-green-400">Workout completed ✓</p>
+        <div className="rounded-xl bg-green/12 px-4 py-2.5">
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-green">
+            <Icon name="checkmark" className="size-4" strokeWidth={2.75} />
+            Workout completed
+          </p>
         </div>
       )}
 
       {recordEntries.length > 0 && (
-        <div className="rounded-xl border border-amber-800 bg-amber-950/40 px-4 py-3" role="status">
-          <p className="mb-1 text-sm font-semibold text-amber-300">🏆 New personal record{recordEntries.length === 1 && personalRecords[recordEntries[0].exerciseId].length === 1 ? "" : "s"}</p>
-          <ul className="flex flex-col gap-1.5 text-sm text-neutral-200">
+        <div className="rounded-xl bg-orange/12 px-4 py-3" role="status">
+          <p className="mb-1 text-sm font-semibold text-orange">New personal record{recordEntries.length === 1 && personalRecords[recordEntries[0].exerciseId].length === 1 ? "" : "s"}</p>
+          <ul className="flex flex-col gap-1.5 text-sm text-label">
             {recordEntries.map((e) => {
               const unit = e.sets[e.sets.length - 1]?.weightUnit ?? "kg";
               return (
                 <li key={e.exerciseId}>
                   <span className="font-medium">{e.name}</span>
-                  <ul className="text-xs text-neutral-400">
+                  <ul className="text-xs text-label-2">
                     {personalRecords[e.exerciseId].map((r) => (
                       <li key={r.kind}>{describePersonalRecord(r, unit)}</li>
                     ))}
@@ -521,13 +525,13 @@ export default function LogForm({
       )}
 
       {unloggedPlanned.length > 0 && (
-        <div className="rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3">
-          <p className="mb-1 text-xs font-medium text-neutral-500">Not yet logged</p>
-          <ul className="flex flex-col gap-1 text-sm text-neutral-300">
+        <div className="rounded-xl bg-surface px-4 py-3">
+          <p className="mb-1 text-xs font-medium text-label-2">Not yet logged</p>
+          <ul className="flex flex-col gap-1 text-sm text-label">
             {unloggedPlanned.map((pe) => (
               <li key={pe.exerciseId} className="flex items-center justify-between">
                 <span>{pe.name}</span>
-                <span className="text-xs text-neutral-500">Planned</span>
+                <span className="text-xs text-label-2">Planned</span>
               </li>
             ))}
           </ul>
@@ -536,23 +540,38 @@ export default function LogForm({
 
       {entries.length > 0 && (
         <>
-          <div className="flex items-center justify-between text-sm text-neutral-400">
-            <span>
-              {completedCount} of {entries.length} exercise{entries.length === 1 ? "" : "s"} done
-            </span>
+          <div className="px-1">
+            <div className="mb-1.5 flex items-center justify-between text-sm text-label-2">
+              <span>
+                {completedCount} of {entries.length} exercise{entries.length === 1 ? "" : "s"} done
+              </span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-fill" aria-hidden>
+              <div
+                className="h-full rounded-full bg-green transition-[width] duration-500 ease-[var(--ease-spring)]"
+                style={{ width: `${(completedCount / entries.length) * 100}%` }}
+              />
+            </div>
           </div>
 
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col rounded-xl bg-surface p-1">
             {entries.map((e, i) => (
               <button
                 key={e.exerciseId}
                 type="button"
                 onClick={() => goTo(i)}
-                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm ${
-                  i === currentIndex ? "bg-neutral-800 text-neutral-100" : "text-neutral-400"
+                aria-current={i === currentIndex ? "step" : undefined}
+                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-base ${
+                  i === currentIndex ? "bg-fill font-semibold text-label" : "text-label-2"
                 }`}
               >
-                <span className="w-4">{e.done ? "✓" : i === currentIndex ? "→" : ""}</span>
+                <span
+                  className={`grid size-5 shrink-0 place-items-center rounded-full ${
+                    e.done ? "bg-green text-white" : i === currentIndex ? "border-2 border-tint" : "border-2 border-label-3"
+                  }`}
+                >
+                  {e.done && <Icon name="checkmark" className="size-3" strokeWidth={3} />}
+                </span>
                 {e.name}
               </button>
             ))}
@@ -586,24 +605,26 @@ export default function LogForm({
               type="button"
               onClick={() => goTo(Math.max(0, currentIndex - 1))}
               disabled={currentIndex === 0}
-              className="flex-1 rounded-lg border border-neutral-700 px-4 py-2.5 text-sm font-medium text-neutral-100 disabled:opacity-40"
+              className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-fill px-4 py-3 text-base font-semibold text-tint disabled:opacity-40"
             >
-              ← Previous
+              <Icon name="chevronLeft" className="size-5" strokeWidth={2.25} />
+              Previous
             </button>
             <button
               type="button"
               onClick={() => goTo(Math.min(entries.length - 1, currentIndex + 1))}
               disabled={currentIndex === entries.length - 1}
-              className="flex-1 rounded-lg border border-neutral-700 px-4 py-2.5 text-sm font-medium text-neutral-100 disabled:opacity-40"
+              className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-fill px-4 py-3 text-base font-semibold text-tint disabled:opacity-40"
             >
-              Next →
+              Next
+              <Icon name="chevronRight" className="size-5" strokeWidth={2.25} />
             </button>
           </div>
         </>
       )}
 
       {entries.length === 0 && !pickerOpen && (
-        <p className="text-sm text-neutral-500">
+        <p className="text-sm text-label-2">
           No exercises yet — add one below, or set up a schedule for this day first.
         </p>
       )}
@@ -619,9 +640,10 @@ export default function LogForm({
         <button
           type="button"
           onClick={() => setPickerOpen(true)}
-          className="rounded-lg border border-neutral-700 px-4 py-2.5 text-sm font-medium text-neutral-100"
+          className="flex items-center justify-center gap-1.5 rounded-lg bg-tint/12 px-4 py-3 text-base font-semibold text-tint"
         >
-          + Add exercise
+          <Icon name="plus" className="size-5" strokeWidth={2.5} />
+          Add exercise
         </button>
       )}
 
@@ -630,14 +652,14 @@ export default function LogForm({
         onChange={(e) => updateNotes(e.target.value)}
         placeholder="Notes (how did it feel?)"
         rows={3}
-        className="rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-base text-neutral-100 placeholder-neutral-500"
+        className="rounded-lg bg-fill px-3 py-2 text-base text-label placeholder-label-3"
       />
 
       {workoutCompleted ? (
         <button
           type="button"
           onClick={reopenWorkout}
-          className="rounded-xl border border-neutral-700 px-4 py-3 font-medium text-neutral-100"
+          className="rounded-xl bg-fill px-4 py-3.5 text-base font-semibold text-label"
         >
           Reopen workout
         </button>
@@ -645,7 +667,7 @@ export default function LogForm({
         <button
           type="button"
           onClick={finishWorkout}
-          className="rounded-xl bg-white px-4 py-3 font-medium text-neutral-900"
+          className="rounded-xl bg-tint px-4 py-3.5 text-base font-semibold text-white"
         >
           Finish workout
         </button>
@@ -684,12 +706,12 @@ function SaveStatus({
 
   if (state === "error") {
     return (
-      <div className="flex items-center justify-between rounded-lg border border-red-900 bg-red-950/40 px-3 py-2">
-        <p className="text-sm text-red-400">{error ?? "Couldn't save — your changes are kept here."}</p>
+      <div className="flex items-center justify-between rounded-lg bg-red/12 px-3 py-2">
+        <p className="text-sm text-red">{error ?? "Couldn't save — your changes are kept here."}</p>
         <button
           type="button"
           onClick={onRetry}
-          className="rounded-lg border border-red-800 px-3 py-1 text-xs font-medium text-red-300"
+          className="rounded-lg bg-red/12 px-3 py-1 text-xs font-medium text-red"
         >
           Retry
         </button>
@@ -698,7 +720,7 @@ function SaveStatus({
   }
 
   return (
-    <p className="text-xs text-neutral-500">
+    <p className="text-xs text-label-2">
       {state === "saving"
         ? offline
           ? "Offline — kept on this device, will sync when you're back online"

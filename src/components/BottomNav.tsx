@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Icon, { type IconName } from "@/components/Icon";
 
-const TABS = [
-  { href: "/", label: "Today", icon: "🏠" },
-  { href: "/calendar", label: "Calendar", icon: "📅" },
-  { href: "/history", label: "History", icon: "📖" },
-  { href: "/progress", label: "Progress", icon: "📈" },
-  { href: "/exercises", label: "Exercises", icon: "🏋️" },
-  { href: "/profile", label: "Profile", icon: "👤" },
+const TABS: { href: string; label: string; icon: IconName }[] = [
+  { href: "/", label: "Today", icon: "today" },
+  { href: "/calendar", label: "Calendar", icon: "calendar" },
+  { href: "/history", label: "History", icon: "history" },
+  { href: "/progress", label: "Progress", icon: "progress" },
+  { href: "/exercises", label: "Exercises", icon: "dumbbell" },
+  { href: "/profile", label: "Profile", icon: "person" },
 ];
 
 export default function BottomNav() {
@@ -24,20 +25,22 @@ export default function BottomNav() {
   )
     return null;
 
+  // A floating translucent tab bar: content scrolls underneath, the bar never consumes a fixed strip.
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-neutral-800 bg-neutral-950/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
-      <ul className="mx-auto flex max-w-md justify-around">
+    <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-20 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <ul className="material pointer-events-auto mx-auto flex max-w-md rounded-full border border-[var(--material-edge)] p-1 shadow-raised">
         {TABS.map((tab) => {
           const active = tab.href === "/" ? pathname === "/" : pathname.startsWith(tab.href);
           return (
             <li key={tab.href} className="flex-1">
               <Link
                 href={tab.href}
-                className={`flex flex-col items-center gap-0.5 py-2.5 text-xs font-medium ${
-                  active ? "text-white" : "text-neutral-500"
+                aria-current={active ? "page" : undefined}
+                className={`flex flex-col items-center gap-0.5 rounded-full py-1.5 text-[11px] font-medium tracking-normal ${
+                  active ? "bg-fill text-tint" : "text-label-2"
                 }`}
               >
-                <span className="text-lg leading-none">{tab.icon}</span>
+                <Icon name={tab.icon} className="size-6" strokeWidth={active ? 2.1 : 1.75} />
                 {tab.label}
               </Link>
             </li>

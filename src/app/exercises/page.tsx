@@ -11,8 +11,8 @@ export default async function ExercisesPage() {
   } = await supabase.auth.getUser();
 
   return (
-    <main className="px-4 pt-6">
-      <h1 className="mb-4 text-xl font-bold">Exercise Library</h1>
+    <main className="screen-enter px-4 pt-4">
+      <h1 className="mb-4 large-title">Exercise Library</h1>
 
       <ExerciseCreateForm muscleGroups={muscleGroups} />
 

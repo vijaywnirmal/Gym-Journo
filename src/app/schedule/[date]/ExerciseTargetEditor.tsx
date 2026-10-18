@@ -55,31 +55,31 @@ export default function ExerciseTargetEditor({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-neutral-100">Exercises</p>
+        <p className="text-sm font-semibold text-label">Exercises</p>
         <button
           type="button"
           onClick={() => setPickerOpen(true)}
-          className="rounded-lg border border-neutral-700 px-3 py-1.5 text-xs font-medium text-neutral-100"
+          className="rounded-lg bg-fill px-3 py-1.5 text-xs font-medium text-label"
         >
           + Add exercise
         </button>
       </div>
 
       {selected.size === 0 && !pickerOpen && (
-        <p className="text-sm text-neutral-500">No exercises added yet.</p>
+        <p className="text-sm text-label-2">No exercises added yet.</p>
       )}
 
       {[...selected.entries()].map(([id, targets]) => (
-        <div key={id} className="rounded-xl border border-neutral-800 p-3">
+        <div key={id} className="rounded-xl bg-surface p-3">
           <div className="mb-2 flex items-center justify-between">
-            <p className="font-medium text-neutral-100">
+            <p className="font-medium text-label">
               {exerciseById.get(id)?.name ?? "Exercise"}
             </p>
-            <button type="button" onClick={() => remove(id)} className="text-xs text-red-400">
+            <button type="button" onClick={() => remove(id)} className="text-xs text-red">
               Remove
             </button>
           </div>
-          <div className="flex flex-wrap items-center gap-3 text-sm text-neutral-300">
+          <div className="flex flex-wrap items-center gap-3 text-sm text-label">
             <label className="flex items-center gap-1.5">
               Sets
               <input
@@ -88,7 +88,7 @@ export default function ExerciseTargetEditor({
                 placeholder="optional"
                 value={targets.targetSets}
                 onChange={(e) => updateTarget(id, "targetSets", e.target.value)}
-                className="w-20 rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-100 placeholder-neutral-600"
+                className="w-20 rounded-lg bg-fill px-2 py-1 text-label placeholder-label-3"
               />
             </label>
             <label className="flex items-center gap-1.5">
@@ -99,7 +99,7 @@ export default function ExerciseTargetEditor({
                 placeholder="optional"
                 value={targets.targetReps}
                 onChange={(e) => updateTarget(id, "targetReps", e.target.value)}
-                className="w-20 rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-100 placeholder-neutral-600"
+                className="w-20 rounded-lg bg-fill px-2 py-1 text-label placeholder-label-3"
               />
             </label>
             <label className="flex items-center gap-1.5">
@@ -112,12 +112,12 @@ export default function ExerciseTargetEditor({
                 placeholder="optional"
                 value={targets.targetWeight}
                 onChange={(e) => updateTarget(id, "targetWeight", e.target.value)}
-                className="w-20 rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-100 placeholder-neutral-600"
+                className="w-20 rounded-lg bg-fill px-2 py-1 text-label placeholder-label-3"
               />
               <select
                 value={targets.targetWeightUnit}
                 onChange={(e) => updateTarget(id, "targetWeightUnit", e.target.value)}
-                className="rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-100"
+                className="rounded-lg bg-fill px-2 py-1 text-label"
               >
                 <option value="kg">kg</option>
                 <option value="lb">lb</option>

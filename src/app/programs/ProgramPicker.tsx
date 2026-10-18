@@ -21,7 +21,7 @@ export default function ProgramPicker({ programs, today }: { programs: Program[]
   return (
     <div className="flex flex-col gap-3 pb-6">
       {programs.map((program) => (
-        <div key={program.id} className="rounded-xl border border-neutral-800">
+        <div key={program.id} className="rounded-xl bg-surface">
           <button
             type="button"
             onClick={() => setSelectedId(selectedId === program.id ? null : program.id)}
@@ -29,12 +29,12 @@ export default function ProgramPicker({ programs, today }: { programs: Program[]
             className="w-full px-4 py-3 text-left"
           >
             <div className="flex items-baseline justify-between gap-2">
-              <p className="font-semibold text-neutral-100">{program.name}</p>
-              <span className="shrink-0 text-xs text-neutral-500">
+              <p className="font-semibold text-label">{program.name}</p>
+              <span className="shrink-0 text-xs text-label-2">
                 {program.defaultWeekdays.length}×/week · {program.level}
               </span>
             </div>
-            <p className="mt-1 text-sm text-neutral-400">{program.summary}</p>
+            <p className="mt-1 text-sm text-label-2">{program.summary}</p>
           </button>
           {selected?.id === program.id && (
             // Keyed so switching programs resets the form to that program's defaults.
@@ -76,16 +76,16 @@ function ProgramForm({ program, today }: { program: Program; today: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-3 border-t border-neutral-800 px-4 py-3">
+    <div className="flex flex-col gap-3 border-t border-separator px-4 py-3">
       <details>
-        <summary className="cursor-pointer text-xs text-neutral-400">
+        <summary className="cursor-pointer text-xs text-label-2">
           {program.days.length} workout{program.days.length === 1 ? "" : "s"} in rotation
         </summary>
         <ul className="mt-2 flex flex-col gap-2">
           {program.days.map((day) => (
             <li key={day.title} className="text-sm">
-              <p className="font-medium text-neutral-200">{day.title}</p>
-              <p className="text-xs text-neutral-400">
+              <p className="font-medium text-label">{day.title}</p>
+              <p className="text-xs text-label-2">
                 {day.exercises.map((e) => `${e.name} ${e.sets}×${e.reps}`).join(" · ")}
               </p>
             </li>
@@ -93,7 +93,7 @@ function ProgramForm({ program, today }: { program: Program; today: string }) {
         </ul>
       </details>
 
-      <label className="flex items-center justify-between gap-2 text-sm text-neutral-300">
+      <label className="flex items-center justify-between gap-2 text-sm text-label">
         Start
         <input
           type="date"
@@ -103,12 +103,12 @@ function ProgramForm({ program, today }: { program: Program; today: string }) {
             setResult(null);
             setStartDate(e.target.value);
           }}
-          className="rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-base text-neutral-100"
+          className="rounded-lg bg-fill px-2 py-1.5 text-base text-label"
         />
       </label>
 
       <div>
-        <p className="mb-1 text-sm text-neutral-300">Training days</p>
+        <p className="mb-1 text-sm text-label">Training days</p>
         <div className="flex gap-1" role="group" aria-label="Training days">
           {WEEKDAY_LABELS.map((label, day) => (
             <button
@@ -117,7 +117,7 @@ function ProgramForm({ program, today }: { program: Program; today: string }) {
               onClick={() => toggleDay(day)}
               aria-pressed={weekdays.has(day)}
               className={`flex-1 rounded-md py-1.5 text-xs ${
-                weekdays.has(day) ? "bg-white font-semibold text-neutral-900" : "border border-neutral-700 text-neutral-400"
+                weekdays.has(day) ? "bg-tint font-semibold text-white" : "bg-fill text-label-2"
               }`}
             >
               {label}
@@ -126,7 +126,7 @@ function ProgramForm({ program, today }: { program: Program; today: string }) {
         </div>
       </div>
 
-      <label className="flex items-center justify-between gap-2 text-sm text-neutral-300">
+      <label className="flex items-center justify-between gap-2 text-sm text-label">
         Weeks
         <select
           value={weeks}
@@ -134,7 +134,7 @@ function ProgramForm({ program, today }: { program: Program; today: string }) {
             setResult(null);
             setWeeks(Number(e.target.value));
           }}
-          className="rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-base text-neutral-100"
+          className="rounded-lg bg-fill px-2 py-1.5 text-base text-label"
         >
           {Array.from({ length: MAX_PROGRAM_WEEKS - MIN_PROGRAM_WEEKS + 1 }, (_, i) => i + MIN_PROGRAM_WEEKS).map((w) => (
             <option key={w} value={w}>
@@ -145,11 +145,11 @@ function ProgramForm({ program, today }: { program: Program; today: string }) {
       </label>
 
       {schedule.length > 0 ? (
-        <div className="rounded-lg bg-neutral-900 px-3 py-2">
-          <p className="mb-1 text-xs text-neutral-500">
+        <div className="rounded-lg bg-fill px-3 py-2">
+          <p className="mb-1 text-xs text-label-2">
             {schedule.length} workouts · first {Math.min(PREVIEW_DAYS, schedule.length)}:
           </p>
-          <ul className="text-xs text-neutral-300">
+          <ul className="text-xs text-label">
             {schedule.slice(0, PREVIEW_DAYS).map((s) => (
               <li key={s.date}>
                 {formatDate(s.date)} — {s.day.title}
@@ -158,15 +158,15 @@ function ProgramForm({ program, today }: { program: Program; today: string }) {
           </ul>
         </div>
       ) : (
-        <p className="text-xs text-neutral-500">Pick at least one training day.</p>
+        <p className="text-xs text-label-2">Pick at least one training day.</p>
       )}
 
-      {result && "error" in result && <p className="text-sm text-red-400">{result.error}</p>}
+      {result && "error" in result && <p className="text-sm text-red">{result.error}</p>}
       {result && "success" in result && (
-        <div className="rounded-lg border border-green-900 bg-green-950/40 px-3 py-2 text-sm text-green-300" role="status">
+        <div className="rounded-lg bg-green/12 px-3 py-2 text-sm text-green" role="status">
           Scheduled {result.created} workout{result.created === 1 ? "" : "s"}
           {result.skipped > 0 && ` · skipped ${result.skipped} day${result.skipped === 1 ? "" : "s"} you'd already planned`}.{" "}
-          <Link href={`/calendar?week=${result.firstDate}`} className="underline">
+          <Link href={`/calendar?week=${result.firstDate}`} className="text-tint">
             See calendar
           </Link>
         </div>
@@ -176,7 +176,7 @@ function ProgramForm({ program, today }: { program: Program; today: string }) {
         type="button"
         onClick={apply}
         disabled={pending || schedule.length === 0 || (result !== null && "success" in result)}
-        className="rounded-xl bg-white px-4 py-2.5 text-sm font-medium text-neutral-900 disabled:opacity-40"
+        className="rounded-xl bg-tint px-4 py-2.5 text-sm font-medium text-white disabled:opacity-40"
       >
         {pending ? "Scheduling…" : "Schedule this program"}
       </button>

@@ -25,9 +25,9 @@ export default function DeleteAccountSection() {
   }
 
   return (
-    <div className="border-t border-red-950 pt-5">
-      <h2 className="mb-1 text-sm font-semibold text-red-400">Danger zone</h2>
-      <p className="mb-3 text-xs text-neutral-500">
+    <div className="mt-5 rounded-xl bg-surface p-4">
+      <h2 className="mb-1 text-base font-semibold text-red">Danger zone</h2>
+      <p className="mb-3 text-xs text-label-2">
         Permanently delete your account and all your data — exercises, workout plans, logs, AI
         plans, and Coach history. This cannot be undone.
       </p>
@@ -36,28 +36,28 @@ export default function DeleteAccountSection() {
         <button
           type="button"
           onClick={() => setConfirming(true)}
-          className="rounded-lg border border-red-900 px-4 py-2 text-sm font-medium text-red-400"
+          className="rounded-lg bg-red/12 px-4 py-2 text-sm font-medium text-red"
         >
           Delete my account
         </button>
       ) : (
         <div className="flex flex-col gap-2">
-          <p className="text-xs text-neutral-400">
-            Type <span className="font-mono text-red-400">DELETE</span> to confirm.
+          <p className="text-xs text-label-2">
+            Type <span className="font-mono text-red">DELETE</span> to confirm.
           </p>
           <input
             value={confirmText}
             onChange={(e) => setConfirmText(e.target.value)}
             placeholder="DELETE"
-            className="rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
+            className="rounded-lg bg-fill px-3 py-2 text-sm text-label"
           />
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <p className="text-sm text-red">{error}</p>}
           <div className="flex gap-2">
             <button
               type="button"
               onClick={handleDelete}
               disabled={pending || confirmText !== "DELETE"}
-              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
+              className="rounded-lg bg-red px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
             >
               {pending ? "Deleting..." : "Permanently delete"}
             </button>
@@ -68,7 +68,7 @@ export default function DeleteAccountSection() {
                 setConfirmText("");
                 setError(null);
               }}
-              className="rounded-lg border border-neutral-700 px-4 py-2 text-sm text-neutral-300"
+              className="rounded-lg bg-fill px-4 py-2 text-sm text-label"
             >
               Cancel
             </button>

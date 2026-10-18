@@ -30,26 +30,26 @@ export default function BodyProgressSummary({
   todayStr: string;
 }) {
   return (
-    <div className="rounded-xl border border-neutral-800 p-4">
-      <h2 className="mb-3 text-sm font-semibold text-neutral-200">
+    <div className="rounded-xl bg-surface p-4">
+      <h2 className="mb-3 text-base font-semibold text-label">
         Last {training.windowDays} days
       </h2>
 
       <div className="flex flex-col gap-3">
         <div>
           {training.daysPerformed === 0 ? (
-            <p className="text-sm text-neutral-500">
+            <p className="text-sm text-label-2">
               No workouts in the last {training.windowDays} days.
             </p>
           ) : (
-            <p className="text-sm text-neutral-300">
+            <p className="text-sm text-label">
               {training.daysPerformed} workout{training.daysPerformed === 1 ? "" : "s"} in the
               last {training.windowDays} days.
             </p>
           )}
           <p
             className={
-              lastWorkoutDate === null ? "mt-1 text-sm text-neutral-500" : "mt-1 text-sm text-neutral-300"
+              lastWorkoutDate === null ? "mt-1 text-sm text-label-2" : "mt-1 text-sm text-label"
             }
           >
             {formatLastWorkout(lastWorkoutDate, todayStr)}
