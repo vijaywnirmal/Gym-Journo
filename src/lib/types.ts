@@ -21,6 +21,9 @@ export type Profile = {
   coach_consent_at: string | null;
   // IANA timezone from the person's device; defines their "today". Null = not known yet.
   timezone: string | null;
+  // Workout reminders over web push (migration 0030). reminder_time is local, "HH:MM:SS".
+  workout_reminders?: boolean;
+  reminder_time?: string;
   onboarded: boolean;
 };
 
@@ -31,6 +34,7 @@ export type Exercise = {
   equipment: string | null;
   notes: string | null;
   instructions?: string | null;
+  demo_images?: string[] | null;
   muscle_groups?: MuscleGroup[];
 };
 
@@ -40,6 +44,10 @@ export type WorkoutPlan = {
   date: string;
   title: string | null;
   is_rest_day: boolean;
+  // 'rest' | 'absence' on a day off (migration 0029); see lib/dayType.ts.
+  off_kind?: string | null;
+  // The day off was marked after its date had passed (set by the database).
+  off_marked_late?: boolean;
   muscle_groups?: MuscleGroup[];
   planned_exercises?: PlannedExercise[];
 };

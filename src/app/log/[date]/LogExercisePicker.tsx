@@ -1,20 +1,18 @@
 "use client";
 
-import type { Exercise } from "@/lib/types";
-import ExerciseSearchList from "@/components/ExerciseSearchList";
+import type { ExerciseListItem } from "@/lib/exerciseLibrary";
+import ExerciseLibraryBrowser from "@/components/exercise-library/ExerciseLibraryBrowser";
 import Icon from "@/components/Icon";
 
-// Adding an exercise here takes effect immediately (this session's log), rather than building up
-// a selection to confirm, since there's no separate "apply" step during execution.
+// Browse or search the library and add an exercise to this session's log. Adding takes effect
+// immediately (there's no separate "apply" step during a workout), unlike the schedule picker.
 export default function LogExercisePicker({
-  exercises,
   alreadyAdded,
   onAdd,
   onCancel,
 }: {
-  exercises: Exercise[];
   alreadyAdded: Set<string>;
-  onAdd: (exerciseId: string) => void;
+  onAdd: (exercise: ExerciseListItem) => void;
   onCancel: () => void;
 }) {
   return (
@@ -30,23 +28,37 @@ export default function LogExercisePicker({
           <Icon name="close" className="size-4" strokeWidth={2.25} />
         </button>
       </div>
-      <ExerciseSearchList
-        exercises={exercises}
+      <ExerciseLibraryBrowser
         autoFocus
-        isSelected={(ex) => alreadyAdded.has(ex.id)}
-        onRowClick={(ex) => !alreadyAdded.has(ex.id) && onAdd(ex.id)}
-        renderAction={(ex) =>
-          alreadyAdded.has(ex.id) ? (
-            <span className="flex items-center gap-1 text-xs font-medium text-label-3">
-              <Icon name="checkmark" className="size-3.5" strokeWidth={2.5} />
-              Added
-            </span>
-          ) : (
-            <span className="grid size-7 place-items-center rounded-md bg-accent/10 text-link" aria-hidden>
-              <Icon name="plus" className="size-4" strokeWidth={2.5} />
-            </span>
-          )
-        }
+        resultsClassName="max-h-[22rem] overflow-y-auto overscroll-contain"
+        renderExercise={(exercise) => {
+          const added = alreadyAdded.has(exercise.id);
+          return (
+            <button
+              type="button"
+              disabled={added}
+              onClick={() => onAdd(exercise)}
+              className="flex w-full items-center gap-3 px-4 py-2.5 text-left enabled:hover:bg-fill"
+            >
+              <span className="min-w-0 flex-1">
+                <span className={`block truncate text-sm font-medium ${added ? "text-label-3" : ""}`}>
+                  {exercise.name}
+                </span>
+                {exercise.equipment && <span className="block truncate text-xs text-label-3">{exercise.equipment}</span>}
+              </span>
+              {added ? (
+                <span className="flex items-center gap-1 text-xs font-medium text-label-3">
+                  <Icon name="checkmark" className="size-3.5" strokeWidth={2.5} />
+                  Added
+                </span>
+              ) : (
+                <span className="grid size-7 place-items-center rounded-md bg-accent/10 text-link" aria-hidden>
+                  <Icon name="plus" className="size-4" strokeWidth={2.5} />
+                </span>
+              )}
+            </button>
+          );
+        }}
       />
     </section>
   );

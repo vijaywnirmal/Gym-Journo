@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getExercises, getMuscleGroups, getPlanForDate, getTemplates } from "@/lib/queries";
+import { getMuscleGroups, getPlanForDate, getTemplates } from "@/lib/queries";
 import { formatDate, isValidIsoDate } from "@/lib/date";
 import PageHeader from "@/components/PageHeader";
 import ScheduleForm from "./ScheduleForm";
@@ -11,9 +11,8 @@ export default async function SchedulePage({
 }) {
   const { date } = await params;
   if (!isValidIsoDate(date)) notFound();
-  const [muscleGroups, exercises, plan, templates] = await Promise.all([
+  const [muscleGroups, plan, templates] = await Promise.all([
     getMuscleGroups(),
-    getExercises(),
     getPlanForDate(date),
     getTemplates(),
   ]);
@@ -28,7 +27,6 @@ export default async function SchedulePage({
       <ScheduleForm
         date={date}
         muscleGroups={muscleGroups}
-        exercises={exercises}
         existingPlan={plan}
         templates={templates}
       />

@@ -2,21 +2,15 @@ import { createClient } from "@/lib/supabase/server";
 import { shiftDate, weekDates } from "@/lib/date";
 import { suggestOverload, type OverloadSuggestion } from "@/lib/analyze/overload";
 import {
-  countMuscleSets,
   planAdherence,
+  toMuscleSets,
+  type MuscleSetCountRow,
   type MuscleSets,
-  type MuscleSetsLog,
   type PlanAdherence,
 } from "@/lib/analyze/weeklyInsights";
 import { getToday } from "@/lib/userDate";
-import {
-  isPerformedExercise,
-  isWorkoutDay,
-  performedWorkoutDates,
-  windowStart,
-  type SetLike,
-  type WorkoutLogLike,
-} from "@/lib/analyze/definitions";
+import { windowStart } from "@/lib/analyze/definitions";
+import { dayTypeOf, type DayType } from "@/lib/dayType";
 import {
   buildWeeklyTrainingDays,
   COMPLETED_WEEKS,
@@ -38,7 +32,6 @@ import {
   type SessionSourceLog,
 } from "@/lib/analyze/exerciseSessions";
 import type {
-  Exercise,
   MuscleGroup,
   WorkoutPlan,
   WorkoutLog,
@@ -141,7 +134,7 @@ export async function getUpcomingScheduleSummary(days: number): Promise<string> 
 
   const { data } = await supabase
     .from("workout_plans")
-    .select("date, title, is_rest_day, workout_plan_muscle_groups(muscle_group:muscle_groups(name))")
+    .select("date, title, is_rest_day, off_kind, workout_plan_muscle_groups(muscle_group:muscle_groups(name))")
     .eq("user_id", user.id)
     .gte("date", todayStr)
     .lte("date", untilStr)
@@ -151,6 +144,7 @@ export async function getUpcomingScheduleSummary(days: number): Promise<string> 
     date: string;
     title: string | null;
     is_rest_day: boolean;
+    off_kind?: string | null;
     workout_plan_muscle_groups: { muscle_group: { name: string } | null }[];
   };
   const rows = (data ?? []) as unknown as Row[];
@@ -159,7 +153,10 @@ export async function getUpcomingScheduleSummary(days: number): Promise<string> 
 
   return rows
     .map((row) => {
-      if (row.is_rest_day) return `${row.date}: Rest day${row.title ? ` (${row.title})` : ""}`;
+      if (row.is_rest_day) {
+        const label = dayTypeOf(row) === "absence" ? "Absence" : "Rest day";
+        return `${row.date}: ${label}${row.title ? ` (${row.title})` : ""}`;
+      }
       const muscles = row.workout_plan_muscle_groups
         .map((m) => m.muscle_group?.name)
         .filter(Boolean)
@@ -180,16 +177,6 @@ export async function getProfile(): Promise<Profile | null> {
   return data;
 }
 
-type ExerciseRow = {
-  id: string;
-  user_id: string | null;
-  name: string;
-  equipment: string | null;
-  notes: string | null;
-  instructions?: string | null;
-  exercise_muscle_groups: { muscle_group: MuscleGroup }[];
-};
-
 export async function getMuscleGroups(): Promise<MuscleGroup[]> {
   const supabase = await createClient();
   const { data, error } = await supabase.from("muscle_groups").select("*").order("name");
@@ -197,25 +184,56 @@ export async function getMuscleGroups(): Promise<MuscleGroup[]> {
   return data ?? [];
 }
 
-export async function getExercises(): Promise<Exercise[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("exercises")
-    .select(
-      "id, user_id, name, equipment, notes, instructions, exercise_muscle_groups(muscle_group:muscle_groups(id, name))"
-    )
-    .order("name");
-  if (error) throw error;
+// The library is too large to load whole; these read only the exercises a caller needs. Row-level
+// security limits every one to what the person can see: the shared library and their own.
 
-  return ((data ?? []) as unknown as ExerciseRow[]).map((row) => ({
-    id: row.id,
-    user_id: row.user_id,
-    name: row.name,
-    equipment: row.equipment,
-    notes: row.notes,
-    instructions: row.instructions ?? null,
-    muscle_groups: row.exercise_muscle_groups.map((r) => r.muscle_group),
-  }));
+// Of `ids`, the ones this person can see. Null on a query error.
+export async function findVisibleExerciseIds(ids: string[]): Promise<Set<string> | null> {
+  if (ids.length === 0) return new Set();
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("exercises").select("id").in("id", [...new Set(ids)]);
+  if (error || !data) return null;
+  return new Set(data.map((row) => row.id as string));
+}
+
+// Whether an exercise this person can see already has this name, ignoring case and surrounding
+// whitespace. Null on a query error.
+export async function visibleExerciseNamed(name: string): Promise<boolean | null> {
+  const supabase = await createClient();
+  const pattern = name.trim().replace(/[\\%_]/g, "\\$&"); // match literally, not as a LIKE pattern
+  const { data, error } = await supabase.from("exercises").select("id").ilike("name", pattern).limit(1);
+  if (error || !data) return null;
+  return data.length > 0;
+}
+
+// Names for the given exercise ids (ids this person can't see are left out).
+export async function getExerciseNames(ids: string[]): Promise<Map<string, string>> {
+  if (ids.length === 0) return new Map();
+  const supabase = await createClient();
+  const { data } = await supabase.from("exercises").select("id, name").in("id", [...new Set(ids)]);
+  return new Map((data ?? []).map((row) => [row.id as string, row.name as string]));
+}
+
+export type ExerciseOption = { id: string; name: string };
+
+// The exercises this person has logged at least once, by name — for the History and Progress
+// filters (logged_exercise_options, migration 0028). [] on a query error.
+export async function getLoggedExerciseOptions(): Promise<ExerciseOption[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("logged_exercise_options");
+  if (error || !data) return [];
+  return data as ExerciseOption[];
+}
+
+// Options for an exercise filter: the logged exercises, plus the selected one if it hasn't been
+// logged yet (e.g. opened from the logger's "View history" link), so the filter can show it.
+export async function getExerciseFilterOptions(selectedId?: string): Promise<ExerciseOption[]> {
+  const [logged, selectedName] = await Promise.all([
+    getLoggedExerciseOptions(),
+    selectedId ? getExerciseNames([selectedId]).then((names) => names.get(selectedId)) : undefined,
+  ]);
+  if (!selectedId || !selectedName || logged.some((option) => option.id === selectedId)) return logged;
+  return [{ id: selectedId, name: selectedName }, ...logged];
 }
 
 export async function getTemplates(): Promise<WorkoutTemplate[]> {
@@ -279,7 +297,10 @@ export type WeekDayOverview = {
   title: string | null;
   performed: boolean;
   completed: boolean;
-  isRestDay: boolean;
+  // What was scheduled: null when nothing was.
+  dayType: DayType | null;
+  // A day off marked after its date had passed.
+  markedLate: boolean;
 };
 
 export async function getWeekOverview(dates: string[]) {
@@ -289,37 +310,43 @@ export async function getWeekOverview(dates: string[]) {
   } = await supabase.auth.getUser();
   if (!user) return new Map<string, WeekDayOverview>();
 
-  const [{ data: plans }, { data: logs }] = await Promise.all([
+  const todayStr = await getToday();
+  const sorted = [...dates].sort();
+  // Future dates are never workout days, so the performed range stops at today.
+  const performedTo = sorted[sorted.length - 1] < todayStr ? sorted[sorted.length - 1] : todayStr;
+  const [{ data: plans }, { data: logs }, performed] = await Promise.all([
     supabase
       .from("workout_plans")
-      .select("date, title, is_rest_day")
+      .select("date, title, is_rest_day, off_kind, off_marked_late")
       .eq("user_id", user.id)
       .in("date", dates),
     supabase
       .from("workout_logs")
-      .select("date, completed_at, logged_exercises(logged_sets(reps, weight))")
+      .select("date, completed_at")
       .eq("user_id", user.id)
       .in("date", dates),
+    sorted.length > 0 && sorted[0] <= performedTo
+      ? fetchPerformedWorkoutDates(supabase, sorted[0], performedTo)
+      : Promise.resolve([] as string[]),
   ]);
+  const performedDates = new Set(performed ?? []);
 
   const overview = new Map<string, WeekDayOverview>();
   for (const date of dates) {
-    overview.set(date, { title: null, performed: false, completed: false, isRestDay: false });
+    overview.set(date, { title: null, performed: false, completed: false, dayType: null, markedLate: false });
   }
   for (const plan of plans ?? []) {
     overview.set(plan.date, {
       ...overview.get(plan.date)!,
       title: plan.title,
-      isRestDay: plan.is_rest_day,
+      dayType: dayTypeOf(plan),
+      markedLate: !!plan.off_marked_late,
     });
   }
-  const todayStr = await getToday();
-  for (const log of (logs ?? []) as unknown as (WorkoutLogLike & {
-    completed_at: string | null;
-  })[]) {
+  for (const log of (logs ?? []) as { date: string; completed_at: string | null }[]) {
     overview.set(log.date, {
       ...overview.get(log.date)!,
-      performed: isWorkoutDay(log, todayStr),
+      performed: performedDates.has(log.date),
       completed: !!log.completed_at,
     });
   }
@@ -417,37 +444,6 @@ export async function getExerciseSessions(exerciseId: string): Promise<ExerciseS
   return buildExerciseSessions(data as unknown as SessionSourceLog[], exerciseId, todayStr);
 }
 
-// The exercises the person performed most recently (newest first, each once), for "recently
-// performed" shortcuts. Looks at the last few weeks of logs on or before today.
-export async function getRecentlyPerformedExerciseIds(limit = 8): Promise<string[]> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return [];
-
-  const todayStr = await getToday();
-  const { data, error } = await supabase
-    .from("workout_logs")
-    .select("date, logged_exercises(exercise_id, position, logged_sets(reps, weight))")
-    .eq("user_id", user.id)
-    .lte("date", todayStr)
-    .order("date", { ascending: false })
-    .limit(20);
-  if (error || !data) return [];
-
-  type Row = { logged_exercises: { exercise_id: string; position: number; logged_sets: SetLike[] | null }[] | null };
-  const ids: string[] = [];
-  for (const log of data as unknown as Row[]) {
-    const exercises = [...(log.logged_exercises ?? [])].sort((a, b) => a.position - b.position);
-    for (const le of exercises) {
-      if (!ids.includes(le.exercise_id) && isPerformedExercise(le)) ids.push(le.exercise_id);
-      if (ids.length >= limit) return ids;
-    }
-  }
-  return ids;
-}
-
 export type LastCompletedLog = {
   date: string;
   title: string | null;
@@ -533,11 +529,25 @@ export type TrainingConsistency = {
   daysPerformed: number;
 };
 
+type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
+
+// Workout days (analyze/definitions.ts) in [from, to], ascending, computed by the database
+// (performed_workout_dates, migration 0026) so only dates come back, not every set. Pass the
+// person's today as `to` — future-dated logs are never workout days. Null on a query error.
+async function fetchPerformedWorkoutDates(
+  supabase: SupabaseClient,
+  from: string | null,
+  to: string
+): Promise<string[] | null> {
+  const { data, error } = await supabase.rpc("performed_workout_dates", { p_from: from, p_to: to });
+  if (error || !data) return null;
+  return (data as { date: string }[]).map((row) => row.date);
+}
+
 // Count of distinct workout days (see analyze/definitions.ts: a performed, non-future log) in the
 // inclusive N-calendar-day window ending today. A log row that exists but holds no performed set
 // — empty, or only blank planned sets — is not a workout day. completed_at and planned/freeform
-// are irrelevant. workout_logs.date is already unique per user (0001_init.sql); the Set keeps the
-// result a count of dates regardless.
+// are irrelevant. workout_logs.date is unique per user (0001_init.sql), so each date counts once.
 export async function getTrainingConsistency(windowDays = 28): Promise<TrainingConsistency> {
   const supabase = await createClient();
   const {
@@ -546,17 +556,8 @@ export async function getTrainingConsistency(windowDays = 28): Promise<TrainingC
   if (!user) return { windowDays, daysPerformed: 0 };
 
   const todayStr = await getToday();
-  const { data, error } = await supabase
-    .from("workout_logs")
-    .select("date, logged_exercises(logged_sets(reps, weight))")
-    .eq("user_id", user.id)
-    .gte("date", windowStart(windowDays, todayStr))
-    .lte("date", todayStr);
-
-  if (error) return { windowDays, daysPerformed: 0 };
-
-  const performedDates = performedWorkoutDates((data ?? []) as unknown as WorkoutLogLike[], todayStr);
-  return { windowDays, daysPerformed: performedDates.size };
+  const dates = await fetchPerformedWorkoutDates(supabase, windowStart(windowDays, todayStr), todayStr);
+  return { windowDays, daysPerformed: dates?.length ?? 0 };
 }
 
 // The distinct workout dates (canonical definition: performed, not in the future) from `sinceDate`
@@ -569,17 +570,7 @@ export async function getPerformedWorkoutDates(sinceDate: string): Promise<strin
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const todayStr = await getToday();
-  const { data, error } = await supabase
-    .from("workout_logs")
-    .select("date, logged_exercises(logged_sets(reps, weight))")
-    .eq("user_id", user.id)
-    .gte("date", sinceDate)
-    .lte("date", todayStr);
-
-  if (error) return null;
-
-  return [...performedWorkoutDates((data ?? []) as unknown as WorkoutLogLike[], todayStr)].sort();
+  return fetchPerformedWorkoutDates(supabase, sinceDate, await getToday());
 }
 
 // Workout days per Sunday–Saturday calendar week for the current (in-progress) week and the most
@@ -589,19 +580,37 @@ export async function getWeeklyTrainingDays(
   completedWeeks = COMPLETED_WEEKS
 ): Promise<WeeklyTrainingDays[]> {
   const todayStr = await getToday();
-  const dates = await getPerformedWorkoutDates(oldestWeekStart(todayStr, completedWeeks));
+  const since = oldestWeekStart(todayStr, completedWeeks);
+  const [dates, absences] = await Promise.all([getPerformedWorkoutDates(since), getAbsenceDates(since, todayStr)]);
   if (dates === null) return [];
-  return buildWeeklyTrainingDays(new Set(dates), todayStr, completedWeeks);
+  return buildWeeklyTrainingDays(new Set(dates), todayStr, completedWeeks, new Set(absences));
+}
+
+// Dates marked as an absence (sick, travel, injury) in [from, to]. [] when signed out or on a
+// query error — the streak then simply isn't paused by them.
+export async function getAbsenceDates(from: string, to: string): Promise<string[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from("workout_plans")
+    .select("date")
+    .eq("user_id", user.id)
+    .eq("off_kind", "absence")
+    .gte("date", from)
+    .lte("date", to);
+  if (error || !data) return [];
+  return data.map((row) => row.date as string);
 }
 
 export type LastPerformedWorkout = { date: string | null };
 
-const LAST_WORKOUT_PAGE_SIZE = 30;
-
 // The most recent workout day — a performed, non-future log — for a purely factual "when did you
 // last work out" observation. Not "last completed workout" (that is getLastCompletedLog, which
-// keys off completed_at): a performed but never-completed session counts here. Walks back a page
-// at a time past any blank/empty logs.
+// keys off completed_at): a performed but never-completed session counts here.
 export async function getLastPerformedWorkoutDate(): Promise<LastPerformedWorkout> {
   const supabase = await createClient();
   const {
@@ -609,28 +618,12 @@ export async function getLastPerformedWorkoutDate(): Promise<LastPerformedWorkou
   } = await supabase.auth.getUser();
   if (!user) return { date: null };
 
-  const todayStr = await getToday();
-  let before: string | null = null;
-  for (;;) {
-    let query = supabase
-      .from("workout_logs")
-      .select("date, logged_exercises(logged_sets(reps, weight))")
-      .eq("user_id", user.id)
-      .lte("date", todayStr)
-      .order("date", { ascending: false })
-      .limit(LAST_WORKOUT_PAGE_SIZE);
-    if (before) query = query.lt("date", before);
-
-    const { data, error } = await query;
-    if (error || !data) return { date: null };
-    const rows = data as unknown as WorkoutLogLike[];
-
-    const latest = rows.find((row) => isWorkoutDay(row, todayStr));
-    if (latest) return { date: latest.date };
-
-    if (rows.length < LAST_WORKOUT_PAGE_SIZE) return { date: null };
-    before = rows[rows.length - 1].date;
-  }
+  const { data, error } = await supabase
+    .rpc("performed_workout_dates", { p_from: null, p_to: await getToday() })
+    .order("date", { ascending: false })
+    .limit(1);
+  if (error || !data) return { date: null };
+  return { date: (data as { date: string }[])[0]?.date ?? null };
 }
 
 // All of a user's historical weight entries, newest first. Small, unpaginated data volume (at
@@ -696,13 +689,12 @@ export async function getTrainingEvidence(): Promise<TrainingEvidence | null> {
   if (!user) return null;
 
   const todayStr = await getToday();
-  const [profile, performedDates, lastPerformed, measurements, exercises, recentLogs] =
+  const [profile, performedDates, lastPerformed, measurements, recentLogs] =
     await Promise.all([
       getProfile(),
       getPerformedWorkoutDates(oldestWeekStart(todayStr)),
       getLastPerformedWorkoutDate(),
       getBodyMeasurements(),
-      getExercises(),
       supabase
         .from("workout_logs")
         .select("date, logged_exercises(exercise_id, logged_sets(reps, weight))")
@@ -718,8 +710,10 @@ export async function getTrainingEvidence(): Promise<TrainingEvidence | null> {
     todayStr
   );
   const chosenIds = recentIds.slice(0, MAX_EVIDENCE_EXERCISES);
-  const namesById = new Map(exercises.map((ex) => [ex.id, ex.name]));
-  const sessions = await Promise.all(chosenIds.map((id) => getExerciseSessions(id)));
+  const [namesById, sessions] = await Promise.all([
+    getExerciseNames(chosenIds),
+    Promise.all(chosenIds.map((id) => getExerciseSessions(id))),
+  ]);
 
   return buildTrainingEvidence({
     todayStr,
@@ -780,16 +774,6 @@ export type WeeklyInsights = {
 
 export const ADHERENCE_WINDOW_DAYS = 28;
 
-type MuscleSetsRow = {
-  date: string;
-  logged_exercises:
-    | {
-        exercise: { exercise_muscle_groups: { muscle_group: { id: string; name: string } | null }[] } | null;
-        logged_sets: { reps: number | null; weight: number | null; set_type?: string | null }[] | null;
-      }[]
-    | null;
-};
-
 // Everything the Today screen's "This week" card shows — see analyze/weeklyInsights.ts. Weeks are
 // Sunday–Saturday, like Calendar. Null when signed out or when the workout history can't be read.
 export async function getWeeklyInsights(): Promise<WeeklyInsights | null> {
@@ -804,15 +788,9 @@ export async function getWeeklyInsights(): Promise<WeeklyInsights | null> {
   const lastWeekStart = shiftDate(thisWeekStart, -7);
   const adherenceStart = shiftDate(todayStr, -(ADHERENCE_WINDOW_DAYS - 1));
 
-  const [logsResult, plansResult, weeks, performedDates] = await Promise.all([
-    supabase
-      .from("workout_logs")
-      .select(
-        "date, logged_exercises(exercise:exercises(exercise_muscle_groups(muscle_group:muscle_groups(id, name))), logged_sets(reps, weight, set_type))"
-      )
-      .eq("user_id", user.id)
-      .gte("date", lastWeekStart)
-      .lte("date", todayStr),
+  const [thisWeekResult, lastWeekResult, plansResult, weeks, performedDates] = await Promise.all([
+    supabase.rpc("muscle_set_counts", { p_from: thisWeekStart, p_to: todayStr }),
+    supabase.rpc("muscle_set_counts", { p_from: lastWeekStart, p_to: shiftDate(thisWeekStart, -1) }),
     supabase
       .from("workout_plans")
       .select("date")
@@ -824,21 +802,19 @@ export async function getWeeklyInsights(): Promise<WeeklyInsights | null> {
     getPerformedWorkoutDates(adherenceStart),
   ]);
 
-  if (logsResult.error || !logsResult.data || performedDates === null) return null;
-
-  const logs: MuscleSetsLog[] = (logsResult.data as unknown as MuscleSetsRow[]).map((row) => ({
-    date: row.date,
-    logged_exercises: (row.logged_exercises ?? []).map((le) => ({
-      muscle_groups: (le.exercise?.exercise_muscle_groups ?? [])
-        .map((emg) => emg.muscle_group)
-        .filter((mg): mg is { id: string; name: string } => mg !== null),
-      logged_sets: le.logged_sets,
-    })),
-  }));
+  if (
+    thisWeekResult.error ||
+    !thisWeekResult.data ||
+    lastWeekResult.error ||
+    !lastWeekResult.data ||
+    performedDates === null
+  ) {
+    return null;
+  }
 
   return {
-    thisWeek: countMuscleSets(logs, thisWeekStart, todayStr),
-    lastWeek: countMuscleSets(logs, lastWeekStart, shiftDate(thisWeekStart, -1)),
+    thisWeek: toMuscleSets(thisWeekResult.data as MuscleSetCountRow[]),
+    lastWeek: toMuscleSets(lastWeekResult.data as MuscleSetCountRow[]),
     weeks,
     adherence: plansResult.error
       ? null

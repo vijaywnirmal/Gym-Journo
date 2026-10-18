@@ -16,6 +16,8 @@ export type WeeklyTrainingDays = {
   // The workout dates counted in daysPerformed (ascending) — the source records, so the count can
   // be verified.
   performedDates: string[];
+  // Days marked as an absence (sick, travel, injury) with no workout, up to today (ascending).
+  absenceDates: string[];
   isCurrentWeek: boolean;
 };
 
@@ -24,11 +26,13 @@ export function oldestWeekStart(todayStr: string, completedWeeks: number = COMPL
   return shiftDate(weekDates(todayStr)[0], -7 * completedWeeks);
 }
 
-// The current week followed by the `completedWeeks` weeks before it, newest first.
+// The current week followed by the `completedWeeks` weeks before it, newest first. A day with a
+// workout counts as performed even if it was also marked an absence.
 export function buildWeeklyTrainingDays(
   performedDates: ReadonlySet<string>,
   todayStr: string = today(),
-  completedWeeks: number = COMPLETED_WEEKS
+  completedWeeks: number = COMPLETED_WEEKS,
+  absenceDates: ReadonlySet<string> = new Set()
 ): WeeklyTrainingDays[] {
   const currentWeekStart = weekDates(todayStr)[0];
 
@@ -36,11 +40,13 @@ export function buildWeeklyTrainingDays(
     const weekStart = shiftDate(currentWeekStart, -7 * i);
     const days = weekDates(weekStart);
     const performed = days.filter((d) => d <= todayStr && performedDates.has(d));
+    const absent = days.filter((d) => d <= todayStr && absenceDates.has(d) && !performedDates.has(d));
     return {
       weekStart,
       weekEnd: days[6],
       daysPerformed: performed.length,
       performedDates: performed,
+      absenceDates: absent,
       isCurrentWeek: i === 0,
     };
   });

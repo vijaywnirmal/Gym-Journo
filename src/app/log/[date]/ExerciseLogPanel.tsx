@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useId, useState } from "react";
 import Icon from "@/components/Icon";
 import Select from "@/components/ui/Select";
-import { useState } from "react";
+import ExerciseTutorialPanel from "@/components/exercise-library/ExerciseTutorialPanel";
 import { calculatePlates, formatPlates, isPlateUnit } from "@/lib/plates";
 import {
   MAX_EXERCISE_NOTE_LENGTH,
@@ -183,6 +184,8 @@ export default function ExerciseLogPanel({
   onToggleSetDone,
 }: Props) {
   const [showPlates, setShowPlates] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const tutorialPanelId = useId();
   const canCopyPrevious = !!previous && previous.sets.length > 0 && countLoggedSets(entry.sets) === 0;
   const target = targetLabel(entry.target);
   const comparisons = compareSets(entry.sets, previous);
@@ -202,6 +205,15 @@ export default function ExerciseLogPanel({
           </p>
         </div>
         <div className="flex shrink-0 items-center">
+          <button
+            type="button"
+            onClick={() => setShowTutorial((value) => !value)}
+            aria-expanded={showTutorial}
+            aria-controls={tutorialPanelId}
+            className="flex h-8 items-center rounded-lg px-2.5 text-sm font-medium text-link hover:bg-fill"
+          >
+            {showTutorial ? "Hide how-to" : "How to"}
+          </button>
           <Link
             href={exerciseHistoryHref(entry.exerciseId)}
             className="flex h-8 items-center rounded-lg px-2.5 text-sm font-medium text-link hover:bg-fill"
@@ -218,6 +230,12 @@ export default function ExerciseLogPanel({
           </button>
         </div>
       </div>
+
+      {showTutorial && (
+        <div className="mb-3 rounded-lg border border-separator p-3">
+          <ExerciseTutorialPanel key={entry.exerciseId} exerciseId={entry.exerciseId} panelId={tutorialPanelId} />
+        </div>
+      )}
 
       {previous === undefined ? (
         <div className="skeleton mb-3 h-11" aria-label="Loading last time" />

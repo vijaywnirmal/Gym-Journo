@@ -37,6 +37,8 @@ export type WeeklyTrainingRow = {
   // Null for the in-progress week (a partial week has no meaningful difference) and when no
   // weekly target is set.
   differenceLine: string | null;
+  // Null when no day that week was marked as an absence.
+  absenceLine: string | null;
 };
 
 export function buildWeeklyTrainingRows(
@@ -53,5 +55,6 @@ export function buildWeeklyTrainingRows(
       target === null || week.isCurrentWeek
         ? null
         : `Difference: ${formatDifference(week.daysPerformed, target)}`,
+    absenceLine: week.absenceDates.length > 0 ? `Absent: ${formatDayCount(week.absenceDates.length)}` : null,
   }));
 }

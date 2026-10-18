@@ -7,6 +7,7 @@ import {
   getTrainingConsistency,
   getWeeklyInsights,
   getAdaptSuggestions,
+  getLastPerformedWorkoutDate,
 } from "@/lib/queries";
 import WeeklyInsightsCard from "@/components/WeeklyInsightsCard";
 import { formatDate, formatDateLong, hourIn, todayIn } from "@/lib/date";
@@ -20,6 +21,8 @@ import {
   getWorkoutCta,
 } from "@/lib/home";
 import PageHeader from "@/components/PageHeader";
+import { dayTypeOf } from "@/lib/dayType";
+import { comebackGapDays } from "@/lib/analyze/comeback";
 import Icon, { type IconName } from "@/components/Icon";
 
 const TRAINING_FREQUENCY_WINDOW_DAYS = 7;
@@ -41,13 +44,14 @@ function ShortcutCard({ href, icon, title, text }: { href: string; icon: IconNam
 export default async function TodayPage() {
   const { timeZone } = await getUserTimeZone();
   const date = todayIn(timeZone);
-  const [profile, plan, log, trainingConsistency, weeklyInsights, suggestions] = await Promise.all([
+  const [profile, plan, log, trainingConsistency, weeklyInsights, suggestions, lastWorkout] = await Promise.all([
     getProfile(),
     getPlanForDate(date),
     getLogForDate(date),
     getTrainingConsistency(TRAINING_FREQUENCY_WINDOW_DAYS),
     getWeeklyInsights(),
     getAdaptSuggestions(),
+    getLastPerformedWorkoutDate(),
   ]);
 
   const greeting = getGreeting(profile ? namePartsOf(profile).firstName : null, hourIn(timeZone));
@@ -61,6 +65,10 @@ export default async function TodayPage() {
 
   const goalDaysPerWeek = profile?.training_days_per_week ?? null;
 
+  // Welcome back after a break — unless today is already under way or is a planned day off.
+  const gapDays = !log && (!plan || !plan.is_rest_day) ? comebackGapDays(lastWorkout.date, date) : null;
+  const canGoLighter = !!plan && !plan.is_rest_day && (plan.planned_exercises?.length ?? 0) > 0;
+
   const hasNothingToday = !plan && !log;
   const recentActivity = hasNothingToday ? await getLastCompletedLog() : null;
 
@@ -71,14 +79,31 @@ export default async function TodayPage() {
     <main className="px-4 pt-6 md:px-8 md:pt-10">
       <PageHeader title={greeting} subtitle={formatDateLong(date)} />
 
+      {gapDays !== null && lastWorkout.date && (
+        <section className="card mb-4 border-teal/30 bg-teal/5 p-5" role="status">
+          <h2 className="text-base font-semibold">Welcome back</h2>
+          <p className="mt-0.5 mb-4 text-sm text-label-2">
+            Your last workout was {gapDays} days ago ({formatDate(lastWorkout.date)}). A shorter session still counts.
+          </p>
+          <Link
+            href={canGoLighter ? `/log/${date}?lighter=1` : `/log/${date}`}
+            className="inline-flex h-10 items-center rounded-[10px] bg-accent px-4 text-sm font-semibold text-on-accent hover:bg-accent-hover"
+          >
+            {canGoLighter ? "Start a lighter session" : "Log a short workout"}
+          </Link>
+        </section>
+      )}
+
       {plan?.is_rest_day ? (
         <section className="card mb-4 flex items-center gap-4 p-5">
           <span className="grid size-11 shrink-0 place-items-center rounded-full bg-teal/12 text-teal">
             <Icon name="moon" className="size-5" strokeWidth={2} />
           </span>
           <div className="min-w-0 flex-1">
-            <h2 className="text-lg font-semibold">Rest day</h2>
-            <p className="text-sm text-label-2">{plan.title ?? "Recovery is part of the plan."}</p>
+            <h2 className="text-lg font-semibold">{dayTypeOf(plan) === "absence" ? "Day off" : "Rest day"}</h2>
+            <p className="text-sm text-label-2">
+              {plan.title ?? (dayTypeOf(plan) === "absence" ? "Marked as an absence." : "Recovery is part of the plan.")}
+            </p>
           </div>
           <Link href={`/schedule/${date}`} className="rounded-lg px-3 py-1.5 text-sm font-medium text-link hover:bg-fill">
             Change

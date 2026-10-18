@@ -16,7 +16,7 @@ import { bestEstimatedOneRepMax } from "./progress";
 
 export const WEIGHT_STEP = { kg: 2.5, lb: 5 } as const;
 const PLATEAU_SESSIONS = 3;
-const DELOAD_FACTOR = 0.9;
+export const DELOAD_FACTOR = 0.9;
 const TOLERANCE = 1e-9;
 
 export type PlannedTarget = {
@@ -38,7 +38,7 @@ export type OverloadSuggestion = {
   plateauBestE1rmKg: number | null;
 };
 
-function roundToStep(value: number, step: number): number {
+export function roundToStep(value: number, step: number): number {
   return Math.round(value / step) * step;
 }
 

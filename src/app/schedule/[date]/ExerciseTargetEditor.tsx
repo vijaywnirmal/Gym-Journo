@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import type { Exercise } from "@/lib/types";
 import Icon from "@/components/Icon";
-import ExercisePicker from "./ExercisePicker";
+import ExercisePicker, { type PickedExercise } from "./ExercisePicker";
 
+// Selected exercises by id, each with its name (for display) and optional targets.
 export type ExerciseTargets = Map<
   string,
-  { targetSets: string; targetReps: string; targetWeight: string; targetWeightUnit: string }
+  { name: string; targetSets: string; targetReps: string; targetWeight: string; targetWeightUnit: string }
 >;
 
 const EMPTY_TARGETS = { targetSets: "", targetReps: "", targetWeight: "", targetWeightUnit: "kg" };
@@ -17,21 +17,18 @@ const inputClass = "field h-9 w-full min-w-0 rounded-lg px-2.5 text-sm tabular-n
 // Shared by the schedule form and the template manager: the selected exercises in order, each
 // with optional target sets × reps @ weight, plus an "Add exercises" button that opens the picker.
 export default function ExerciseTargetEditor({
-  exercises,
   selected,
   onChange,
 }: {
-  exercises: Exercise[];
   selected: ExerciseTargets;
   onChange: (next: ExerciseTargets) => void;
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
-  const exerciseById = new Map(exercises.map((ex) => [ex.id, ex]));
 
-  function applyPicker(ids: string[]) {
+  function applyPicker(picked: PickedExercise[]) {
     const next: ExerciseTargets = new Map();
-    for (const id of ids) {
-      next.set(id, selected.get(id) ?? { ...EMPTY_TARGETS });
+    for (const { id, name } of picked) {
+      next.set(id, selected.get(id) ?? { name, ...EMPTY_TARGETS });
     }
     onChange(next);
     setPickerOpen(false);
@@ -81,7 +78,7 @@ export default function ExerciseTargetEditor({
       {selected.size > 0 && (
         <ol className="flex flex-col divide-y divide-separator rounded-[10px] border border-separator">
           {[...selected.entries()].map(([id, targets], i) => {
-            const name = exerciseById.get(id)?.name ?? "Exercise";
+            const name = targets.name;
             return (
               <li key={id} className="p-3">
                 <div className="mb-2 flex items-center gap-2">
@@ -156,8 +153,7 @@ export default function ExerciseTargetEditor({
 
       {pickerOpen && (
         <ExercisePicker
-          exercises={exercises}
-          initiallySelected={new Set(selected.keys())}
+          initiallySelected={[...selected].map(([id, targets]) => ({ id, name: targets.name }))}
           onConfirm={applyPicker}
           onCancel={() => setPickerOpen(false)}
         />

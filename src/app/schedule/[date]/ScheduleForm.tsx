@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { Exercise, MuscleGroup, WorkoutPlan, WorkoutTemplate } from "@/lib/types";
+import type { MuscleGroup, WorkoutPlan, WorkoutTemplate } from "@/lib/types";
 import SegmentedControl from "@/components/ui/SegmentedControl";
 import Select from "@/components/ui/Select";
 import ToggleChip from "@/components/ui/ToggleChip";
@@ -10,41 +10,27 @@ import Icon from "@/components/Icon";
 import { savePlan, deletePlan } from "./actions";
 import ExerciseTargetEditor, { type ExerciseTargets } from "./ExerciseTargetEditor";
 import TemplateManager from "./TemplateManager";
+import { toExerciseTargets } from "./exerciseTargets";
+import { DAY_TYPE_LABEL, DAY_TYPE_TITLE_PLACEHOLDER, DAY_TYPES, dayTypeOf, type DayType } from "@/lib/dayType";
 
 type Props = {
   date: string;
   muscleGroups: MuscleGroup[];
-  exercises: Exercise[];
   existingPlan: WorkoutPlan | null;
   templates: WorkoutTemplate[];
 };
 
-export default function ScheduleForm({
-  date,
-  muscleGroups,
-  exercises,
-  existingPlan,
-  templates,
-}: Props) {
+export default function ScheduleForm({ date, muscleGroups, existingPlan, templates }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [title, setTitle] = useState(existingPlan?.title ?? "");
-  const [isRestDay, setIsRestDay] = useState(existingPlan?.is_rest_day ?? false);
+  const [dayType, setDayType] = useState<DayType>(existingPlan ? dayTypeOf(existingPlan) : "workout");
+  const isWorkout = dayType === "workout";
   const [selectedMuscles, setSelectedMuscles] = useState<Set<string>>(
     new Set(existingPlan?.muscle_groups?.map((m) => m.id) ?? [])
   );
-  const [selectedExercises, setSelectedExercises] = useState<ExerciseTargets>(
-    new Map(
-      existingPlan?.planned_exercises?.map((pe) => [
-        pe.exercise_id,
-        {
-          targetSets: pe.target_sets?.toString() ?? "",
-          targetReps: pe.target_reps?.toString() ?? "",
-          targetWeight: pe.target_weight?.toString() ?? "",
-          targetWeightUnit: pe.target_weight_unit || "kg",
-        },
-      ]) ?? []
-    )
+  const [selectedExercises, setSelectedExercises] = useState<ExerciseTargets>(() =>
+    toExerciseTargets(existingPlan?.planned_exercises)
   );
   const [templateId, setTemplateId] = useState("");
   const [saved, setSaved] = useState(false);
@@ -65,16 +51,7 @@ export default function ScheduleForm({
     if (!id) return;
     const template = templates.find((t) => t.id === id);
     if (!template) return;
-    const next: ExerciseTargets = new Map();
-    for (const te of template.template_exercises ?? []) {
-      next.set(te.exercise_id, {
-        targetSets: te.target_sets?.toString() ?? "",
-        targetReps: te.target_reps?.toString() ?? "",
-        targetWeight: te.target_weight?.toString() ?? "",
-        targetWeightUnit: te.target_weight_unit || "kg",
-      });
-    }
-    setSelectedExercises(next);
+    setSelectedExercises(toExerciseTargets(template.template_exercises));
     if (!title.trim()) setTitle(template.name);
   }
 
@@ -85,7 +62,7 @@ export default function ScheduleForm({
       const result = await savePlan({
         date,
         title,
-        isRestDay,
+        dayType,
         muscleGroupIds: [...selectedMuscles],
         exercises: [...selectedExercises.entries()].map(([exerciseId, t]) => ({
           exerciseId,
@@ -107,28 +84,27 @@ export default function ScheduleForm({
   return (
     <div className="flex flex-col gap-4 pb-6">
       <SegmentedControl
-        value={isRestDay ? "rest" : "workout"}
-        onChange={(v) => setIsRestDay(v === "rest")}
-        options={[
-          { value: "workout", label: "Workout" },
-          { value: "rest", label: "Rest or time off" },
-        ]}
+        value={dayType}
+        onChange={setDayType}
+        options={DAY_TYPES.map((type) => ({ value: type, label: DAY_TYPE_LABEL[type] }))}
         ariaLabel="Day type"
         className="w-full"
       />
 
       <section className="card flex flex-col gap-4 p-4">
         <label className="block">
-          <span className="mb-1.5 block text-sm font-medium">{isRestDay ? "Reason" : "Name"}</span>
+          <span className="mb-1.5 block text-sm font-medium">
+            {isWorkout ? "Name" : dayType === "rest" ? "Note" : "Reason"}
+          </span>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder={isRestDay ? "Optional — e.g. Sick, Travel" : "e.g. Push day"}
+            placeholder={DAY_TYPE_TITLE_PLACEHOLDER[dayType]}
             className="field h-11 w-full rounded-[10px] px-3.5 text-base"
           />
         </label>
 
-        {!isRestDay && (
+        {isWorkout && (
           <div>
             <span className="mb-2 block text-sm font-medium">Muscle groups</span>
             <div className="flex flex-wrap gap-2">
@@ -142,7 +118,7 @@ export default function ScheduleForm({
         )}
       </section>
 
-      {!isRestDay && (
+      {isWorkout && (
         <section className="card flex flex-col gap-4 p-4">
           {templates.length > 0 && (
             <div>
@@ -165,7 +141,7 @@ export default function ScheduleForm({
               )}
             </div>
           )}
-          <ExerciseTargetEditor exercises={exercises} selected={selectedExercises} onChange={setSelectedExercises} />
+          <ExerciseTargetEditor selected={selectedExercises} onChange={setSelectedExercises} />
         </section>
       )}
 
@@ -228,7 +204,7 @@ export default function ScheduleForm({
           </button>
         ))}
 
-      {!isRestDay && <TemplateManager templates={templates} exercises={exercises} />}
+      {isWorkout && <TemplateManager templates={templates} />}
     </div>
   );
 }

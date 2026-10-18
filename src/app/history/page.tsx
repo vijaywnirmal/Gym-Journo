@@ -1,11 +1,5 @@
 import Link from "next/link";
-import {
-  getExerciseSessions,
-  getExercises,
-  getLogHistory,
-  getRecentlyPerformedExerciseIds,
-  type LogHistoryPage,
-} from "@/lib/queries";
+import { getExerciseFilterOptions, getExerciseSessions, getLogHistory, type LogHistoryPage } from "@/lib/queries";
 import PageHeader from "@/components/PageHeader";
 import Icon from "@/components/Icon";
 import { formatDate } from "@/lib/date";
@@ -28,17 +22,16 @@ export default async function HistoryPage({
   searchParams: Promise<{ exercise?: string; before?: string }>;
 }) {
   const { exercise: exerciseId, before } = await searchParams;
-  const [logPage, exercises, sessions, recentIds] = await Promise.all([
+  const [logPage, exercises, sessions] = await Promise.all([
     // Unfiltered History is the raw log list, unchanged. The exercise-filtered view below is built
     // from the exercise's performed sessions instead, so it never needs this query.
     exerciseId
       ? Promise.resolve<LogHistoryPage>({ logs: [], hasMore: false })
       : getLogHistory({ before, pageSize: PAGE_SIZE }),
-    getExercises(),
+    getExerciseFilterOptions(exerciseId),
     // Full performed history for the selected exercise — independent of this page's `before`
     // cursor, so counts/first/last/comparisons can't depend on pagination.
     exerciseId ? getExerciseSessions(exerciseId) : Promise.resolve<ExerciseSession[]>([]),
-    getRecentlyPerformedExerciseIds(),
   ]);
   const { logs } = logPage;
 
@@ -80,7 +73,7 @@ export default async function HistoryPage({
       <PageHeader title="History" subtitle="Every workout you've logged, newest first." />
 
       <div className="mb-5">
-        <ExerciseFilter exercises={exercises} selectedId={exerciseId} recentIds={recentIds} />
+        <ExerciseFilter exercises={exercises} selectedId={exerciseId} />
       </div>
 
       {selectedExerciseName && (recurrenceLines || sessionSummaryText) && (

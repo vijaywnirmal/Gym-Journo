@@ -18,9 +18,9 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
-const getExercises = vi.fn();
+const visibleExerciseNamed = vi.fn();
 vi.mock("@/lib/queries", () => ({
-  getExercises: () => getExercises(),
+  visibleExerciseNamed: (name: string) => visibleExerciseNamed(name),
 }));
 
 const { createExercise, deleteExercise } = await import("./actions");
@@ -32,10 +32,13 @@ const existingExercises = [
 
 describe("createExercise", () => {
   beforeEach(() => {
-    getExercises.mockReset();
+    visibleExerciseNamed.mockReset();
     single.mockReset();
     insert.mockClear();
-    getExercises.mockResolvedValue(existingExercises);
+    // Stand-in for the case-insensitive, RLS-scoped lookup.
+    visibleExerciseNamed.mockImplementation(async (name: string) =>
+      existingExercises.some((ex) => ex.name.toLowerCase() === name.trim().toLowerCase())
+    );
   });
 
   it("creates a valid custom exercise", async () => {
@@ -62,6 +65,19 @@ describe("createExercise", () => {
   it("rejects a duplicate with surrounding whitespace", async () => {
     const result = await createExercise({ name: "  Reverse Lunge  ", equipment: "", muscleGroupIds: [] });
     expect(result.error).toBe("An exercise with this name already exists.");
+  });
+
+  it("looks up the trimmed name", async () => {
+    single.mockResolvedValue({ data: { id: "new-3" }, error: null });
+    await createExercise({ name: "  Zercher Squat ", equipment: "", muscleGroupIds: [] });
+    expect(visibleExerciseNamed).toHaveBeenCalledWith("Zercher Squat");
+  });
+
+  it("fails closed when the duplicate check can't run", async () => {
+    visibleExerciseNamed.mockResolvedValue(null);
+    const result = await createExercise({ name: "Zercher Squat", equipment: "", muscleGroupIds: [] });
+    expect(result.error).toBe("Something went wrong creating this exercise. Please try again.");
+    expect(insert).not.toHaveBeenCalled();
   });
 
   it("accepts a similar but distinct name", async () => {
@@ -116,10 +132,13 @@ describe("deleteExercise", () => {
 
 describe("createExercise — instructions (M6)", () => {
   beforeEach(() => {
-    getExercises.mockReset();
+    visibleExerciseNamed.mockReset();
     single.mockReset();
     insert.mockClear();
-    getExercises.mockResolvedValue(existingExercises);
+    // Stand-in for the case-insensitive, RLS-scoped lookup.
+    visibleExerciseNamed.mockImplementation(async (name: string) =>
+      existingExercises.some((ex) => ex.name.toLowerCase() === name.trim().toLowerCase())
+    );
   });
 
   it("saves trimmed instructions, or null when blank", async () => {

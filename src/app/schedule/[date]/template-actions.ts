@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { getExercises } from "@/lib/queries";
+import { findVisibleExerciseIds } from "@/lib/queries";
 import {
   validateTargetReps,
   validateTargetSets,
@@ -53,10 +53,10 @@ export async function saveTemplate(input: SaveTemplateInput) {
   }
 
   // Every exercise must actually be visible to this user (system exercises or their own custom
-  // ones) — reuses the existing RLS-scoped query so the check can never diverge from what the
-  // user is really allowed to reference.
-  const visibleExercises = await getExercises();
-  const visibleIds = new Set(visibleExercises.map((ex) => ex.id));
+  // ones) — an RLS-scoped lookup of just these ids, so the check can never diverge from what the
+  // user is really allowed to reference. Fails closed if the lookup itself fails.
+  const visibleIds = await findVisibleExerciseIds(input.exercises.map((ex) => ex.exerciseId));
+  if (!visibleIds) return { error: "Something went wrong saving this template. Please try again." };
   const hasInvalidExercise = input.exercises.some((ex) => !visibleIds.has(ex.exerciseId));
   if (hasInvalidExercise) {
     return { error: "One of the selected exercises is no longer available." };

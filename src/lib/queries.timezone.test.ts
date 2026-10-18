@@ -28,6 +28,10 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
     auth: { getUser: async () => ({ data: { user: { id: "user-1" } } }) },
     from: (table: string) => builder(table),
+    rpc: (fn: string, args: unknown) => {
+      (calls[fn] ??= []).push(["rpc", args]);
+      return builder(fn);
+    },
   }),
 }));
 
@@ -60,14 +64,12 @@ describe("query date windows follow the person's timezone", () => {
 
   it("getTrainingConsistency bounds the window at the person's today", async () => {
     await getTrainingConsistency(7);
-    expect(argsOf("workout_logs", "lte")).toEqual([["date", "2026-09-21"]]);
-    expect(argsOf("workout_logs", "gte")).toEqual([["date", "2026-09-15"]]);
+    expect(argsOf("performed_workout_dates", "rpc")).toEqual([[{ p_from: "2026-09-15", p_to: "2026-09-21" }]]);
   });
 
   it("the same instant is an earlier day for someone west of UTC", async () => {
     timeZone = "America/New_York";
     await getTrainingConsistency(7);
-    expect(argsOf("workout_logs", "lte")).toEqual([["date", "2026-09-20"]]);
-    expect(argsOf("workout_logs", "gte")).toEqual([["date", "2026-09-14"]]);
+    expect(argsOf("performed_workout_dates", "rpc")).toEqual([[{ p_from: "2026-09-14", p_to: "2026-09-20" }]]);
   });
 });

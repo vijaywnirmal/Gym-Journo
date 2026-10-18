@@ -49,6 +49,11 @@ declare
 begin
   for ex in select * from jsonb_array_elements(exercises_seed)
   loop
+    -- Safe to re-run, and after the library migrations (0021, 0027): skip names already present.
+    continue when exists (
+      select 1 from exercises where user_id is null and lower(name) = lower(ex.value->>'name')
+    );
+
     insert into exercises (user_id, name, equipment)
     values (null, ex.value->>'name', ex.value->>'equipment')
     returning id into ex_id;

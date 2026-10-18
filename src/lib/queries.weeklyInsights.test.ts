@@ -5,9 +5,11 @@ const getUser = vi.fn().mockResolvedValue({ data: { user: { id: "user-1" } } });
 
 type QueryResult = { data: unknown; error: unknown };
 
-// getWeeklyInsights runs several queries in parallel, so results are routed by table and by the
-// select string rather than by call order.
-let resultFor: (table: string, select: string) => QueryResult = () => ({ data: [], error: null });
+// getWeeklyInsights runs several queries in parallel, so table results are routed by table and RPC
+// results by function name and arguments rather than by call order.
+let resultFor: (table: string) => QueryResult = () => ({ data: [], error: null });
+let rpcFor: (fn: string, args: Record<string, string | null>) => QueryResult = () => ({ data: [], error: null });
+const rpcCalls: [string, Record<string, string | null>][] = [];
 
 function makeBuilder(result: QueryResult) {
   const builder: Record<string, unknown> = {};
@@ -16,9 +18,11 @@ function makeBuilder(result: QueryResult) {
   return builder;
 }
 
-const from = vi.fn((table: string) => ({
-  select: (arg: string) => makeBuilder(resultFor(table, arg)),
-}));
+const from = vi.fn((table: string) => ({ select: () => makeBuilder(resultFor(table)) }));
+const rpc = vi.fn((fn: string, args: Record<string, string | null>) => {
+  rpcCalls.push([fn, args]);
+  return makeBuilder(rpcFor(fn, args));
+});
 
 vi.mock("@/lib/userDate", async () => {
   const { today } = await import("./date");
@@ -26,59 +30,55 @@ vi.mock("@/lib/userDate", async () => {
 });
 
 vi.mock("@/lib/supabase/server", () => ({
-  createClient: async () => ({ auth: { getUser }, from }),
+  createClient: async () => ({ auth: { getUser }, from, rpc }),
 }));
 
 const { getWeeklyInsights } = await import("./queries");
 
 const todayStr = today();
 const thisWeekStart = weekDates(todayStr)[0];
-const lastWeekDay = shiftDate(thisWeekStart, -3);
+const lastWeekStart = shiftDate(thisWeekStart, -7);
 
-const chest = { muscle_group: { id: "c", name: "Chest" } };
-const exercise = { exercise_muscle_groups: [chest] };
+const chestRow = (sets: number) => ({ muscle_group_id: "c", name: "Chest", sets });
 
 describe("getWeeklyInsights", () => {
   beforeEach(() => {
     getUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
+    rpcCalls.length = 0;
+    resultFor = () => ({ data: [], error: null });
+    rpcFor = () => ({ data: [], error: null });
   });
 
-  it("maps muscle tags through the exercise join and splits this week from last week", async () => {
-    resultFor = (table, select) => {
-      if (table === "workout_plans") return { data: [{ date: todayStr }], error: null };
-      if (select.includes("muscle_groups")) {
-        return {
-          data: [
-            { date: todayStr, logged_exercises: [{ exercise, logged_sets: [{ reps: 5, weight: 100, set_type: "working" }] }] },
-            {
-              date: lastWeekDay,
-              logged_exercises: [
-                {
-                  exercise,
-                  logged_sets: [
-                    { reps: 5, weight: 100, set_type: "working" },
-                    { reps: 5, weight: 50, set_type: "warmup" },
-                  ],
-                },
-              ],
-            },
-          ],
-          error: null,
-        };
-      }
-      // Performed-dates and weekly-days queries.
-      return { data: [{ date: todayStr, logged_exercises: [{ logged_sets: [{ reps: 5, weight: 100 }] }] }], error: null };
+  it("asks the database for this week's and last week's hard sets and maps the rows", async () => {
+    resultFor = (table) => (table === "workout_plans" ? { data: [{ date: todayStr }], error: null } : { data: [], error: null });
+    rpcFor = (fn, args) => {
+      if (fn === "performed_workout_dates") return { data: [{ date: todayStr }], error: null };
+      return args.p_from === thisWeekStart
+        ? { data: [chestRow(4), { muscle_group_id: "b", name: "Back", sets: 6 }], error: null }
+        : { data: [chestRow(2)], error: null };
     };
 
     const insights = await getWeeklyInsights();
-    expect(insights?.thisWeek).toEqual([{ muscleGroupId: "c", name: "Chest", sets: 1 }]);
-    expect(insights?.lastWeek).toEqual([{ muscleGroupId: "c", name: "Chest", sets: 1 }]);
+    const setCalls = rpcCalls.filter(([fn]) => fn === "muscle_set_counts").map(([, args]) => args);
+    expect(setCalls).toEqual([
+      { p_from: thisWeekStart, p_to: todayStr },
+      { p_from: lastWeekStart, p_to: shiftDate(thisWeekStart, -1) },
+    ]);
+    expect(insights?.thisWeek).toEqual([
+      { muscleGroupId: "b", name: "Back", sets: 6 },
+      { muscleGroupId: "c", name: "Chest", sets: 4 },
+    ]);
+    expect(insights?.lastWeek).toEqual([{ muscleGroupId: "c", name: "Chest", sets: 2 }]);
     expect(insights?.adherence).toEqual({ planned: 1, performed: 1 });
   });
 
-  it("is null when the history can't be read", async () => {
-    resultFor = (table, select) =>
-      select.includes("muscle_groups") ? { data: null, error: { message: "boom" } } : { data: [], error: null };
+  it("is null when the set counts can't be read", async () => {
+    rpcFor = (fn) => (fn === "muscle_set_counts" ? { data: null, error: { message: "boom" } } : { data: [], error: null });
+    expect(await getWeeklyInsights()).toBeNull();
+  });
+
+  it("is null when the workout days can't be read", async () => {
+    rpcFor = (fn) => (fn === "performed_workout_dates" ? { data: null, error: { message: "boom" } } : { data: [], error: null });
     expect(await getWeeklyInsights()).toBeNull();
   });
 

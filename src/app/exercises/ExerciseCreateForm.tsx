@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import type { MuscleGroup } from "@/lib/types";
 import { EQUIPMENT_OPTIONS } from "@/lib/exerciseSearch";
 import Icon from "@/components/Icon";
@@ -11,12 +10,13 @@ import { createExercise } from "./actions";
 
 export default function ExerciseCreateForm({
   muscleGroups,
+  onCreated,
   onDone,
 }: {
   muscleGroups: MuscleGroup[];
+  onCreated: () => void;
   onDone: () => void;
 }) {
-  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [name, setName] = useState("");
   const [equipment, setEquipment] = useState("");
@@ -46,7 +46,7 @@ export default function ExerciseCreateForm({
         setError(result.error);
         return;
       }
-      router.refresh();
+      onCreated();
       onDone();
     });
   }

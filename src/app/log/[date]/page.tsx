@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getExercises, getLogForDate, getPlanForDate, getPreviousPerformance } from "@/lib/queries";
+import { getLogForDate, getPlanForDate, getPreviousPerformance } from "@/lib/queries";
 import { formatDate, formatDateLong, isValidIsoDate } from "@/lib/date";
 import { getToday } from "@/lib/userDate";
 import { createClient } from "@/lib/supabase/server";
@@ -13,8 +13,10 @@ import Icon from "@/components/Icon";
 
 export default async function LogPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ date: string }>;
+  searchParams: Promise<{ lighter?: string }>;
 }) {
   const { date } = await params;
   if (!isValidIsoDate(date)) notFound();
@@ -53,15 +55,13 @@ export default async function LogPage({
     );
   }
 
+  // "Start a lighter session" from Today's welcome-back card (lib/analyze/comeback.ts).
+  const lighter = (await searchParams).lighter === "1";
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const [exercises, plan, log] = await Promise.all([
-    getExercises(),
-    getPlanForDate(date),
-    getLogForDate(date),
-  ]);
+  const [plan, log] = await Promise.all([getPlanForDate(date), getLogForDate(date)]);
 
   // A previously-logged day (any date other than today that already has a log) defaults to the
   // read-first summary view instead of the active-execution stepper — see HistoricalLogView.
@@ -91,7 +91,6 @@ export default async function LogPage({
           <BackLink href="/calendar" label="Calendar" />
           <HistoricalLogView
             date={date}
-            exercises={exercises}
             plan={plan}
             existingLog={log!}
             initialPreviousPerformance={initialPreviousPerformance}
@@ -106,11 +105,11 @@ export default async function LogPage({
           />
           <LogForm
             date={date}
-            exercises={exercises}
             plan={plan}
             existingLog={log}
             initialPreviousPerformance={initialPreviousPerformance}
             backupScope={user?.id ?? null}
+            lighter={lighter}
           />
         </>
       )}

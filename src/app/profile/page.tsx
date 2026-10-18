@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import ProfileCard from "./ProfileCard";
 import DeleteAccountSection from "./DeleteAccountSection";
 import CoachConsentSection from "./CoachConsentSection";
+import RemindersSection from "./RemindersSection";
 
 export default async function ProfilePage() {
   const [profile, supabase] = await Promise.all([getProfile(), createClient()]);
@@ -32,6 +33,11 @@ export default async function ProfilePage() {
         </span>
         <Icon name="chevronRight" className="size-4 text-label-3" strokeWidth={2} />
       </Link>
+
+      <RemindersSection
+        enabled={profile?.workout_reminders ?? false}
+        time={(profile?.reminder_time ?? "18:00").slice(0, 5)}
+      />
 
       <h2 className="section-title mt-8">Privacy</h2>
       <CoachConsentSection consentedAt={profile?.coach_consent_at ?? null} />

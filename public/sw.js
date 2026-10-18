@@ -5,6 +5,8 @@
 //   another account on a shared device); if the network is down, a static offline page is shown.
 // - Everything else, including every POST (Server Actions), passes straight through. Saving a
 //   workout offline is handled in the app (experimental.useOffline retry + on-device backup).
+// - Workout reminders arrive as web push messages ({ title, body, url, tag }); tapping one opens
+//   (or focuses) the app at that url.
 const VERSION = "v1";
 const STATIC_CACHE = `gj-static-${VERSION}`;
 const SHELL_CACHE = `gj-shell-${VERSION}`;
@@ -56,4 +58,43 @@ self.addEventListener("fetch", (event) => {
       })
     );
   }
+});
+
+self.addEventListener("push", (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    payload = { body: event.data ? event.data.text() : "" };
+  }
+  const url = typeof payload.url === "string" && payload.url.startsWith("/") ? payload.url : "/";
+  event.waitUntil(
+    self.registration.showNotification(payload.title || "Gym-Journo", {
+      body: payload.body || "",
+      tag: payload.tag || undefined,
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      data: { url },
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = new URL(event.notification.data?.url || "/", self.location.origin);
+  // Only ever navigate within this app.
+  if (target.origin !== self.location.origin) return;
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
+      const existing = windows.find((client) => new URL(client.url).origin === self.location.origin);
+      if (existing) {
+        // navigate() only works on windows this worker controls; fall back to a new window.
+        return existing
+          .focus()
+          .then((client) => client.navigate(target.href))
+          .catch(() => self.clients.openWindow(target.href));
+      }
+      return self.clients.openWindow(target.href);
+    })
+  );
 });

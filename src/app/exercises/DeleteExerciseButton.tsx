@@ -1,12 +1,18 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { deleteExercise } from "./actions";
 
 // Deleting a custom exercise can't be undone, so it takes two deliberate taps.
-export default function DeleteExerciseButton({ exerciseId, name }: { exerciseId: string; name: string }) {
-  const router = useRouter();
+export default function DeleteExerciseButton({
+  exerciseId,
+  name,
+  onDeleted,
+}: {
+  exerciseId: string;
+  name: string;
+  onDeleted: () => void;
+}) {
   const [pending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +25,7 @@ export default function DeleteExerciseButton({ exerciseId, name }: { exerciseId:
         setError(result.error);
         return;
       }
-      router.refresh();
+      onDeleted();
     });
   }
 

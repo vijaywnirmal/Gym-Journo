@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getExerciseSessions, getExercises, getRecentlyPerformedExerciseIds } from "@/lib/queries";
+import { getExerciseFilterOptions, getExerciseSessions } from "@/lib/queries";
 import { formatDate } from "@/lib/date";
 import {
   bestEstimatedOneRepMax,
@@ -36,17 +36,14 @@ export default async function ProgressPage({
   searchParams: Promise<{ exercise?: string }>;
 }) {
   const { exercise: exerciseId } = await searchParams;
-  const [exercises, sessions, recentIds] = await Promise.all([
-    getExercises(),
+  const [exercises, sessions] = await Promise.all([
+    getExerciseFilterOptions(exerciseId),
     exerciseId ? getExerciseSessions(exerciseId) : Promise.resolve([]),
-    getRecentlyPerformedExerciseIds(),
   ]);
 
   const selectedExerciseName = exerciseId
     ? exercises.find((ex) => ex.id === exerciseId)?.name ?? "Exercise"
     : null;
-  const exerciseById = new Map(exercises.map((ex) => [ex.id, ex]));
-  const recent = recentIds.map((id) => exerciseById.get(id)).filter((ex) => ex !== undefined);
 
   const points = buildProgressPoints(sessions);
   const pr = heaviestSet(sessions);
@@ -65,24 +62,18 @@ export default async function ProgressPage({
           selectedId={exerciseId}
           basePath="/progress"
           allLabel="Choose an exercise"
-          recentIds={recentIds}
         />
       </div>
 
       {!exerciseId &&
-        (recent.length > 0 ? (
+        (exercises.length > 0 ? (
           <>
-            <h2 className="section-title">Recently performed</h2>
+            <h2 className="section-title">Exercises you&apos;ve logged</h2>
             <ul className="card mb-6 divide-y divide-separator overflow-hidden">
-              {recent.map((ex) => (
+              {exercises.map((ex) => (
                 <li key={ex.id}>
                   <Link href={`/progress?exercise=${ex.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-fill">
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium">{ex.name}</span>
-                      <span className="block truncate text-xs text-label-3">
-                        {[ex.muscle_groups?.[0]?.name, ex.equipment].filter(Boolean).join(" · ")}
-                      </span>
-                    </span>
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium">{ex.name}</span>
                     <Icon name="chevronRight" className="size-4 text-label-3" strokeWidth={2} />
                   </Link>
                 </li>

@@ -5,6 +5,7 @@ import { getWeekOverview } from "@/lib/queries";
 import { formatDate, shiftDate, weekDates } from "@/lib/date";
 import { getToday } from "@/lib/userDate";
 import Icon from "@/components/Icon";
+import { describeCalendarDay, isMissedDay } from "./dayStatus";
 
 export default async function CalendarPage({
   searchParams,
@@ -59,6 +60,12 @@ export default async function CalendarPage({
           const info = overview.get(date);
           const isToday = date === todayDate;
           const isFuture = date > todayDate;
+          const { plan, status } = info
+            ? describeCalendarDay(info, date, todayDate)
+            : { plan: "Not scheduled", status: "" };
+          const missed = !!info && isMissedDay(info, date, todayDate);
+          const dayOff = info?.dayType === "rest" || info?.dayType === "absence";
+          const logged = !!info && (info.performed || info.completed);
           const day = parseISO(date);
           return (
             <li key={date} className={`flex items-center gap-4 px-4 py-3 ${isToday ? "bg-accent/5" : ""}`}>
@@ -73,13 +80,15 @@ export default async function CalendarPage({
                 <span className="text-lg leading-6 font-semibold tabular-nums">{format(day, "d")}</span>
               </div>
               <div className="min-w-0 flex-1">
-                <p className={`truncate text-sm font-medium ${info?.title || info?.isRestDay ? "" : "text-label-3"}`}>
-                  {info?.isRestDay ? `Rest day${info.title ? ` · ${info.title}` : ""}` : (info?.title ?? "Not planned")}
-                </p>
-                {info && (info.performed || info.completed) && (
-                  <p className="flex items-center gap-1 text-xs text-green">
-                    <Icon name="checkmark" className="size-3.5" strokeWidth={2.5} />
-                    {[info.performed && "Performed", info.completed && "Completed"].filter(Boolean).join(" · ")}
+                <p className={`truncate text-sm font-medium ${info?.dayType ? "" : "text-label-3"}`}>{plan}</p>
+                {status && (
+                  <p
+                    className={`flex items-center gap-1 truncate text-xs first-letter:uppercase ${
+                      missed ? "text-orange" : logged ? "text-green" : "text-label-2"
+                    }`}
+                  >
+                    {logged && !missed && <Icon name="checkmark" className="size-3.5 shrink-0" strokeWidth={2.5} />}
+                    <span className="truncate first-letter:uppercase">{status}</span>
                   </p>
                 )}
               </div>
@@ -88,14 +97,14 @@ export default async function CalendarPage({
                   href={`/schedule/${date}`}
                   className="flex h-8 items-center rounded-lg px-3 text-sm font-medium text-label-2 hover:bg-fill hover:text-label"
                 >
-                  {info?.title || info?.isRestDay ? "Edit" : "Plan"}
+                  {info?.dayType ? "Edit" : "Plan"}
                 </Link>
-                {!isFuture && !info?.isRestDay && (
+                {!isFuture && !dayOff && (
                   <Link
                     href={`/log/${date}`}
                     className="flex h-8 items-center rounded-lg bg-accent px-3 text-sm font-semibold text-on-accent hover:bg-accent-hover"
                   >
-                    {info?.performed || info?.completed ? "View" : "Log"}
+                    {logged ? "View" : "Log"}
                   </Link>
                 )}
               </div>
