@@ -5,7 +5,7 @@ test("Today greets the signed-in person and shows their goal", async ({ page }) 
   await page.goto("/");
   await expect(page.getByRole("heading", { name: new RegExp(`, ${TEST_USER.firstName}$`) })).toBeVisible();
   await expect(page.getByText("Build muscle · 3 training days/week")).toBeVisible();
-  await expect(page.getByText("Nothing scheduled for today.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Nothing planned for today" })).toBeVisible();
 });
 
 test.describe("signed out", () => {
