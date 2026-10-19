@@ -1,25 +1,22 @@
-import Link from "next/link";
 import { getAdaptSuggestions } from "@/lib/queries";
 import { formatDate } from "@/lib/date";
 import { explainSuggestion } from "@/lib/analyze/overload";
 import SuggestionCard from "./SuggestionCard";
+import PageHeader from "@/components/PageHeader";
 
 export default async function SuggestionsPage() {
   const suggestions = await getAdaptSuggestions();
 
   return (
-    <main className="px-4 pt-6">
-      <Link href="/" className="mb-1 inline-block text-sm text-neutral-500">
-        ← Today
-      </Link>
-      <h1 className="mb-1 text-xl font-bold">Suggestions</h1>
-      <p className="mb-4 text-sm text-neutral-400">
-        Weight changes for your next planned sessions, worked out from what you logged. Nothing changes unless you
-        accept.
-      </p>
+    <main className="px-4 pt-6 md:px-8 md:pt-10">
+      <PageHeader
+        title="Weight suggestions"
+        subtitle="Changes for your next planned sessions, worked out from what you logged. Nothing changes unless you accept."
+        back={{ href: "/", label: "Today" }}
+      />
 
       {suggestions.length === 0 ? (
-        <p className="text-sm text-neutral-500">
+        <p className="card px-5 py-6 text-sm text-label-2">
           No suggestions right now. They appear when an exercise planned in the next two weeks has a target (sets ×
           reps) and your last session of it either hit every rep or has stalled.
         </p>

@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { getExerciseFilterOptions, getExerciseSessions, getLogHistory, type LogHistoryPage } from "@/lib/queries";
+import PageHeader from "@/components/PageHeader";
+import Icon from "@/components/Icon";
 import { formatDate } from "@/lib/date";
 import { formatSetCompact } from "@/lib/setData";
 import {
@@ -67,65 +69,59 @@ export default async function HistoryPage({
       : null;
 
   return (
-    <main className="px-4 pt-6">
-      <h1 className="mb-4 text-xl font-bold">History</h1>
+    <main className="px-4 pt-6 md:px-8 md:pt-10">
+      <PageHeader title="History" subtitle="Every workout you've logged, newest first." />
 
       <div className="mb-5">
         <ExerciseFilter exercises={exercises} selectedId={exerciseId} />
       </div>
 
-      {selectedExerciseName && (
-        <h2 className="mb-1 text-lg font-semibold text-neutral-100">{selectedExerciseName}</h2>
-      )}
-
-      {(recurrenceLines || sessionSummaryText) && (
-        <div className="mb-3">
+      {selectedExerciseName && (recurrenceLines || sessionSummaryText) && (
+        <section className="card mb-4 p-4">
+          <h2 className="text-base font-semibold">{selectedExerciseName}</h2>
           {recurrenceLines && (
             <>
-              <p className="text-sm text-neutral-200">{recurrenceLines.countLine}</p>
-              <p className="text-xs text-neutral-500">{recurrenceLines.firstLine}</p>
-              <p className="text-xs text-neutral-500">{recurrenceLines.lastLine}</p>
+              <p className="mt-1 text-sm">{recurrenceLines.countLine}</p>
+              <p className="text-xs text-label-2">
+                {recurrenceLines.firstLine} · {recurrenceLines.lastLine}
+              </p>
             </>
           )}
-          {sessionSummaryText && (
-            <p className="mt-1 text-xs text-neutral-500">{sessionSummaryText}</p>
-          )}
-        </div>
+          {sessionSummaryText && <p className="mt-1 text-xs text-label-3">{sessionSummaryText}</p>}
+        </section>
       )}
 
       <div className="flex flex-col gap-3 pb-4">
         {selectedExerciseName
           ? sessionViews.length === 0 && (
-              <p className="text-sm text-neutral-500">
-                {before
-                  ? "No older performed sessions."
-                  : "No performed sessions recorded for this exercise yet."}
-              </p>
+              <EmptyState
+                title={before ? "No older sessions" : "No sessions yet"}
+                text={before ? "That's everything for this exercise." : "You haven't logged this exercise yet."}
+              />
             )
           : logs.length === 0 && (
-              <p className="text-sm text-neutral-500">
-                {before ? "No older workouts." : "No workouts logged yet."}
-              </p>
+              <EmptyState
+                title={before ? "No older workouts" : "No workouts yet"}
+                text={before ? "You've reached your first workout." : "Workouts you log will show up here."}
+              />
             )}
         {selectedExerciseName
           ? sessionViews.map((view) => {
               const gapText = formatDaysSincePrevious(view.daysSincePrevious);
               return (
-                <Link
-                  key={view.date}
-                  href={`/log/${view.date}`}
-                  className="block rounded-xl border border-neutral-800 p-4"
-                >
-                  <p className="font-semibold text-neutral-100">{formatDate(view.date)}</p>
-                  {gapText && <p className="mb-2 text-xs text-neutral-500">{gapText}</p>}
-                  <ul className={`flex flex-col gap-1 text-sm text-neutral-300 ${gapText ? "" : "mt-2"}`}>
+                <Link key={view.date} href={`/log/${view.date}`} className="card block p-4 hover:bg-fill">
+                  <div className="mb-2 flex items-baseline justify-between gap-3">
+                    <p className="font-semibold">{formatDate(view.date)}</p>
+                    {gapText && <p className="text-xs text-label-3">{gapText}</p>}
+                  </div>
+                  <ul className="flex flex-col gap-1 text-sm">
                     {view.sets.map(({ set, comparison }) => {
                       const change = formatSetChange(comparison);
                       return (
-                        <li key={set.setNumber} className="flex flex-wrap items-baseline gap-x-2">
-                          <span className="w-12 text-neutral-500">Set {set.setNumber}</span>
-                          <span>{formatPerformedSet(set)}</span>
-                          {change && <span className="text-xs text-neutral-500">{change}</span>}
+                        <li key={set.setNumber} className="flex flex-wrap items-baseline gap-x-3">
+                          <span className="w-10 text-xs text-label-3">Set {set.setNumber}</span>
+                          <span className="tabular-nums">{formatPerformedSet(set)}</span>
+                          {change && <span className="text-xs text-label-2">{change}</span>}
                         </li>
                       );
                     })}
@@ -134,38 +130,43 @@ export default async function HistoryPage({
               );
             })
           : logs.map((log) => (
-              <Link
-                key={log.id}
-                href={`/log/${log.date}`}
-                className="block rounded-xl border border-neutral-800 p-4"
-              >
-                <div className="mb-1 flex items-center justify-between">
-                  <p className="font-semibold text-neutral-100">{formatDate(log.date)}</p>
-                  {log.completed_at && <span className="text-xs text-green-400">Completed</span>}
+              <Link key={log.id} href={`/log/${log.date}`} className="card block p-4 hover:bg-fill">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold">{formatDate(log.date)}</p>
+                    <p className="truncate text-sm text-label-2">{log.planTitle ?? "Freeform workout"}</p>
+                  </div>
+                  {log.completed_at && (
+                    <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-green">
+                      <Icon name="checkmark" className="size-3.5" strokeWidth={2.5} />
+                      Completed
+                    </span>
+                  )}
                 </div>
-                <p className="mb-2 text-xs text-neutral-500">{log.planTitle ?? "Freeform workout"}</p>
-                <ul className="flex flex-col gap-1 text-sm text-neutral-300">
-                  {log.logged_exercises?.map((le) => (
-                    <li key={le.id}>
-                      <span className="font-medium text-neutral-100">{le.exercise?.name}</span>{" "}
-                      <span className="text-neutral-400">
-                        —{" "}
-                        {le.logged_sets
-                          ?.map(formatSetCompact)
-                          .join(", ")}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                {log.notes && <p className="mt-2 text-xs text-neutral-500">📝 {log.notes}</p>}
+                {log.logged_exercises && log.logged_exercises.length > 0 && (
+                  <ul className="mt-3 flex flex-col gap-1.5 border-t border-separator pt-3 text-sm">
+                    {log.logged_exercises.map((le) => (
+                      <li key={le.id} className="flex gap-3">
+                        <span className="min-w-0 flex-1 truncate font-medium">{le.exercise?.name}</span>
+                        <span className="shrink-0 text-right text-xs leading-5 tabular-nums text-label-2">
+                          {le.logged_sets?.map(formatSetCompact).join(", ")}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {log.notes && <p className="mt-2 text-xs text-label-2 italic">{log.notes}</p>}
               </Link>
             ))}
       </div>
 
-      <div className="flex items-center justify-between pb-6 text-sm">
+      <div className="flex items-center justify-between gap-2 pb-6">
         {before ? (
-          <Link href={backToRecentHref} className="text-neutral-400 underline">
-            ↑ Back to most recent
+          <Link
+            href={backToRecentHref}
+            className="flex h-9 items-center rounded-[10px] px-3 text-sm font-medium text-link hover:bg-fill"
+          >
+            Back to most recent
           </Link>
         ) : (
           <span />
@@ -173,12 +174,21 @@ export default async function HistoryPage({
         {hasMore && oldestDateOnPage && (
           <Link
             href={`/history?${filterQuery}before=${oldestDateOnPage}`}
-            className="text-neutral-400 underline"
+            className="flex h-9 items-center rounded-[10px] border border-separator px-3 text-sm font-medium hover:bg-fill"
           >
-            Load older ↓
+            Older workouts
           </Link>
         )}
       </div>
     </main>
+  );
+}
+
+function EmptyState({ title, text }: { title: string; text: string }) {
+  return (
+    <section className="card px-6 py-10 text-center">
+      <h2 className="text-base font-semibold">{title}</h2>
+      <p className="mt-1 text-sm text-label-2">{text}</p>
+    </section>
   );
 }

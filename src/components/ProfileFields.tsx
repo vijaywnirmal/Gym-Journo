@@ -3,6 +3,10 @@
 import { useId, useState, type ReactNode } from "react";
 import type { ProfileFieldsValue } from "@/lib/profile-fields";
 import { GENDER_LABELS, GENDERS, MIN_PASSWORD_LENGTH } from "@/lib/validation";
+import Select, { type SelectOption } from "@/components/ui/Select";
+import DateField from "@/components/ui/DateField";
+import { DATE_FMT } from "@/lib/date";
+import { format, subYears } from "date-fns";
 
 const PRIMARY_GOAL_OPTIONS = [
   { value: "build_muscle", label: "Build muscle" },
@@ -10,6 +14,8 @@ const PRIMARY_GOAL_OPTIONS = [
   { value: "maintain", label: "Maintain" },
   { value: "general_fitness", label: "General fitness" },
 ];
+
+export const GENDER_OPTIONS = GENDERS.map((g) => ({ value: g, label: GENDER_LABELS[g] }));
 
 const TARGET_WEIGHT_GOALS = new Set(["build_muscle", "lose_fat"]);
 
@@ -22,11 +28,9 @@ const EXPERIENCE_LEVEL_OPTIONS = [
 export type { ProfileFieldsValue };
 
 // One height and one look for every control, so text inputs, dropdowns and the date field line up.
-// `color-scheme: dark` makes the browser's own date picker and dropdown list dark too.
-const controlClass =
-  "h-12 w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 text-base text-neutral-100 placeholder-neutral-500 [color-scheme:dark] focus:border-neutral-400 focus:outline-none";
-const labelClass = "mb-1.5 block text-xs font-medium text-neutral-300";
-const hintClass = "mt-1.5 text-xs text-neutral-500";
+const controlClass = "field h-11 w-full rounded-[10px] px-3.5 text-base";
+const labelClass = "mb-1.5 block text-sm font-medium";
+const hintClass = "mt-1.5 text-xs text-label-2";
 
 // The label wraps its control, so clicking the label focuses the field and screen readers announce it.
 function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
@@ -39,44 +43,37 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
-function Select({
+function FieldSelect({
   value,
   onChange,
-  children,
+  options,
+  placeholder,
+  label,
 }: {
   value: string;
   onChange: (value: string) => void;
-  children: ReactNode;
+  options: SelectOption[];
+  placeholder: string;
+  label: string;
 }) {
   return (
-    <div className="relative">
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className={`${controlClass} appearance-none pr-10`}
-      >
-        {children}
-      </select>
-      <svg
-        aria-hidden="true"
-        viewBox="0 0 20 20"
-        className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="m5 8 5 5 5-5" />
-      </svg>
-    </div>
+    <Select
+      value={value}
+      onChange={onChange}
+      options={options}
+      placeholder={placeholder}
+      ariaLabel={label}
+      size="lg"
+      searchable={false}
+      className="w-full"
+    />
   );
 }
 
 function Card({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="rounded-xl border border-neutral-800 bg-neutral-900/40 p-4">
-      <h2 className="mb-4 text-sm font-semibold text-neutral-100">{title}</h2>
+    <section className="card p-4">
+      <h2 className="mb-4 text-sm font-semibold">{title}</h2>
       <div className="flex flex-col gap-4">{children}</div>
     </section>
   );
@@ -129,11 +126,13 @@ export default function ProfileFields({
         </div>
 
         <Field label="Date of birth" hint="Used to work out your age for AI plans.">
-          <input
-            type="date"
+          <DateField
             value={value.dateOfBirth}
-            onChange={(e) => set("dateOfBirth", e.target.value)}
-            className={controlClass}
+            onChange={(v) => set("dateOfBirth", v)}
+            min="1900-01-01"
+            max={format(subYears(new Date(), 13), DATE_FMT)}
+            placeholder="Select your birthday"
+            ariaLabel="Date of birth"
           />
         </Field>
 
@@ -164,49 +163,45 @@ export default function ProfileFields({
         </div>
 
         <Field label="Gender">
-          <Select value={value.gender} onChange={(v) => set("gender", v)}>
-            <option value="">Select gender</option>
-            {GENDERS.map((g) => (
-              <option key={g} value={g}>
-                {GENDER_LABELS[g]}
-              </option>
-            ))}
-          </Select>
+          <FieldSelect
+            label="Gender"
+            value={value.gender}
+            onChange={(v) => set("gender", v)}
+            placeholder="Select gender"
+            options={GENDER_OPTIONS}
+          />
         </Field>
       </Card>
 
       <Card title="Your goal">
         <Field label="Primary goal">
-          <Select value={value.primaryGoal} onChange={setPrimaryGoal}>
-            <option value="">Select a goal</option>
-            {PRIMARY_GOAL_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </Select>
+          <FieldSelect
+            label="Primary goal"
+            value={value.primaryGoal}
+            onChange={setPrimaryGoal}
+            placeholder="Select a goal"
+            options={PRIMARY_GOAL_OPTIONS}
+          />
         </Field>
 
         <Field label="Experience level">
-          <Select value={value.experienceLevel} onChange={(v) => set("experienceLevel", v)}>
-            <option value="">Select your experience level</option>
-            {EXPERIENCE_LEVEL_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </Select>
+          <FieldSelect
+            label="Experience level"
+            value={value.experienceLevel}
+            onChange={(v) => set("experienceLevel", v)}
+            placeholder="Select your experience level"
+            options={EXPERIENCE_LEVEL_OPTIONS}
+          />
         </Field>
 
         <Field label="Training days per week" hint="How many days you usually want to train.">
-          <Select value={value.trainingDaysPerWeek} onChange={(v) => set("trainingDaysPerWeek", v)}>
-            <option value="">Select days per week</option>
-            {[1, 2, 3, 4, 5, 6, 7].map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </Select>
+          <FieldSelect
+            label="Training days per week"
+            value={value.trainingDaysPerWeek}
+            onChange={(v) => set("trainingDaysPerWeek", v)}
+            placeholder="Select days per week"
+            options={[1, 2, 3, 4, 5, 6, 7].map((n) => ({ value: String(n), label: `${n} day${n === 1 ? "" : "s"}` }))}
+          />
         </Field>
 
         {showTargetWeight && (
@@ -263,7 +258,7 @@ export function PasswordFields({
           <button
             type="button"
             onClick={() => setShow((s) => !s)}
-            className="h-12 rounded-lg border border-neutral-700 px-4 text-sm text-neutral-300"
+            className="h-11 rounded-[10px] border border-separator px-4 text-sm font-semibold hover:bg-fill"
           >
             {show ? "Hide" : "Show"}
           </button>

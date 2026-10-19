@@ -3,6 +3,7 @@
 import { Suspense, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import Icon from "@/components/Icon";
 import { registerWithPassword, resendConfirmation, sendMagicLink, signInWithPassword } from "./actions";
 
 export default function LoginPage() {
@@ -109,22 +110,25 @@ function LoginForm() {
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6">
-      <h1 className="mb-1 text-2xl font-bold text-neutral-100">{title}</h1>
-      <p className="mb-8 text-sm text-neutral-400">{subtitle}</p>
+      <span className="mb-6 grid size-12 place-items-center rounded-xl bg-accent text-on-accent">
+        <Icon name="dumbbell" className="size-7" strokeWidth={2.25} />
+      </span>
+      <h1 className="mb-1 page-title">{title}</h1>
+      <p className="mb-8 text-sm text-label-2">{subtitle}</p>
 
       {mode === "magic-link" && magicLinkSent ? (
-        <div className="rounded-xl border border-green-900 bg-green-950 p-4 text-sm text-green-300">
+        <div className="rounded-xl bg-green/12 p-4 text-sm text-green">
           Check your email for a sign-in link.
         </div>
       ) : mode === "register" && registerState === "needs-confirmation" ? (
         <div className="flex flex-col gap-3">
-          <div className="rounded-xl border border-green-900 bg-green-950 p-4 text-sm text-green-300">
+          <div className="rounded-xl bg-green/12 p-4 text-sm text-green">
             Check your email to confirm your account before signing in.
           </div>
           {resent ? (
-            <p className="text-center text-sm text-green-400">Confirmation email sent.</p>
+            <p className="text-center text-sm text-green">Confirmation email sent.</p>
           ) : (
-            <button type="button" onClick={handleResend} disabled={pending} className="text-center text-sm text-neutral-400 underline">
+            <button type="button" onClick={handleResend} disabled={pending} className="text-center text-sm text-link">
               Didn&apos;t get it? Resend confirmation email
             </button>
           )}
@@ -145,7 +149,7 @@ function LoginForm() {
             onChange={(e) => setEmail(e.target.value)}
             required
             placeholder="you@example.com"
-            className="rounded-xl border border-neutral-700 bg-neutral-900 px-4 py-3 text-base text-neutral-100 placeholder-neutral-500"
+            className="field rounded-xl px-4 py-3 text-base"
           />
 
           {(mode === "password" || mode === "register") && (
@@ -155,33 +159,33 @@ function LoginForm() {
               onChange={(e) => setPassword(e.target.value)}
               required
               placeholder={mode === "register" ? "Password (at least 8 characters)" : "Password"}
-              className="rounded-xl border border-neutral-700 bg-neutral-900 px-4 py-3 text-base text-neutral-100 placeholder-neutral-500"
+              className="field rounded-xl px-4 py-3 text-base"
             />
           )}
 
           {mode === "password" && (
-            <Link href="/forgot-password" className="-mt-1 text-right text-xs text-neutral-400 underline">
+            <Link href="/forgot-password" className="-mt-1 text-right text-xs text-link">
               Forgot password?
             </Link>
           )}
 
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <p className="text-sm text-red">{error}</p>}
           {needsConfirmation && !resent && (
             <button
               type="button"
               onClick={handleResend}
               disabled={pending}
-              className="text-left text-sm text-neutral-300 underline"
+              className="text-left text-sm text-link"
             >
               Resend confirmation email
             </button>
           )}
-          {resent && <p className="text-sm text-green-400">Confirmation email sent.</p>}
+          {resent && <p className="text-sm text-green">Confirmation email sent.</p>}
 
           <button
             type="submit"
             disabled={pending}
-            className="rounded-xl bg-white px-4 py-3 font-medium text-neutral-900 disabled:opacity-50"
+            className="h-11 rounded-[10px] bg-accent px-4 text-[15px] font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-50"
           >
             {pending
               ? mode === "register"
@@ -202,7 +206,7 @@ function LoginForm() {
                   setError(null);
                   setMode("magic-link");
                 }}
-                className="text-center text-sm text-neutral-400 underline"
+                className="text-center text-sm text-link"
               >
                 Sign in with a magic link instead
               </button>
@@ -214,7 +218,7 @@ function LoginForm() {
                   setError(null);
                   setMode("password");
                 }}
-                className="text-center text-sm text-neutral-400 underline"
+                className="text-center text-sm text-link"
               >
                 Sign in with a password instead
               </button>
@@ -226,7 +230,7 @@ function LoginForm() {
                   setError(null);
                   setMode("register");
                 }}
-                className="text-center text-sm text-neutral-400 underline"
+                className="text-center text-sm text-link"
               >
                 Create a new account
               </button>

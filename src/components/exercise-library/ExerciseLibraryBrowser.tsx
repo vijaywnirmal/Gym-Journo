@@ -1,8 +1,11 @@
 "use client";
 
-import { useId, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { EQUIPMENT_OPTIONS, searchWords, type Equipment } from "@/lib/exerciseSearch";
 import type { ExerciseListItem } from "@/lib/exerciseLibrary";
+import Disclosure from "@/components/ui/Disclosure";
+import Icon from "@/components/Icon";
+import Select from "@/components/ui/Select";
 import ExercisePageList from "./ExercisePageList";
 import { useDebouncedValue, useExerciseGroups } from "./hooks";
 
@@ -31,36 +34,47 @@ export default function ExerciseLibraryBrowser({ renderExercise, version = 0, au
 
   return (
     <div className="flex flex-col gap-3">
-      <input
-        type="search"
-        value={term}
-        onChange={(e) => setTerm(e.target.value)}
-        placeholder="Search exercises, muscles or equipment"
-        aria-label="Search exercises"
-        autoFocus={autoFocus}
-        className="rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-base text-neutral-100 placeholder-neutral-500"
-      />
-      <select
-        value={equipment}
-        onChange={(e) => setEquipment(e.target.value as Equipment | "")}
-        aria-label="Filter by equipment"
-        className="self-start rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
-      >
-        <option value="">All equipment</option>
-        {EQUIPMENT_OPTIONS.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
+      <div className="flex gap-2">
+        <label className="field flex h-10 min-w-0 flex-1 items-center gap-2 rounded-[10px] px-3 focus-within:border-accent">
+          <Icon name="search" className="size-4 shrink-0 text-label-3" />
+          <input
+            type="text"
+            value={term}
+            onChange={(e) => setTerm(e.target.value)}
+            placeholder="Search name, muscle or equipment"
+            aria-label="Search exercises"
+            autoFocus={autoFocus}
+            className="h-full w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-label-3"
+          />
+          {term && (
+            <button
+              type="button"
+              onClick={() => setTerm("")}
+              aria-label="Clear search"
+              className="grid size-6 shrink-0 place-items-center rounded-md text-label-3 hover:bg-fill"
+            >
+              <Icon name="close" className="size-3.5" strokeWidth={2.25} />
+            </button>
+          )}
+        </label>
+        <Select
+          value={equipment}
+          onChange={(v) => setEquipment(v as Equipment | "")}
+          options={[{ value: "", label: "All equipment" }, ...EQUIPMENT_OPTIONS.map((o) => ({ value: o, label: o }))]}
+          ariaLabel="Filter by equipment"
+          className="w-36 shrink-0"
+        />
+      </div>
 
       <div className={resultsClassName}>
         {searching ? (
-          <ExercisePageList
-            key={`search|${debouncedTerm}|${equipment}|${version}`}
-            {...filters}
-            renderExercise={renderExercise}
-          />
+          <div className="rounded-[10px] border border-separator">
+            <ExercisePageList
+              key={`search|${debouncedTerm}|${equipment}|${version}`}
+              {...filters}
+              renderExercise={renderExercise}
+            />
+          </div>
         ) : (
           <MuscleGroupAccordion
             key={`groups|${equipment}`}
@@ -85,42 +99,47 @@ function MuscleGroupAccordion({
 }) {
   const { groups, status } = useExerciseGroups(filters, version);
   const [openGroupId, setOpenGroupId] = useState<string | null>(null);
-  const baseId = useId();
   const visible = (groups ?? []).filter((group) => group.exerciseCount > 0);
 
-  if (status === "error") return <p className="text-xs text-red-400">Couldn&apos;t load muscle groups.</p>;
-  if (!groups) return <p className="text-xs text-neutral-500">Loading muscle groups…</p>;
-  if (visible.length === 0) return <p className="text-xs text-neutral-500">No exercises match.</p>;
+  if (status === "error") return <p className="px-1 text-sm text-red">Couldn&apos;t load muscle groups.</p>;
+  if (!groups)
+    return (
+      <div className="flex flex-col gap-2" aria-label="Loading muscle groups">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="skeleton h-11" />
+        ))}
+      </div>
+    );
+  if (visible.length === 0) return <p className="px-1 py-6 text-center text-sm text-label-2">No exercises match.</p>;
 
   return (
-    <ul className="flex flex-col gap-2">
+    <ul className="divide-y divide-separator rounded-[10px] border border-separator">
       {visible.map((group) => {
         const open = openGroupId === group.id;
-        const panelId = `${baseId}-${group.id}`;
         return (
-          <li key={group.id} className="rounded-xl border border-neutral-800">
-            <button
-              type="button"
-              onClick={() => setOpenGroupId(open ? null : group.id)}
-              aria-expanded={open}
-              aria-controls={panelId}
-              className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold text-neutral-200"
+          <li key={group.id}>
+            <Disclosure
+              open={open}
+              onOpenChange={(next) => setOpenGroupId(next ? group.id : null)}
+              summaryClassName="px-4 py-3 hover:bg-fill"
+              summary={
+                <span className="flex items-center justify-between gap-3 pr-1">
+                  <span className="text-sm font-semibold">{group.name}</span>
+                  <span className="text-xs tabular-nums text-label-3">{group.exerciseCount}</span>
+                </span>
+              }
             >
-              <span>
-                {open ? "▾" : "▸"} {group.name}
-              </span>
-              <span className="text-xs font-normal text-neutral-500">{group.exerciseCount}</span>
-            </button>
-            {open && (
-              <div id={panelId} className="px-4 pb-3">
-                <ExercisePageList
-                  key={`${group.id}|${filters.equipment ?? ""}|${version}`}
-                  muscleGroupId={group.id}
-                  {...filters}
-                  renderExercise={renderExercise}
-                />
-              </div>
-            )}
+              {open && (
+                <div className="border-t border-separator">
+                  <ExercisePageList
+                    key={`${group.id}|${filters.equipment ?? ""}|${version}`}
+                    muscleGroupId={group.id}
+                    {...filters}
+                    renderExercise={renderExercise}
+                  />
+                </div>
+              )}
+            </Disclosure>
           </li>
         );
       })}

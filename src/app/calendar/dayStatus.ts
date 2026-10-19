@@ -30,9 +30,9 @@ export function describeCalendarDay(day: CalendarDay, date: string, todayStr: st
   const withTitle = (label: string) => (day.title ? `${label} · ${day.title}` : label);
   const plan =
     day.dayType === "rest"
-      ? withTitle("😴 Rest day")
+      ? withTitle("Rest day")
       : day.dayType === "absence"
-        ? withTitle("⏸️ Absence")
+        ? withTitle("Absence")
         : day.dayType === "workout"
           ? (day.title ?? "Workout")
           : "Not scheduled";

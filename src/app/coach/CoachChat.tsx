@@ -42,17 +42,17 @@ export default function CoachChat() {
           maxLength={MAX_COACH_QUESTION_LENGTH}
           rows={3}
           placeholder="Ask about what your records show…"
-          className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2.5 text-base text-neutral-100"
+          className="field w-full rounded-lg px-3 py-2.5 text-base"
         />
         <button
           type="submit"
           disabled={pending || question.trim() === ""}
-          className="rounded-lg bg-white px-4 py-2.5 text-sm font-medium text-neutral-900 disabled:opacity-50"
+          className="h-10 rounded-[10px] bg-accent px-4 text-sm font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-50"
         >
           {pending ? "Checking your records…" : "Ask Coach"}
         </button>
         {pending && (
-          <p className="text-xs text-neutral-500">
+          <p className="text-xs text-label-2">
             Coach checks every statement against your records, so this can take up to about 30 seconds.
           </p>
         )}
@@ -68,7 +68,7 @@ export default function CoachChat() {
               setQuestion(suggestion);
               ask(suggestion);
             }}
-            className="rounded-full border border-neutral-700 px-3 py-1.5 text-xs text-neutral-300 disabled:opacity-50"
+            className="rounded-full bg-fill px-3 py-1.5 text-xs text-label disabled:opacity-50"
           >
             {suggestion}
           </button>
@@ -79,8 +79,8 @@ export default function CoachChat() {
         <CoachReplyView reply={result.reply} sources={result.sources} />
       ) : result ? (
         <p
-          className={`rounded-xl border border-neutral-800 p-4 text-sm ${
-            result.status === "blocked" || result.status === "empty" ? "text-neutral-300" : "text-neutral-400"
+          className={`card p-4 text-sm ${
+            result.status === "blocked" || result.status === "empty" ? "text-label" : "text-label-2"
           }`}
         >
           {result.message}

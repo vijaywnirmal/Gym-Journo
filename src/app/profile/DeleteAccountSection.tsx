@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { deleteAccount } from "./actions";
 
+// Account deletion is permanent, so it asks the person to type DELETE before it runs.
 export default function DeleteAccountSection() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -25,41 +26,45 @@ export default function DeleteAccountSection() {
   }
 
   return (
-    <div className="border-t border-red-950 pt-5">
-      <h2 className="mb-1 text-sm font-semibold text-red-400">Danger zone</h2>
-      <p className="mb-3 text-xs text-neutral-500">
-        Permanently delete your account and all your data — exercises, workout plans, logs, AI
-        plans, and Coach history. This cannot be undone.
-      </p>
+    <div className="px-4 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-red">Delete account</p>
+          <p className="text-sm text-label-2">Removes all your workouts, plans and Coach history.</p>
+        </div>
+        {!confirming && (
+          <button
+            type="button"
+            onClick={() => setConfirming(true)}
+            className="h-8 shrink-0 rounded-lg border border-red/40 px-3 text-sm font-semibold text-red hover:bg-red/10"
+          >
+            Delete…
+          </button>
+        )}
+      </div>
 
-      {!confirming ? (
-        <button
-          type="button"
-          onClick={() => setConfirming(true)}
-          className="rounded-lg border border-red-900 px-4 py-2 text-sm font-medium text-red-400"
-        >
-          Delete my account
-        </button>
-      ) : (
-        <div className="flex flex-col gap-2">
-          <p className="text-xs text-neutral-400">
-            Type <span className="font-mono text-red-400">DELETE</span> to confirm.
-          </p>
+      {confirming && (
+        <div className="mt-3 flex flex-col gap-2 rounded-[10px] border border-red/30 bg-red/5 p-3">
+          <label htmlFor="confirm-delete" className="text-sm">
+            This can&apos;t be undone. Type <span className="font-mono font-semibold text-red">DELETE</span> to confirm.
+          </label>
           <input
+            id="confirm-delete"
             value={confirmText}
             onChange={(e) => setConfirmText(e.target.value)}
             placeholder="DELETE"
-            className="rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
+            autoComplete="off"
+            className="field h-10 rounded-lg px-3 text-sm"
           />
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <p className="text-sm text-red">{error}</p>}
           <div className="flex gap-2">
             <button
               type="button"
               onClick={handleDelete}
               disabled={pending || confirmText !== "DELETE"}
-              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
+              className="h-9 rounded-lg bg-red px-4 text-sm font-semibold text-white disabled:opacity-40"
             >
-              {pending ? "Deleting..." : "Permanently delete"}
+              {pending ? "Deleting…" : "Permanently delete"}
             </button>
             <button
               type="button"
@@ -68,7 +73,7 @@ export default function DeleteAccountSection() {
                 setConfirmText("");
                 setError(null);
               }}
-              className="rounded-lg border border-neutral-700 px-4 py-2 text-sm text-neutral-300"
+              className="h-9 rounded-lg border border-separator px-4 text-sm font-semibold hover:bg-fill"
             >
               Cancel
             </button>

@@ -10,7 +10,7 @@ import {
   getLastPerformedWorkoutDate,
 } from "@/lib/queries";
 import WeeklyInsightsCard from "@/components/WeeklyInsightsCard";
-import { formatDate, hourIn, todayIn } from "@/lib/date";
+import { formatDate, formatDateLong, hourIn, todayIn } from "@/lib/date";
 import { getUserTimeZone } from "@/lib/userDate";
 import { namePartsOf } from "@/lib/names";
 import {
@@ -20,11 +20,26 @@ import {
   getGreeting,
   getWorkoutCta,
 } from "@/lib/home";
-import SignOutButton from "@/components/SignOutButton";
+import PageHeader from "@/components/PageHeader";
 import { dayTypeOf } from "@/lib/dayType";
 import { comebackGapDays } from "@/lib/analyze/comeback";
+import Icon, { type IconName } from "@/components/Icon";
 
 const TRAINING_FREQUENCY_WINDOW_DAYS = 7;
+
+function ShortcutCard({ href, icon, title, text }: { href: string; icon: IconName; title: string; text: string }) {
+  return (
+    <Link href={href} className="card flex flex-col gap-3 p-4 hover:bg-fill">
+      <span className="grid size-8 place-items-center rounded-lg bg-accent/10 text-link">
+        <Icon name={icon} className="size-[18px]" strokeWidth={2} />
+      </span>
+      <span>
+        <span className="block text-sm font-semibold">{title}</span>
+        <span className="block text-xs text-label-2">{text}</span>
+      </span>
+    </Link>
+  );
+}
 
 export default async function TodayPage() {
   const { timeZone } = await getUserTimeZone();
@@ -57,178 +72,179 @@ export default async function TodayPage() {
   const hasNothingToday = !plan && !log;
   const recentActivity = hasNothingToday ? await getLastCompletedLog() : null;
 
+  const daysDone = trainingConsistency.daysPerformed;
+  const weekProgress = goalDaysPerWeek ? Math.min(1, daysDone / goalDaysPerWeek) : null;
+
   return (
-    <main className="px-4 pt-6">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <p className="text-sm text-neutral-500">{formatDate(date)}</p>
-          <h1 className="text-xl font-bold">{greeting}</h1>
-        </div>
-        <SignOutButton />
-      </div>
+    <main className="px-4 pt-6 md:px-8 md:pt-10">
+      <PageHeader title={greeting} subtitle={formatDateLong(date)} />
 
       {gapDays !== null && lastWorkout.date && (
-        <div className="mb-4 rounded-xl border border-sky-900 bg-sky-950/30 p-4" role="status">
-          <p className="font-semibold text-sky-100">👋 Welcome back</p>
-          <p className="mb-3 text-sm text-sky-200/80">
+        <section className="card mb-4 border-teal/30 bg-teal/5 p-5" role="status">
+          <h2 className="text-base font-semibold">Welcome back</h2>
+          <p className="mt-0.5 mb-4 text-sm text-label-2">
             Your last workout was {gapDays} days ago ({formatDate(lastWorkout.date)}). A shorter session still counts.
           </p>
-          {canGoLighter ? (
-            <Link
-              href={`/log/${date}?lighter=1`}
-              className="block rounded-lg bg-white px-4 py-2.5 text-center text-sm font-medium text-neutral-900"
-            >
-              Start a lighter session
-            </Link>
-          ) : (
-            <Link
-              href={`/log/${date}`}
-              className="block rounded-lg bg-white px-4 py-2.5 text-center text-sm font-medium text-neutral-900"
-            >
-              Log a short workout
-            </Link>
-          )}
-        </div>
+          <Link
+            href={canGoLighter ? `/log/${date}?lighter=1` : `/log/${date}`}
+            className="inline-flex h-10 items-center rounded-[10px] bg-accent px-4 text-sm font-semibold text-on-accent hover:bg-accent-hover"
+          >
+            {canGoLighter ? "Start a lighter session" : "Log a short workout"}
+          </Link>
+        </section>
       )}
 
-      {goalSummary && (
-        <div className="mb-4 rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3">
-          <p className="text-sm font-medium text-neutral-100">{goalSummary.goalLine}</p>
-          {goalSummary.targetLine && (
-            <p className="text-xs text-neutral-400">{goalSummary.targetLine}</p>
+      {plan?.is_rest_day ? (
+        <section className="card mb-4 flex items-center gap-4 p-5">
+          <span className="grid size-11 shrink-0 place-items-center rounded-full bg-teal/12 text-teal">
+            <Icon name="moon" className="size-5" strokeWidth={2} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-lg font-semibold">{dayTypeOf(plan) === "absence" ? "Day off" : "Rest day"}</h2>
+            <p className="text-sm text-label-2">
+              {plan.title ?? (dayTypeOf(plan) === "absence" ? "Marked as an absence." : "Recovery is part of the plan.")}
+            </p>
+          </div>
+          <Link href={`/schedule/${date}`} className="rounded-lg px-3 py-1.5 text-sm font-medium text-link hover:bg-fill">
+            Change
+          </Link>
+        </section>
+      ) : plan ? (
+        <section className="card mb-4 p-5">
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="mb-0.5 text-xs font-semibold text-link">Today&apos;s workout</p>
+              <h2 className="truncate text-xl font-semibold">{plan.title ?? "Scheduled workout"}</h2>
+              {plan.muscle_groups && plan.muscle_groups.length > 0 && (
+                <p className="mt-0.5 truncate text-sm text-label-2">
+                  {plan.muscle_groups.map((mg) => mg.name).join(" · ")}
+                </p>
+              )}
+            </div>
+            <Link
+              href={`/schedule/${date}`}
+              className="shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium text-link hover:bg-fill"
+            >
+              Edit
+            </Link>
+          </div>
+          {plan.planned_exercises && plan.planned_exercises.length > 0 && (
+            <ol className="mb-5 divide-y divide-separator border-y border-separator">
+              {plan.planned_exercises.map((pe, i) => (
+                <li key={pe.id} className="flex items-center gap-3 py-2.5 text-sm">
+                  <span className="w-5 text-right text-xs font-medium tabular-nums text-label-3">{i + 1}</span>
+                  <span className="min-w-0 flex-1 truncate">
+                    {formatPlannedExercise({
+                      name: pe.exercise?.name ?? "Exercise",
+                      targetSets: pe.target_sets,
+                      targetReps: pe.target_reps,
+                      // `?? null`/`?? "kg"`: before migration 0017 is applied, these columns don't exist
+                      // yet and Supabase omits them rather than returning null.
+                      targetWeight: pe.target_weight ?? null,
+                      targetWeightUnit: pe.target_weight_unit ?? "kg",
+                    })}
+                  </span>
+                </li>
+              ))}
+            </ol>
           )}
-        </div>
-      )}
-
-      {trainingFrequency && (
-        <div className="mb-4 rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3">
-          <p className="text-xs font-medium text-neutral-500">Training frequency</p>
-          <p className="text-sm text-neutral-100">{trainingFrequency.actualLine}</p>
-          <p className="text-xs text-neutral-400">{trainingFrequency.goalLine}</p>
-        </div>
+          <div className="flex items-center gap-3">
+            <Link
+              href={cta.href}
+              className="flex h-11 flex-1 items-center justify-center rounded-[10px] bg-accent px-4 text-[15px] font-semibold text-on-accent hover:bg-accent-hover"
+            >
+              {cta.label}
+            </Link>
+            {log?.completed_at && (
+              <span className="flex items-center gap-1.5 text-sm font-medium text-green">
+                <Icon name="checkmark" className="size-4" strokeWidth={2.5} />
+                Done
+              </span>
+            )}
+          </div>
+        </section>
+      ) : (
+        <section className="card mb-4 p-5">
+          <h2 className="text-lg font-semibold">Nothing planned for today</h2>
+          <p className="mb-4 text-sm text-label-2">Log what you do as you go, or plan the session first.</p>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href={cta.href}
+              className="flex h-10 items-center rounded-[10px] bg-accent px-4 text-sm font-semibold text-on-accent hover:bg-accent-hover"
+            >
+              {log ? cta.label : "Start a workout"}
+            </Link>
+            <Link
+              href={`/schedule/${date}`}
+              className="flex h-10 items-center rounded-[10px] border border-separator px-4 text-sm font-semibold hover:bg-fill"
+            >
+              Plan today
+            </Link>
+            <Link
+              href="/programs"
+              className="flex h-10 items-center rounded-[10px] px-3 text-sm font-medium text-link hover:bg-fill"
+            >
+              Follow a program
+            </Link>
+          </div>
+          {recentActivity && (
+            <p className="mt-4 border-t border-separator pt-3 text-xs text-label-2">
+              Last workout: {recentActivity.title ?? "Freeform workout"} · {formatDate(recentActivity.date)}
+            </p>
+          )}
+        </section>
       )}
 
       {suggestions.length > 0 && (
-        <Link
-          href="/suggestions"
-          className="mb-4 flex items-center justify-between rounded-xl border border-green-900 bg-green-950/30 p-4"
-        >
-          <span className="text-sm font-medium text-green-300">
-            💡 {suggestions.length} weight suggestion{suggestions.length === 1 ? "" : "s"} for upcoming workouts
+        <Link href="/suggestions" className="card mb-4 flex items-center gap-3 px-4 py-3 hover:bg-fill">
+          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-green/12 text-green">
+            <Icon name="lightbulb" className="size-4" strokeWidth={2} />
           </span>
-          <span className="text-green-500">→</span>
+          <span className="min-w-0 flex-1 text-sm">
+            <span className="font-medium">
+              {suggestions.length} weight suggestion{suggestions.length === 1 ? "" : "s"}
+            </span>
+            <span className="text-label-2"> for upcoming workouts</span>
+          </span>
+          <Icon name="chevronRight" className="size-4 text-label-3" strokeWidth={2} />
         </Link>
       )}
 
+      <h2 className="section-title mt-6">This week</h2>
+      <section className="card mb-4 p-5">
+        <div className="flex items-baseline gap-2">
+          <p className="text-3xl font-semibold tabular-nums tracking-tight">
+            {daysDone}
+            {goalDaysPerWeek && <span className="text-label-3"> / {goalDaysPerWeek}</span>}
+          </p>
+          <p className="text-sm text-label-2">training days in the last {trainingConsistency.windowDays} days</p>
+        </div>
+        {weekProgress !== null && (
+          <div
+            className="mt-4 h-2 overflow-hidden rounded-full bg-fill"
+            role="img"
+            aria-label={trainingFrequency?.actualLine}
+          >
+            <div className="h-full rounded-full bg-accent" style={{ width: `${weekProgress * 100}%` }} />
+          </div>
+        )}
+        {goalSummary ? (
+          <p className="mt-3 text-sm text-label-2">
+            Goal: <span className="font-medium text-label">{goalSummary.goalLine}</span>
+            {goalSummary.targetLine && <> · {goalSummary.targetLine}</>}
+          </p>
+        ) : (
+          trainingFrequency && <p className="mt-3 text-xs text-label-2">{trainingFrequency.goalLine}</p>
+        )}
+      </section>
+
       {weeklyInsights && <WeeklyInsightsCard insights={weeklyInsights} goalDaysPerWeek={goalDaysPerWeek} />}
 
-      {plan?.is_rest_day ? (
-        <div className="mb-4 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
-          <div className="mb-1 flex items-center justify-between">
-            <h2 className="font-semibold text-neutral-100">
-              {dayTypeOf(plan) === "absence" ? "⏸️ Absence" : "😴 Rest day"}
-            </h2>
-            <Link href={`/schedule/${date}`} className="text-xs text-neutral-400 underline">
-              Edit
-            </Link>
-          </div>
-          {plan.title && <p className="text-sm text-neutral-400">{plan.title}</p>}
-        </div>
-      ) : plan ? (
-        <div className="mb-4 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="font-semibold text-neutral-100">{plan.title ?? "Scheduled workout"}</h2>
-            <Link href={`/schedule/${date}`} className="text-xs text-neutral-400 underline">
-              Edit
-            </Link>
-          </div>
-          {plan.muscle_groups && plan.muscle_groups.length > 0 && (
-            <div className="mb-3 flex flex-wrap gap-1.5">
-              {plan.muscle_groups.map((mg) => (
-                <span
-                  key={mg.id}
-                  className="rounded-full bg-neutral-800 px-2.5 py-1 text-xs font-medium text-neutral-200"
-                >
-                  {mg.name}
-                </span>
-              ))}
-            </div>
-          )}
-          {plan.planned_exercises && plan.planned_exercises.length > 0 && (
-            <p className="mb-2 text-xs text-neutral-500">
-              {plan.planned_exercises.length} exercise
-              {plan.planned_exercises.length === 1 ? "" : "s"}
-            </p>
-          )}
-          <ul className="mb-4 flex flex-col gap-1 text-sm text-neutral-300">
-            {plan.planned_exercises?.map((pe) => (
-              <li key={pe.id}>
-                {formatPlannedExercise({
-                  name: pe.exercise?.name ?? "Exercise",
-                  targetSets: pe.target_sets,
-                  targetReps: pe.target_reps,
-                  // `?? null`/`?? "kg"`: before migration 0017 is applied, these columns don't exist
-                  // yet and Supabase omits them rather than returning null.
-                  targetWeight: pe.target_weight ?? null,
-                  targetWeightUnit: pe.target_weight_unit ?? "kg",
-                })}
-              </li>
-            ))}
-          </ul>
-          {log?.completed_at && (
-            <p className="mb-2 text-xs text-green-400">Completed ✓</p>
-          )}
-          <Link
-            href={cta.href}
-            className="block rounded-lg bg-white px-4 py-2.5 text-center text-sm font-medium text-neutral-900"
-          >
-            {cta.label}
-          </Link>
-        </div>
-      ) : (
-        <div className="mb-4 rounded-xl border border-dashed border-neutral-700 p-4 text-center">
-          <p className="mb-3 text-sm text-neutral-400">Nothing scheduled for today.</p>
-          <div className="flex flex-col gap-2">
-            <Link
-              href={`/schedule/${date}`}
-              className="rounded-lg border border-neutral-700 px-4 py-2.5 text-sm font-medium text-neutral-100"
-            >
-              Schedule today
-            </Link>
-            <Link
-              href={cta.href}
-              className="rounded-lg bg-white px-4 py-2.5 text-sm font-medium text-neutral-900"
-            >
-              {log ? cta.label : "Log a freeform workout"}
-            </Link>
-            <Link href="/programs" className="text-xs text-neutral-400 underline">
-              Or follow a program
-            </Link>
-          </div>
-        </div>
-      )}
-
-      {recentActivity && (
-        <p className="mb-4 text-center text-xs text-neutral-500">
-          Last completed workout: {recentActivity.title ?? "Freeform workout"} · {formatDate(recentActivity.date)}
-        </p>
-      )}
-
-      <Link
-        href="/coach"
-        className="mb-4 flex items-center justify-between rounded-xl border border-neutral-800 bg-neutral-900 p-4"
-      >
-        <span className="text-sm font-medium text-neutral-100">🧭 What changed? Ask Coach</span>
-        <span className="text-neutral-500">→</span>
-      </Link>
-
-      <Link
-        href="/ai-plan"
-        className="mb-4 flex items-center justify-between rounded-xl border border-neutral-800 bg-neutral-900 p-4"
-      >
-        <span className="text-sm font-medium text-neutral-100">✨ Get an AI diet & workout plan</span>
-        <span className="text-neutral-500">→</span>
-      </Link>
+      <h2 className="section-title mt-6">Help</h2>
+      <div className="mb-6 grid grid-cols-2 gap-3">
+        <ShortcutCard href="/coach" icon="compass" title="Ask Coach" text="What changed in my training?" />
+        <ShortcutCard href="/ai-plan" icon="sparkles" title="AI plan" text="Diet and workout plan" />
+      </div>
     </main>
   );
 }

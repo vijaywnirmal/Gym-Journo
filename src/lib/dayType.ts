@@ -6,9 +6,9 @@ export type DayType = (typeof DAY_TYPES)[number];
 export type OffKind = Exclude<DayType, "workout">;
 
 export const DAY_TYPE_LABEL: Record<DayType, string> = {
-  workout: "🏋️ Workout",
-  rest: "😴 Rest",
-  absence: "⏸️ Absence",
+  workout: "Workout",
+  rest: "Rest",
+  absence: "Absence",
 };
 
 export const DAY_TYPE_TITLE_PLACEHOLDER: Record<DayType, string> = {

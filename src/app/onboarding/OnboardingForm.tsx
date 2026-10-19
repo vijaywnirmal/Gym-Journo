@@ -49,8 +49,8 @@ export default function OnboardingForm() {
     <div className="flex flex-col gap-6 pb-6">
       <ProfileFields value={fields} onChange={setFields} />
 
-      <div className="border-t border-neutral-800 pt-5">
-        <p className="mb-3 text-xs text-neutral-500">
+      <div className="border-t border-separator pt-5">
+        <p className="mb-3 text-xs text-label-2">
           Already have a password, or prefer to keep signing in with a magic link? Leave this
           blank — you can set or change a password anytime from your profile.
         </p>
@@ -62,13 +62,13 @@ export default function OnboardingForm() {
         />
       </div>
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-red">{error}</p>}
 
       <button
         type="button"
         onClick={handleSubmit}
         disabled={pending}
-        className="rounded-xl bg-white px-4 py-3 font-medium text-neutral-900 disabled:opacity-50"
+        className="h-11 rounded-[10px] bg-accent px-4 text-[15px] font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-50"
       >
         {pending ? "Saving..." : "Finish setup"}
       </button>

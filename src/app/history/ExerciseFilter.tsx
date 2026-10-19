@@ -2,34 +2,33 @@
 
 import { useRouter } from "next/navigation";
 import type { ExerciseOption } from "@/lib/queries";
+import Select from "@/components/ui/Select";
 
+// Picks the exercise a History or Progress view is scoped to, kept in the URL so the view can be
+// shared and survives a reload. Lists the exercises the person has logged; searchable once long.
 export default function ExerciseFilter({
   exercises,
   selectedId,
   basePath = "/history",
+  allLabel = "All exercises",
 }: {
   exercises: ExerciseOption[];
   selectedId?: string;
   basePath?: string;
+  allLabel?: string;
 }) {
   const router = useRouter();
 
   return (
-    <select
-      defaultValue={selectedId ?? ""}
-      onChange={(e) => {
-        const value = e.target.value;
-        router.push(value ? `${basePath}?exercise=${value}` : basePath);
-      }}
-      aria-label="Filter by exercise"
-      className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-base text-neutral-100"
-    >
-      <option value="">All exercises</option>
-      {exercises.map((ex) => (
-        <option key={ex.id} value={ex.id}>
-          {ex.name}
-        </option>
-      ))}
-    </select>
+    <Select
+      value={selectedId ?? ""}
+      onChange={(value) => router.push(value ? `${basePath}?exercise=${value}` : basePath)}
+      options={[{ value: "", label: allLabel }, ...exercises.map((ex) => ({ value: ex.id, label: ex.name }))]}
+      ariaLabel="Filter by exercise"
+      size="lg"
+      searchPlaceholder="Search your exercises"
+      emptyText="You haven't logged an exercise by that name"
+      className="w-full"
+    />
   );
 }

@@ -10,38 +10,57 @@ import {
   WEEKDAY_LABELS,
   type Program,
 } from "@/lib/programs";
+import DateField from "@/components/ui/DateField";
+import Disclosure from "@/components/ui/Disclosure";
+import Icon from "@/components/Icon";
+import Select from "@/components/ui/Select";
 import { applyProgram, type ApplyProgramResult } from "./actions";
 
 const PREVIEW_DAYS = 6;
 
 export default function ProgramPicker({ programs, today }: { programs: Program[]; today: string }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const selected = programs.find((p) => p.id === selectedId) ?? null;
 
   return (
     <div className="flex flex-col gap-3 pb-6">
-      {programs.map((program) => (
-        <div key={program.id} className="rounded-xl border border-neutral-800">
-          <button
-            type="button"
-            onClick={() => setSelectedId(selectedId === program.id ? null : program.id)}
-            aria-expanded={selectedId === program.id}
-            className="w-full px-4 py-3 text-left"
-          >
-            <div className="flex items-baseline justify-between gap-2">
-              <p className="font-semibold text-neutral-100">{program.name}</p>
-              <span className="shrink-0 text-xs text-neutral-500">
-                {program.defaultWeekdays.length}×/week · {program.level}
-              </span>
-            </div>
-            <p className="mt-1 text-sm text-neutral-400">{program.summary}</p>
-          </button>
-          {selected?.id === program.id && (
-            // Keyed so switching programs resets the form to that program's defaults.
-            <ProgramForm key={program.id} program={program} today={today} />
-          )}
-        </div>
-      ))}
+      {programs.map((program) => {
+        const open = selectedId === program.id;
+        return (
+          <section key={program.id} className={`card overflow-hidden ${open ? "ring-2 ring-accent/40" : ""}`}>
+            <button
+              type="button"
+              onClick={() => setSelectedId(open ? null : program.id)}
+              aria-expanded={open}
+              className="flex w-full items-start gap-3 px-4 py-4 text-left hover:bg-fill"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold">{program.name}</p>
+                <p className="mt-0.5 text-sm text-label-2">{program.summary}</p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <span className="rounded-md bg-fill px-2 py-0.5 text-xs font-medium text-label-2">
+                    {program.defaultWeekdays.length} days/week
+                  </span>
+                  <span className="rounded-md bg-fill px-2 py-0.5 text-xs font-medium text-label-2 capitalize">
+                    {program.level}
+                  </span>
+                  <span className="rounded-md bg-fill px-2 py-0.5 text-xs font-medium text-label-2">
+                    {program.defaultWeeks} weeks
+                  </span>
+                </div>
+              </div>
+              <Icon
+                name="chevronDown"
+                className={`mt-1 size-4 shrink-0 text-label-3 transition-transform ${open ? "rotate-180" : ""}`}
+                strokeWidth={2.25}
+              />
+            </button>
+            {open && (
+              // Keyed so switching programs resets the form to that program's defaults.
+              <ProgramForm key={program.id} program={program} today={today} />
+            )}
+          </section>
+        );
+      })}
     </div>
   );
 }
@@ -76,48 +95,73 @@ function ProgramForm({ program, today }: { program: Program; today: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-3 border-t border-neutral-800 px-4 py-3">
-      <details>
-        <summary className="cursor-pointer text-xs text-neutral-400">
-          {program.days.length} workout{program.days.length === 1 ? "" : "s"} in rotation
-        </summary>
-        <ul className="mt-2 flex flex-col gap-2">
+    <div className="flex flex-col gap-4 border-t border-separator px-4 py-4">
+      <Disclosure
+        summary={
+          <span className="text-sm font-medium text-link">
+            See the {program.days.length} workout{program.days.length === 1 ? "" : "s"} in rotation
+          </span>
+        }
+        summaryClassName="h-8"
+      >
+        <ul className="mt-1 flex flex-col divide-y divide-separator rounded-[10px] border border-separator">
           {program.days.map((day) => (
-            <li key={day.title} className="text-sm">
-              <p className="font-medium text-neutral-200">{day.title}</p>
-              <p className="text-xs text-neutral-400">
+            <li key={day.title} className="px-3 py-2">
+              <p className="text-sm font-medium">{day.title}</p>
+              <p className="text-xs text-label-2">
                 {day.exercises.map((e) => `${e.name} ${e.sets}×${e.reps}`).join(" · ")}
               </p>
             </li>
           ))}
         </ul>
-      </details>
+      </Disclosure>
 
-      <label className="flex items-center justify-between gap-2 text-sm text-neutral-300">
-        Start
-        <input
-          type="date"
-          value={startDate}
-          min={today}
-          onChange={(e) => {
-            setResult(null);
-            setStartDate(e.target.value);
-          }}
-          className="rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-base text-neutral-100"
-        />
-      </label>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <span className="mb-1.5 block text-sm font-medium">Start date</span>
+          <DateField
+            value={startDate}
+            min={today}
+            onChange={(v) => {
+              setResult(null);
+              setStartDate(v);
+            }}
+            ariaLabel="Start date"
+          />
+        </div>
+        <div>
+          <span className="mb-1.5 block text-sm font-medium">Length</span>
+          <Select
+            value={String(weeks)}
+            onChange={(v) => {
+              setResult(null);
+              setWeeks(Number(v));
+            }}
+            options={Array.from({ length: MAX_PROGRAM_WEEKS - MIN_PROGRAM_WEEKS + 1 }, (_, i) => {
+              const w = i + MIN_PROGRAM_WEEKS;
+              return { value: String(w), label: `${w} week${w === 1 ? "" : "s"}` };
+            })}
+            ariaLabel="Program length"
+            searchable={false}
+            size="lg"
+            className="w-full"
+          />
+        </div>
+      </div>
 
       <div>
-        <p className="mb-1 text-sm text-neutral-300">Training days</p>
-        <div className="flex gap-1" role="group" aria-label="Training days">
+        <span className="mb-1.5 block text-sm font-medium">Training days</span>
+        <div className="grid grid-cols-7 gap-1.5" role="group" aria-label="Training days">
           {WEEKDAY_LABELS.map((label, day) => (
             <button
               key={label}
               type="button"
               onClick={() => toggleDay(day)}
               aria-pressed={weekdays.has(day)}
-              className={`flex-1 rounded-md py-1.5 text-xs ${
-                weekdays.has(day) ? "bg-white font-semibold text-neutral-900" : "border border-neutral-700 text-neutral-400"
+              className={`h-10 rounded-lg border text-sm font-medium ${
+                weekdays.has(day)
+                  ? "border-transparent bg-accent text-on-accent"
+                  : "border-separator text-label-2 hover:bg-fill"
               }`}
             >
               {label}
@@ -126,49 +170,37 @@ function ProgramForm({ program, today }: { program: Program; today: string }) {
         </div>
       </div>
 
-      <label className="flex items-center justify-between gap-2 text-sm text-neutral-300">
-        Weeks
-        <select
-          value={weeks}
-          onChange={(e) => {
-            setResult(null);
-            setWeeks(Number(e.target.value));
-          }}
-          className="rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-base text-neutral-100"
-        >
-          {Array.from({ length: MAX_PROGRAM_WEEKS - MIN_PROGRAM_WEEKS + 1 }, (_, i) => i + MIN_PROGRAM_WEEKS).map((w) => (
-            <option key={w} value={w}>
-              {w}
-            </option>
-          ))}
-        </select>
-      </label>
-
       {schedule.length > 0 ? (
-        <div className="rounded-lg bg-neutral-900 px-3 py-2">
-          <p className="mb-1 text-xs text-neutral-500">
-            {schedule.length} workouts · first {Math.min(PREVIEW_DAYS, schedule.length)}:
+        <div className="rounded-[10px] bg-fill px-3 py-2.5">
+          <p className="mb-1.5 text-xs font-medium text-label-2">
+            {schedule.length} workouts. First {Math.min(PREVIEW_DAYS, schedule.length)}:
           </p>
-          <ul className="text-xs text-neutral-300">
+          <ul className="flex flex-col gap-0.5 text-sm">
             {schedule.slice(0, PREVIEW_DAYS).map((s) => (
-              <li key={s.date}>
-                {formatDate(s.date)} — {s.day.title}
+              <li key={s.date} className="flex gap-3">
+                <span className="w-24 shrink-0 text-label-2">{formatDate(s.date)}</span>
+                <span className="truncate">{s.day.title}</span>
               </li>
             ))}
           </ul>
         </div>
       ) : (
-        <p className="text-xs text-neutral-500">Pick at least one training day.</p>
+        <p className="text-sm text-label-2">Pick at least one training day.</p>
       )}
 
-      {result && "error" in result && <p className="text-sm text-red-400">{result.error}</p>}
+      {result && "error" in result && <p className="text-sm text-red">{result.error}</p>}
       {result && "success" in result && (
-        <div className="rounded-lg border border-green-900 bg-green-950/40 px-3 py-2 text-sm text-green-300" role="status">
-          Scheduled {result.created} workout{result.created === 1 ? "" : "s"}
-          {result.skipped > 0 && ` · skipped ${result.skipped} day${result.skipped === 1 ? "" : "s"} you'd already planned`}.{" "}
-          <Link href={`/calendar?week=${result.firstDate}`} className="underline">
-            See calendar
-          </Link>
+        <div className="flex items-start gap-2 rounded-[10px] bg-green/10 px-3 py-2.5 text-sm" role="status">
+          <Icon name="checkmark" className="mt-0.5 size-4 shrink-0 text-green" strokeWidth={2.5} />
+          <p>
+            Scheduled {result.created} workout{result.created === 1 ? "" : "s"}
+            {result.skipped > 0 &&
+              ` · skipped ${result.skipped} day${result.skipped === 1 ? "" : "s"} you'd already planned`}
+            .{" "}
+            <Link href={`/calendar?week=${result.firstDate}`} className="font-medium text-link">
+              See calendar
+            </Link>
+          </p>
         </div>
       )}
 
@@ -176,9 +208,9 @@ function ProgramForm({ program, today }: { program: Program; today: string }) {
         type="button"
         onClick={apply}
         disabled={pending || schedule.length === 0 || (result !== null && "success" in result)}
-        className="rounded-xl bg-white px-4 py-2.5 text-sm font-medium text-neutral-900 disabled:opacity-40"
+        className="h-11 rounded-[10px] bg-accent px-4 text-[15px] font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-40"
       >
-        {pending ? "Scheduling…" : "Schedule this program"}
+        {pending ? "Scheduling…" : "Add to my calendar"}
       </button>
     </div>
   );

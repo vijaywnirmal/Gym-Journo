@@ -42,6 +42,17 @@ describe("saveLog", () => {
     getUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
   });
 
+  it("rejects a future-dated log without writing", async () => {
+    const result = await saveLog({ ...basicInput, date: "2026-01-11" });
+    expect(result).toEqual({ error: "You can't log a workout for a future date." });
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("accepts a log dated today", async () => {
+    rpc.mockResolvedValue({ data: "log-1", error: null });
+    expect(await saveLog({ ...basicInput, date: "2026-01-10" })).toEqual({ success: true });
+  });
+
   it("requires the user to be signed in", async () => {
     getUser.mockResolvedValue({ data: { user: null } });
     const result = await saveLog(basicInput);

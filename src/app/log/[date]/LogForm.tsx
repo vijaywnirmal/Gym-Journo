@@ -17,9 +17,10 @@ import { describePersonalRecord, type PersonalRecord } from "@/lib/analyze/perso
 import { saveLog, fetchPreviousPerformance, fetchPersonalRecords } from "./actions";
 import { toSetType } from "@/lib/setData";
 import { lighterSets, lighterSetCount } from "@/lib/analyze/comeback";
-import ExerciseLogPanel, { setsFromPrevious, type ExerciseEntry, type SetRow } from "./ExerciseLogPanel";
+import ExerciseLogPanel, { countLoggedSets, setsFromPrevious, type ExerciseEntry, type SetRow } from "./ExerciseLogPanel";
 import LogExercisePicker from "./LogExercisePicker";
 import RestTimer, { type RestTimerHandle } from "./RestTimer";
+import Icon from "@/components/Icon";
 import ShareWorkoutButton from "@/components/ShareWorkoutButton";
 
 type Props = {
@@ -85,6 +86,25 @@ export function getUnloggedPlannedExercises(
   return result;
 }
 
+const AUTO_ADVANCE_NOTICE_MS = 8000;
+
+// Where the logger goes after an exercise is finished: the next exercise still to do, searching
+// forward from `from` and then wrapping round to the start. Null when everything is finished.
+export function nextUnfinishedIndex(entries: Pick<ExerciseEntry, "done">[], from: number): number | null {
+  for (let step = 1; step < entries.length; step++) {
+    const index = (from + step) % entries.length;
+    if (!entries[index].done) return index;
+  }
+  return null;
+}
+
+// Ticking a set finishes the exercise when every set is now ticked, there is at least one set, and
+// the exercise isn't already finished.
+export function completesExercise(entry: { done: boolean; sets: { done?: boolean }[] }, tickedIndex: number): boolean {
+  if (entry.done || entry.sets.length === 0) return false;
+  return entry.sets.every((set, i) => (i === tickedIndex ? true : !!set.done));
+}
+
 export default function LogForm({
   date,
   plan,
@@ -139,6 +159,18 @@ export default function LogForm({
   const [workoutCompleted, setWorkoutCompleted] = useState(!!existingLog?.completed_at);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Set when ticking the last set moved the logger on by itself, so the move can be undone. The
+  // notice clears itself after a few seconds; the step list still allows going back any time.
+  const [autoAdvance, setAutoAdvance] = useState<{
+    fromIndex: number;
+    finishedName: string;
+    nextName: string;
+  } | null>(null);
+  useEffect(() => {
+    if (!autoAdvance) return;
+    const timer = setTimeout(() => setAutoAdvance(null), AUTO_ADVANCE_NOTICE_MS);
+    return () => clearTimeout(timer);
+  }, [autoAdvance]);
   const [previousPerformance, setPreviousPerformance] =
     useState<Record<string, PreviousPerformance | null>>(initialPreviousPerformance);
 
@@ -368,18 +400,47 @@ export default function LogForm({
     scheduleSave(true);
   }
 
-  // Ticking a set done starts the rest timer. The tick is on-screen only (never saved), so no save.
+  // Ticking a set done starts the rest timer. The tick is on-screen only (never saved), so no save —
+  // unless it was the last set: then the exercise is finished and the logger moves on to the next
+  // one still to do, with a moment to undo in case another set is coming.
   function toggleSetDone(index: number) {
-    const entry = stateRef.current.entries[currentIndex];
+    const latest = stateRef.current.entries;
+    const entry = latest[currentIndex];
     const becomingDone = !entry?.sets[index]?.done;
+    const finishing = becomingDone && !!entry && completesExercise(entry, index);
     updateEntries((prev) =>
       prev.map((e, i) =>
         i === currentIndex
-          ? { ...e, sets: e.sets.map((s, si) => (si === index ? { ...s, done: !s.done } : s)) }
+          ? {
+              ...e,
+              done: finishing ? true : e.done,
+              sets: e.sets.map((s, si) => (si === index ? { ...s, done: !s.done } : s)),
+            }
           : e
       )
     );
     if (becomingDone) startRest(entry);
+    if (!finishing) return;
+
+    scheduleSave(true);
+    const next = nextUnfinishedIndex(
+      latest.map((e, i) => (i === currentIndex ? { done: true } : e)),
+      currentIndex
+    );
+    if (next !== null) {
+      setCurrentIndex(next);
+      setAutoAdvance({ fromIndex: currentIndex, finishedName: entry.name, nextName: latest[next].name });
+    }
+  }
+
+  // Undo an automatic move: reopen the exercise that was just finished and go back to it.
+  function undoAutoAdvance() {
+    if (!autoAdvance) return;
+    const { fromIndex } = autoAdvance;
+    updateEntries((prev) => prev.map((e, i) => (i === fromIndex ? { ...e, done: false } : e)));
+    scheduleSave(true);
+    setCurrentIndex(fromIndex);
+    setAutoAdvance(null);
   }
 
   function removeSet(index: number) {
@@ -393,8 +454,13 @@ export default function LogForm({
     const wasDone = entries[currentIndex]?.done;
     updateEntries((prev) => prev.map((e, i) => (i === currentIndex ? { ...e, done: !e.done } : e)));
     scheduleSave(true);
-    if (!wasDone && currentIndex < entries.length - 1) {
-      setCurrentIndex((i) => i + 1);
+    setAutoAdvance(null);
+    if (!wasDone) {
+      const next = nextUnfinishedIndex(
+        entries.map((e, i) => (i === currentIndex ? { done: true } : e)),
+        currentIndex
+      );
+      if (next !== null) setCurrentIndex(next);
     }
   }
 
@@ -445,6 +511,7 @@ export default function LogForm({
 
   function goTo(index: number) {
     if (hasUnsavedRef.current) scheduleSave(true);
+    setAutoAdvance(null);
     setCurrentIndex(index);
   }
 
@@ -484,9 +551,9 @@ export default function LogForm({
       <SaveStatus state={saveState} error={saveError} onRetry={() => scheduleSave(true)} />
 
       {lighter && (
-        <div className="rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3" role="note">
-          <p className="text-sm font-medium text-neutral-100">Lighter session</p>
-          <p className="text-xs text-neutral-400">
+        <div className="card border-teal/30 bg-teal/5 px-4 py-3" role="note">
+          <p className="text-sm font-semibold">Lighter session</p>
+          <p className="text-xs text-label-2">
             About two thirds of the planned sets, and &ldquo;Same as last time&rdquo; fills about 90% of last
             time&apos;s weights. Change anything you like — your plan stays as it is.
           </p>
@@ -494,8 +561,8 @@ export default function LogForm({
       )}
 
       {pendingBackup && (
-        <div className="rounded-xl border border-sky-900 bg-sky-950/40 px-4 py-3" role="status">
-          <p className="text-sm text-sky-200">
+        <div className="rounded-xl bg-accent/10 px-4 py-3" role="status">
+          <p className="text-sm text-link">
             This device has changes to this workout from {formatBackupTime(pendingBackup.savedAt)} that
             didn&apos;t sync.
           </p>
@@ -503,14 +570,14 @@ export default function LogForm({
             <button
               type="button"
               onClick={restoreBackup}
-              className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-neutral-900"
+              className="h-8 rounded-lg bg-accent px-3 text-xs font-semibold text-on-accent hover:bg-accent-hover"
             >
               Restore and sync
             </button>
             <button
               type="button"
               onClick={discardBackup}
-              className="rounded-lg border border-neutral-700 px-3 py-1.5 text-xs font-medium text-neutral-300"
+              className="h-8 rounded-lg border border-separator px-3 text-xs font-semibold hover:bg-fill"
             >
               Discard
             </button>
@@ -518,76 +585,120 @@ export default function LogForm({
         </div>
       )}
 
-      {workoutCompleted && (
-        <div className="rounded-xl border border-green-900 bg-green-950/40 px-4 py-2.5">
-          <p className="text-sm font-medium text-green-400">Workout completed ✓</p>
-        </div>
-      )}
-
       {recordEntries.length > 0 && (
-        <div className="rounded-xl border border-amber-800 bg-amber-950/40 px-4 py-3" role="status">
-          <p className="mb-1 text-sm font-semibold text-amber-300">🏆 New personal record{recordEntries.length === 1 && personalRecords[recordEntries[0].exerciseId].length === 1 ? "" : "s"}</p>
-          <ul className="flex flex-col gap-1.5 text-sm text-neutral-200">
-            {recordEntries.map((e) => {
-              const unit = e.sets[e.sets.length - 1]?.weightUnit ?? "kg";
-              return (
-                <li key={e.exerciseId}>
-                  <span className="font-medium">{e.name}</span>
-                  <ul className="text-xs text-neutral-400">
-                    {personalRecords[e.exerciseId].map((r) => (
-                      <li key={r.kind}>{describePersonalRecord(r, unit)}</li>
-                    ))}
-                  </ul>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+        <section className="card flex gap-3 border-orange/30 bg-orange/5 px-4 py-3" role="status">
+          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-orange/15 text-orange">
+            <Icon name="progress" className="size-4" strokeWidth={2.25} />
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold">
+              New personal record
+              {recordEntries.length === 1 && personalRecords[recordEntries[0].exerciseId].length === 1 ? "" : "s"}
+            </p>
+            <ul className="mt-1 flex flex-col gap-1.5 text-sm">
+              {recordEntries.map((e) => {
+                const unit = e.sets[e.sets.length - 1]?.weightUnit ?? "kg";
+                return (
+                  <li key={e.exerciseId}>
+                    <span className="font-medium">{e.name}</span>
+                    <ul className="text-xs text-label-2">
+                      {personalRecords[e.exerciseId].map((r) => (
+                        <li key={r.kind}>{describePersonalRecord(r, unit)}</li>
+                      ))}
+                    </ul>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </section>
       )}
 
-      {unloggedPlanned.length > 0 && (
-        <div className="rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3">
-          <p className="mb-1 text-xs font-medium text-neutral-500">Not yet logged</p>
-          <ul className="flex flex-col gap-1 text-sm text-neutral-300">
-            {unloggedPlanned.map((pe) => (
-              <li key={pe.exerciseId} className="flex items-center justify-between">
-                <span>{pe.name}</span>
-                <span className="text-xs text-neutral-500">Planned</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+      {unloggedPlanned.length > 0 && entries.length === 0 && (
+        <p className="text-sm text-label-2">
+          Planned: {unloggedPlanned.map((pe) => pe.name).join(", ")}
+        </p>
       )}
 
       {entries.length > 0 && (
         <>
-          <div className="flex items-center justify-between text-sm text-neutral-400">
-            <span>
-              {completedCount} of {entries.length} exercise{entries.length === 1 ? "" : "s"} done
-            </span>
-          </div>
-
-          <div className="flex flex-col gap-1">
-            {entries.map((e, i) => (
-              <button
-                key={e.exerciseId}
-                type="button"
-                onClick={() => goTo(i)}
-                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm ${
-                  i === currentIndex ? "bg-neutral-800 text-neutral-100" : "text-neutral-400"
-                }`}
-              >
-                <span className="w-4">{e.done ? "✓" : i === currentIndex ? "→" : ""}</span>
-                {e.name}
-              </button>
-            ))}
-          </div>
-
+          <section className="card overflow-hidden">
+            <div className="flex items-center justify-between gap-3 px-4 pt-3 pb-2">
+              <p className="text-sm font-medium">
+                {completedCount} of {entries.length} exercise{entries.length === 1 ? "" : "s"} done
+              </p>
+              {workoutCompleted && (
+                <span className="flex items-center gap-1 text-xs font-semibold text-green">
+                  <Icon name="checkmark" className="size-3.5" strokeWidth={2.75} />
+                  Workout finished
+                </span>
+              )}
+            </div>
+            <div className="mx-4 mb-2 h-1.5 overflow-hidden rounded-full bg-fill" aria-hidden>
+              <div
+                className="h-full rounded-full bg-green transition-[width] duration-300 ease-out"
+                style={{ width: `${(completedCount / entries.length) * 100}%` }}
+              />
+            </div>
+            <ol className="border-t border-separator p-1">
+              {entries.map((e, i) => (
+                <li key={e.exerciseId}>
+                  <button
+                    type="button"
+                    onClick={() => goTo(i)}
+                    aria-current={i === currentIndex ? "step" : undefined}
+                    className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm ${
+                      i === currentIndex ? "bg-fill font-semibold text-label" : "text-label-2 hover:bg-fill"
+                    }`}
+                  >
+                    <span
+                      className={`grid size-5 shrink-0 place-items-center rounded-full text-[11px] font-semibold tabular-nums ${
+                        e.done
+                          ? "bg-green text-white"
+                          : i === currentIndex
+                            ? "bg-accent text-on-accent"
+                            : "border border-label-3 text-label-3"
+                      }`}
+                    >
+                      {e.done ? <Icon name="checkmark" className="size-3" strokeWidth={3} /> : i + 1}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">{e.name}</span>
+                    {e.done && <span className="text-xs font-normal text-label-3">{countLoggedSets(e.sets)} sets</span>}
+                  </button>
+                </li>
+              ))}
+            </ol>
+            {unloggedPlanned.length > 0 && (
+              <p className="border-t border-separator px-4 py-2 text-xs text-label-2">
+                Planned, not logged yet: {unloggedPlanned.map((pe) => pe.name).join(", ")}
+              </p>
+            )}
+          </section>
           {showTargets && (
             <RestTimer
               ref={restTimerRef}
               current={current ? { exerciseId: current.exerciseId, name: current.name } : null}
             />
+          )}
+
+          {autoAdvance && (
+            <div
+              role="status"
+              className="card flex items-center gap-3 border-green/30 bg-green/5 px-4 py-2.5"
+            >
+              <Icon name="checkmark" className="size-4 shrink-0 text-green" strokeWidth={2.5} />
+              <p className="min-w-0 flex-1 truncate text-sm">
+                <span className="font-medium">{autoAdvance.finishedName}</span> done. Up next:{" "}
+                <span className="font-medium">{autoAdvance.nextName}</span>
+              </p>
+              <button
+                type="button"
+                onClick={undoAutoAdvance}
+                className="h-8 shrink-0 rounded-lg px-2.5 text-sm font-semibold text-link hover:bg-fill"
+              >
+                Undo
+              </button>
+            </div>
           )}
 
           {current && (
@@ -606,31 +717,36 @@ export default function LogForm({
             />
           )}
 
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => goTo(Math.max(0, currentIndex - 1))}
-              disabled={currentIndex === 0}
-              className="flex-1 rounded-lg border border-neutral-700 px-4 py-2.5 text-sm font-medium text-neutral-100 disabled:opacity-40"
-            >
-              ← Previous
-            </button>
-            <button
-              type="button"
-              onClick={() => goTo(Math.min(entries.length - 1, currentIndex + 1))}
-              disabled={currentIndex === entries.length - 1}
-              className="flex-1 rounded-lg border border-neutral-700 px-4 py-2.5 text-sm font-medium text-neutral-100 disabled:opacity-40"
-            >
-              Next →
-            </button>
-          </div>
+          {entries.length > 1 && (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => goTo(Math.max(0, currentIndex - 1))}
+                disabled={currentIndex === 0}
+                className="flex h-10 flex-1 items-center justify-center gap-1 rounded-[10px] border border-separator text-sm font-medium hover:bg-fill disabled:opacity-40"
+              >
+                <Icon name="chevronLeft" className="size-4" strokeWidth={2.25} />
+                Previous
+              </button>
+              <button
+                type="button"
+                onClick={() => goTo(Math.min(entries.length - 1, currentIndex + 1))}
+                disabled={currentIndex === entries.length - 1}
+                className="flex h-10 flex-1 items-center justify-center gap-1 rounded-[10px] border border-separator text-sm font-medium hover:bg-fill disabled:opacity-40"
+              >
+                Next exercise
+                <Icon name="chevronRight" className="size-4" strokeWidth={2.25} />
+              </button>
+            </div>
+          )}
         </>
       )}
 
       {entries.length === 0 && !pickerOpen && (
-        <p className="text-sm text-neutral-500">
-          No exercises yet — add one below, or set up a schedule for this day first.
-        </p>
+        <section className="card px-6 py-8 text-center">
+          <h2 className="text-base font-semibold">No exercises yet</h2>
+          <p className="mt-1 text-sm text-label-2">Add the first exercise you&apos;re doing, or plan this day first.</p>
+        </section>
       )}
 
       {pickerOpen ? (
@@ -643,25 +759,32 @@ export default function LogForm({
         <button
           type="button"
           onClick={() => setPickerOpen(true)}
-          className="rounded-lg border border-neutral-700 px-4 py-2.5 text-sm font-medium text-neutral-100"
+          className="flex h-11 items-center justify-center gap-1.5 rounded-[10px] border border-dashed border-separator text-sm font-semibold text-link hover:bg-fill"
         >
-          + Add exercise
+          <Icon name="plus" className="size-4" strokeWidth={2.5} />
+          Add exercise
         </button>
       )}
 
-      <textarea
-        value={notes}
-        onChange={(e) => updateNotes(e.target.value)}
-        placeholder="Notes (how did it feel?)"
-        rows={3}
-        className="rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-base text-neutral-100 placeholder-neutral-500"
-      />
+      <section className="card p-4">
+        <label htmlFor="workout-notes" className="mb-1.5 block text-sm font-medium">
+          Workout notes
+        </label>
+        <textarea
+          id="workout-notes"
+          value={notes}
+          onChange={(e) => updateNotes(e.target.value)}
+          placeholder="How did it feel?"
+          rows={2}
+          className="field w-full resize-none rounded-lg px-3 py-2 text-sm field-sizing-content"
+        />
+      </section>
 
       {workoutCompleted ? (
         <button
           type="button"
           onClick={reopenWorkout}
-          className="rounded-xl border border-neutral-700 px-4 py-3 font-medium text-neutral-100"
+          className="h-12 rounded-[10px] border border-separator text-[15px] font-semibold hover:bg-fill"
         >
           Reopen workout
         </button>
@@ -669,7 +792,7 @@ export default function LogForm({
         <button
           type="button"
           onClick={finishWorkout}
-          className="rounded-xl bg-white px-4 py-3 font-medium text-neutral-900"
+          className="h-12 rounded-[10px] bg-accent text-[15px] font-semibold text-on-accent hover:bg-accent-hover"
         >
           Finish workout
         </button>
@@ -708,12 +831,12 @@ function SaveStatus({
 
   if (state === "error") {
     return (
-      <div className="flex items-center justify-between rounded-lg border border-red-900 bg-red-950/40 px-3 py-2">
-        <p className="text-sm text-red-400">{error ?? "Couldn't save — your changes are kept here."}</p>
+      <div className="flex items-center justify-between rounded-lg bg-red/12 px-3 py-2">
+        <p className="text-sm text-red">{error ?? "Couldn't save — your changes are kept here."}</p>
         <button
           type="button"
           onClick={onRetry}
-          className="rounded-lg border border-red-800 px-3 py-1 text-xs font-medium text-red-300"
+          className="rounded-lg bg-red/12 px-3 py-1 text-xs font-medium text-red"
         >
           Retry
         </button>
@@ -722,7 +845,7 @@ function SaveStatus({
   }
 
   return (
-    <p className="text-xs text-neutral-500">
+    <p className="text-xs text-label-2">
       {state === "saving"
         ? offline
           ? "Offline — kept on this device, will sync when you're back online"

@@ -60,6 +60,9 @@ export async function saveLog(input: SaveLogInput) {
 
   const validationError = validateSaveLogInput(input);
   if (validationError) return { error: validationError };
+  // A log records what was done, so it can't be dated ahead of the person's own today. Planning
+  // ahead is what the schedule is for.
+  if (input.date > (await getToday())) return { error: "You can't log a workout for a future date." };
 
   // Single RPC call = single transaction: either the whole workout is replaced, or (on any
   // error) nothing changes — see save_workout_log in 0010_add_save_workout_log_rpc.sql.

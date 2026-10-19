@@ -9,13 +9,18 @@ export default function ExerciseTutorialPanel({ exerciseId, panelId }: { exercis
   const { tutorial, status, retry } = useExerciseTutorial(exerciseId);
 
   return (
-    <div id={panelId} className="mt-2 flex flex-col gap-2" aria-live="polite" aria-busy={status === "loading"}>
-      {status === "loading" && <p className="text-xs text-neutral-500">Loading tutorial…</p>}
+    <div id={panelId} className="flex flex-col gap-3" aria-live="polite" aria-busy={status === "loading"}>
+      {status === "loading" && (
+        <div className="flex flex-col gap-2" aria-label="Loading tutorial">
+          <div className="skeleton h-32 w-full max-w-xs" />
+          <div className="skeleton h-4 w-2/3" />
+        </div>
+      )}
 
       {status === "error" && (
-        <p className="text-xs text-red-400">
+        <p className="text-sm text-red">
           Couldn&apos;t load the tutorial.{" "}
-          <button type="button" onClick={retry} className="underline">
+          <button type="button" onClick={retry} className="font-medium text-link">
             Try again
           </button>
         </p>
@@ -25,18 +30,18 @@ export default function ExerciseTutorialPanel({ exerciseId, panelId }: { exercis
         <>
           {tutorial.demoImages.length > 0 && <ExerciseDemo images={tutorial.demoImages} name={tutorial.name} />}
           {tutorial.muscleGroups.length > 0 && (
-            <p className="text-xs text-neutral-400">{tutorial.muscleGroups.join(" · ")}</p>
+            <p className="text-xs font-medium text-label-2">{tutorial.muscleGroups.join(" · ")}</p>
           )}
           {tutorial.steps.length > 1 && (
-            <ol className="list-decimal space-y-1 pl-5 text-sm text-neutral-300">
+            <ol className="list-decimal space-y-1.5 pl-5 text-sm leading-relaxed text-label-2 marker:text-label-3">
               {tutorial.steps.map((step, index) => (
                 <li key={index}>{step}</li>
               ))}
             </ol>
           )}
-          {tutorial.steps.length === 1 && <p className="text-sm text-neutral-300">{tutorial.steps[0]}</p>}
+          {tutorial.steps.length === 1 && <p className="text-sm leading-relaxed text-label-2">{tutorial.steps[0]}</p>}
           {tutorial.steps.length === 0 && tutorial.demoImages.length === 0 && (
-            <p className="text-xs text-neutral-500">No tutorial for this exercise yet.</p>
+            <p className="text-sm text-label-3">No tutorial for this exercise yet.</p>
           )}
         </>
       )}

@@ -36,26 +36,26 @@ export default function SuggestionCard(props: Props) {
   }
 
   return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-4">
+    <div className="card p-4">
       <div className="flex items-baseline justify-between gap-2">
-        <p className="font-semibold text-neutral-100">{props.exerciseName}</p>
+        <p className="font-semibold text-label">{props.exerciseName}</p>
         <span
           className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${
-            props.kind === "increase" ? "bg-green-950 text-green-400" : "bg-sky-950 text-sky-300"
+            props.kind === "increase" ? "bg-green/12 text-green" : "bg-accent/10 text-link"
           }`}
         >
           {props.kind === "increase" ? "Increase" : "Deload"}
         </span>
       </div>
-      <Link href={props.planHref} className="text-xs text-neutral-500 underline">
+      <Link href={props.planHref} className="text-xs text-link">
         {props.planLabel}
       </Link>
-      <p className="mt-2 text-lg font-semibold text-neutral-100">{props.change}</p>
-      <p className="mt-1 text-sm text-neutral-300">{props.reason}</p>
+      <p className="mt-2 text-xl font-semibold text-label">{props.change}</p>
+      <p className="mt-1 text-sm text-label">{props.reason}</p>
 
-      {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
+      {error && <p className="mt-2 text-sm text-red">{error}</p>}
       {decided ? (
-        <p className="mt-3 text-sm text-neutral-400" role="status">
+        <p className="mt-3 text-sm text-label-2" role="status">
           {decided === "accepted" ? "Accepted — the plan's target weight is updated." : "Rejected — the plan is unchanged."}
         </p>
       ) : (
@@ -64,7 +64,7 @@ export default function SuggestionCard(props: Props) {
             type="button"
             onClick={() => decide(true)}
             disabled={pending}
-            className="flex-1 rounded-lg bg-white px-3 py-2 text-sm font-medium text-neutral-900 disabled:opacity-40"
+            className="flex-1 h-9 rounded-lg bg-accent px-3 text-sm font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-40"
           >
             Accept
           </button>
@@ -72,7 +72,7 @@ export default function SuggestionCard(props: Props) {
             type="button"
             onClick={() => decide(false)}
             disabled={pending}
-            className="flex-1 rounded-lg border border-neutral-700 px-3 py-2 text-sm font-medium text-neutral-200 disabled:opacity-40"
+            className="flex-1 h-9 rounded-lg border border-separator px-3 text-sm font-semibold hover:bg-fill disabled:opacity-40"
           >
             Reject
           </button>

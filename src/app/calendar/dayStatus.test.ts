@@ -53,8 +53,8 @@ describe("describeCalendarDay", () => {
     expect(describeCalendarDay(day(), TODAY, TODAY).plan).toBe("Not scheduled");
     expect(describeCalendarDay(day({ dayType: "workout" }), TODAY, TODAY).plan).toBe("Workout");
     expect(describeCalendarDay(day({ dayType: "workout", title: "Push" }), TODAY, TODAY).plan).toBe("Push");
-    expect(describeCalendarDay(day({ dayType: "rest" }), TODAY, TODAY).plan).toBe("😴 Rest day");
-    expect(describeCalendarDay(day({ dayType: "absence", title: "Flu" }), TODAY, TODAY).plan).toBe("⏸️ Absence · Flu");
+    expect(describeCalendarDay(day({ dayType: "rest" }), TODAY, TODAY).plan).toBe("Rest day");
+    expect(describeCalendarDay(day({ dayType: "absence", title: "Flu" }), TODAY, TODAY).plan).toBe("Absence · Flu");
   });
 
   it("says a past planned workout wasn't logged", () => {

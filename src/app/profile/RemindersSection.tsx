@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Icon from "@/components/Icon";
+import Select from "@/components/ui/Select";
 import {
   removePushSubscription,
   savePushSubscription,
@@ -153,92 +155,134 @@ export default function RemindersSection({ enabled, time }: { enabled: boolean; 
   const timeChanged = reminderTime !== time;
 
   return (
-    <section className="mt-5 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
-      <h2 className="mb-1 text-sm font-semibold text-neutral-100">Workout reminders</h2>
-      <p className="mb-3 text-xs text-neutral-400">
-        A notification on days you&apos;ve planned a workout, at the time you choose. Rest days are skipped, and
-        there&apos;s no reminder once you&apos;ve logged a set.
-      </p>
-
-      <label className="mb-3 flex items-center gap-3 text-xs text-neutral-300">
-        Remind me at
-        <input
-          type="time"
-          value={reminderTime}
-          onChange={(e) => setReminderTime(e.target.value)}
-          className="rounded-lg border border-neutral-700 bg-neutral-950 px-2 py-1 text-sm text-neutral-100"
-        />
-        {enabled && timeChanged && reminderTime && (
-          <button
-            type="button"
-            onClick={saveTime}
-            disabled={pending}
-            className="rounded-lg border border-neutral-700 px-3 py-1 text-xs font-medium text-neutral-300 disabled:opacity-50"
-          >
-            Save time
-          </button>
-        )}
-      </label>
-
-      {support === "checking" && <p className="text-xs text-neutral-500">Checking this device…</p>}
-      {support === "unsupported" && (
-        <p className="text-xs text-neutral-500">This browser doesn&apos;t support notifications.</p>
-      )}
-      {support === "needs-install" && (
-        <p className="text-xs text-neutral-400">
-          On iPhone and iPad, reminders work from the installed app: tap Share → Add to Home Screen, then open
-          Gym-Journo from your Home Screen and turn reminders on there.
-        </p>
-      )}
-      {support === "no-worker" && (
-        <p className="text-xs text-neutral-500">Notifications need a production build (npm run build, npm start).</p>
-      )}
-      {support === "blocked" && (
-        <p className="text-xs text-neutral-400">
-          Notifications are blocked for this site. Allow them in your browser or system settings, then reload.
-        </p>
-      )}
-
-      {support === "ready" && (
-        <div className="flex flex-wrap items-center gap-3">
-          {thisDeviceOn ? (
-            <>
-              <p className="text-xs text-green-400">On for this device</p>
-              <button
-                type="button"
-                onClick={test}
-                disabled={pending}
-                className="text-xs text-neutral-300 underline disabled:opacity-50"
-              >
-                Send a test
-              </button>
-              <button
-                type="button"
-                onClick={turnOff}
-                disabled={pending}
-                className="ml-auto rounded-lg border border-neutral-700 px-3 py-1.5 text-xs font-medium text-neutral-300 disabled:opacity-50"
-              >
-                Turn off
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={turnOn}
-              disabled={pending || !reminderTime}
-              className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-neutral-900 disabled:opacity-50"
-            >
-              {enabled ? "Turn on for this device" : "Turn on reminders"}
-            </button>
-          )}
+    <>
+      <h2 className="section-title mt-8">Notifications</h2>
+      <section className="card p-4">
+        <div className="flex items-start gap-3">
+          <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-orange/12 text-orange">
+            <Icon name="bell" className="size-[18px]" strokeWidth={2} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 className="flex items-center gap-2 text-sm font-semibold">
+              Workout reminders
+              {support === "ready" && (
+                <span
+                  className={`rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${
+                    thisDeviceOn ? "bg-green/12 text-green" : "bg-fill text-label-2"
+                  }`}
+                >
+                  {thisDeviceOn ? "On" : "Off"}
+                </span>
+              )}
+            </h2>
+            <p className="text-sm text-label-2">
+              A notification on days you&apos;ve planned a workout. Rest days are skipped, and there&apos;s no reminder
+              once you&apos;ve logged a set.
+            </p>
+          </div>
         </div>
-      )}
 
-      {enabled && !thisDeviceOn && support !== "checking" && (
-        <p className="mt-2 text-xs text-neutral-500">Reminders are on, but not for this device.</p>
-      )}
-      {notice && <p className="mt-2 text-xs text-green-400">{notice}</p>}
-      {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
-    </section>
+        <div className="mt-3 ml-12 flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm text-label-2">Remind me at</span>
+            <Select
+              value={reminderTime}
+              onChange={setReminderTime}
+              options={timeOptions(reminderTime)}
+              ariaLabel="Reminder time"
+              searchable={false}
+              className="w-32"
+            />
+            {enabled && timeChanged && reminderTime && (
+              <button
+                type="button"
+                onClick={saveTime}
+                disabled={pending}
+                className="h-9 rounded-lg border border-separator px-3 text-sm font-semibold hover:bg-fill disabled:opacity-50"
+              >
+                Save time
+              </button>
+            )}
+          </div>
+
+          {support === "checking" && <div className="skeleton h-8 w-40" aria-label="Checking this device" />}
+          {support === "unsupported" && <p className="text-sm text-label-2">This browser doesn&apos;t support notifications.</p>}
+          {support === "needs-install" && (
+            <p className="text-sm text-label-2">
+              On iPhone and iPad, reminders work from the installed app: tap Share → Add to Home Screen, then open
+              Gym-Journo from your Home Screen and turn reminders on there.
+            </p>
+          )}
+          {support === "no-worker" && (
+            <p className="text-sm text-label-2">Notifications need a production build (npm run build, npm start).</p>
+          )}
+          {support === "blocked" && (
+            <p className="text-sm text-label-2">
+              Notifications are blocked for this site. Allow them in your browser or system settings, then reload.
+            </p>
+          )}
+
+          {support === "ready" && (
+            <div className="flex flex-wrap items-center gap-2">
+              {thisDeviceOn ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={test}
+                    disabled={pending}
+                    className="h-8 rounded-lg border border-separator px-3 text-sm font-semibold hover:bg-fill disabled:opacity-50"
+                  >
+                    Send a test
+                  </button>
+                  <button
+                    type="button"
+                    onClick={turnOff}
+                    disabled={pending}
+                    className="h-8 rounded-lg px-3 text-sm font-medium text-label-2 hover:bg-fill disabled:opacity-50"
+                  >
+                    Turn off
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={turnOn}
+                  disabled={pending || !reminderTime}
+                  className="h-9 rounded-lg bg-accent px-3.5 text-sm font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-50"
+                >
+                  {enabled ? "Turn on for this device" : "Turn on reminders"}
+                </button>
+              )}
+            </div>
+          )}
+
+          {enabled && !thisDeviceOn && support !== "checking" && (
+            <p className="text-xs text-label-3">Reminders are on, but not for this device.</p>
+          )}
+          {notice && <p className="text-sm text-green">{notice}</p>}
+          {error && <p className="text-sm text-red">{error}</p>}
+        </div>
+      </section>
+    </>
   );
+}
+
+// Reminder times every 15 minutes, labelled in 12-hour time. A saved time off that grid (set
+// before this picker existed) is kept as an option so it still shows as selected.
+function timeOptions(current: string) {
+  const options: { value: string; label: string }[] = [];
+  for (let minutes = 0; minutes < 24 * 60; minutes += 15) {
+    const value = `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+    options.push({ value, label: formatTime(value) });
+  }
+  if (current && !options.some((o) => o.value === current)) {
+    options.push({ value: current, label: formatTime(current) });
+    options.sort((a, b) => a.value.localeCompare(b.value));
+  }
+  return options;
+}
+
+function formatTime(value: string): string {
+  const [h, m] = value.split(":").map(Number);
+  return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
 }

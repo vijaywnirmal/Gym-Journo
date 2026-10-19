@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import ExerciseLibraryBrowser from "@/components/exercise-library/ExerciseLibraryBrowser";
+import Icon from "@/components/Icon";
 
 export type PickedExercise = { id: string; name: string };
 
 // Browse or search the library and tick exercises for a plan or template; nothing changes until
-// "Add" confirms the selection.
+// the selection is confirmed.
 export default function ExercisePicker({
   initiallySelected,
   onConfirm,
@@ -31,33 +32,52 @@ export default function ExercisePicker({
   }
 
   return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-3">
+    <section className="card p-4">
+      <h2 className="mb-3 text-base font-semibold">Choose exercises</h2>
       <ExerciseLibraryBrowser
-        resultsClassName="max-h-80 overflow-y-auto"
-        renderExercise={(exercise) => (
-          <label className="flex items-center gap-2 py-1 text-sm text-neutral-100">
-            <input type="checkbox" checked={selected.has(exercise.id)} onChange={() => toggle(exercise)} />
-            {exercise.name}
-          </label>
-        )}
+        autoFocus
+        resultsClassName="max-h-[22rem] overflow-y-auto overscroll-contain"
+        renderExercise={(exercise) => {
+          const on = selected.has(exercise.id);
+          return (
+            <button
+              type="button"
+              role="checkbox"
+              aria-checked={on}
+              onClick={() => toggle(exercise)}
+              className={`flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-fill ${on ? "bg-accent/5" : ""}`}
+            >
+              <span
+                className={`grid size-5 shrink-0 place-items-center rounded-md border ${
+                  on ? "border-transparent bg-accent text-on-accent" : "border-label-3"
+                }`}
+              >
+                {on && <Icon name="checkmark" className="size-3.5" strokeWidth={3} />}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium">{exercise.name}</span>
+                {exercise.equipment && <span className="block truncate text-xs text-label-3">{exercise.equipment}</span>}
+              </span>
+            </button>
+          );
+        }}
       />
-
       <div className="mt-3 flex gap-2">
         <button
           type="button"
           onClick={() => onConfirm([...selected].map(([id, name]) => ({ id, name })))}
-          className="flex-1 rounded-lg bg-white px-4 py-2 text-sm font-medium text-neutral-900"
+          className="h-10 flex-1 rounded-[10px] bg-accent px-4 text-sm font-semibold text-on-accent hover:bg-accent-hover"
         >
-          Add{selected.size > 0 ? ` (${selected.size})` : ""}
+          {selected.size > 0 ? `Use ${selected.size} exercise${selected.size === 1 ? "" : "s"}` : "Done"}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-lg border border-neutral-700 px-4 py-2 text-sm text-neutral-300"
+          className="h-10 rounded-[10px] border border-separator px-4 text-sm font-semibold hover:bg-fill"
         >
           Cancel
         </button>
       </div>
-    </div>
+    </section>
   );
 }

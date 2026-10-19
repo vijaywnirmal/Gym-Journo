@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useId, useState } from "react";
+import Icon from "@/components/Icon";
+import Select from "@/components/ui/Select";
 import ExerciseTutorialPanel from "@/components/exercise-library/ExerciseTutorialPanel";
 import { calculatePlates, formatPlates, isPlateUnit } from "@/lib/plates";
 import {
@@ -192,150 +194,167 @@ export default function ExerciseLogPanel({
   );
 
   return (
-    <div className="rounded-xl border border-neutral-800 p-4">
-      <div className="mb-3 flex items-start justify-between">
-        <div>
-          <p className="text-xs text-neutral-500">{positionLabel}</p>
-          <h2 className="text-lg font-semibold text-neutral-100">{entry.name}</h2>
-          <Link href={exerciseHistoryHref(entry.exerciseId)} className="text-xs text-neutral-500 underline">
-            View history
-          </Link>
+    <div className="card p-4">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-label-3">{positionLabel}</p>
+          <h2 className="truncate text-lg font-semibold">{entry.name}</h2>
+          <p className="text-sm text-label-2">
+            {target ? <>Target {target}</> : "No target set"}
+            {remainingPlannedSets && <span className="text-label-3"> · {remainingPlannedSets}</span>}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center">
           <button
             type="button"
             onClick={() => setShowTutorial((value) => !value)}
             aria-expanded={showTutorial}
             aria-controls={tutorialPanelId}
-            className="ml-3 text-xs text-neutral-500 underline"
+            className="flex h-8 items-center rounded-lg px-2.5 text-sm font-medium text-link hover:bg-fill"
           >
             {showTutorial ? "Hide how-to" : "How to"}
           </button>
-          {showTutorial && (
-            <ExerciseTutorialPanel key={entry.exerciseId} exerciseId={entry.exerciseId} panelId={tutorialPanelId} />
-          )}
+          <Link
+            href={exerciseHistoryHref(entry.exerciseId)}
+            className="flex h-8 items-center rounded-lg px-2.5 text-sm font-medium text-link hover:bg-fill"
+          >
+            History
+          </Link>
+          <button
+            type="button"
+            onClick={onRemoveExercise}
+            aria-label={`Remove ${entry.name} from this workout`}
+            className="grid size-8 place-items-center rounded-lg text-label-3 hover:bg-fill hover:text-red"
+          >
+            <Icon name="trash" className="size-[18px]" />
+          </button>
         </div>
-        <button type="button" onClick={onRemoveExercise} className="text-xs text-red-400">
-          Remove
-        </button>
       </div>
 
-      {target && (
-        <p className="mb-1 text-sm text-neutral-400">
-          Target: <span className="text-neutral-200">{target}</span>
-        </p>
-      )}
-
-      {remainingPlannedSets && (
-        <p className="mb-3 text-xs text-neutral-500">{remainingPlannedSets}</p>
+      {showTutorial && (
+        <div className="mb-3 rounded-lg border border-separator p-3">
+          <ExerciseTutorialPanel key={entry.exerciseId} exerciseId={entry.exerciseId} panelId={tutorialPanelId} />
+        </div>
       )}
 
       {previous === undefined ? (
-        <p className="mb-3 text-xs text-neutral-600">Loading last time…</p>
+        <div className="skeleton mb-3 h-11" aria-label="Loading last time" />
       ) : previous ? (
-        <div className="mb-3 rounded-lg bg-neutral-900 px-3 py-2">
-          <p className="text-xs font-medium text-neutral-400">Last time</p>
-          <p className="text-sm text-neutral-200">
-            {previous.sets
-              .map((s) => `${s.weight ?? "?"}${s.weightUnit} × ${s.reps ?? "?"}`)
-              .join(", ")}
-          </p>
+        <div className="mb-3 flex items-center gap-3 rounded-lg bg-fill px-3 py-2">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium text-label-3">Last time</p>
+            <p className="truncate text-sm tabular-nums">
+              {previous.sets
+                .map((s) => `${s.weight ?? "?"}${s.weightUnit} × ${s.reps ?? "?"}`)
+                .join(", ")}
+            </p>
+          </div>
           {canCopyPrevious && (
             <button
               type="button"
               onClick={onCopyPrevious}
-              className="mt-2 rounded-lg border border-neutral-700 px-3 py-1.5 text-xs font-medium text-neutral-100"
+              className="h-8 shrink-0 rounded-lg bg-surface px-3 text-xs font-semibold text-link shadow-sm hover:bg-fill"
             >
-              ↺ Same as last time
+              Repeat
             </button>
           )}
         </div>
       ) : (
-        <p className="mb-3 text-xs text-neutral-600">No previous record for this exercise yet.</p>
+        <p className="mb-3 text-xs text-label-3">First time logging this exercise.</p>
       )}
 
       <div className="flex flex-col gap-2">
+        <div className="grid grid-cols-[2rem_1fr_1fr_2.5rem] gap-x-2 px-0.5 text-[11px] font-medium text-label-3" aria-hidden>
+          <span className="text-center">Set</span>
+          <span>Weight</span>
+          <span>Reps</span>
+          <span className="text-center">Done</span>
+        </div>
         {entry.sets.map((set, i) => {
           const comparisonText = formatSetComparison(comparisons[i]);
           const plates = showPlates ? plateText(set) : null;
           return (
-            <div key={i} className="flex flex-col gap-1">
-              <div className="flex items-center gap-2">
+            <div
+              key={i}
+              className={`rounded-lg px-0.5 py-1 transition-colors ${set.done ? "bg-green/8" : ""}`}
+            >
+              <div className="grid grid-cols-[2rem_1fr_1fr_2.5rem] items-center gap-x-2">
                 <button
                   type="button"
                   onClick={() => onUpdateSet(i, "setType", nextSetType(set.setType))}
                   aria-label={`Set ${i + 1}: ${SET_TYPE_LABEL[set.setType]}. Change set type`}
-                  title={SET_TYPE_LABEL[set.setType]}
-                  className={`h-7 w-7 shrink-0 rounded-md text-sm ${
-                    SET_TYPE_BADGE[set.setType]
-                      ? "bg-amber-900/50 font-semibold text-amber-300"
-                      : "text-neutral-500"
+                  title={`${SET_TYPE_LABEL[set.setType]} — tap to change`}
+                  className={`h-8 rounded-md text-sm font-semibold tabular-nums ${
+                    SET_TYPE_BADGE[set.setType] ? "bg-orange/12 text-orange" : "text-label-2 hover:bg-fill"
                   }`}
                 >
                   {SET_TYPE_BADGE[set.setType] ?? i + 1}
                 </button>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  placeholder="weight"
-                  value={set.weight}
-                  onChange={(e) => onUpdateSet(i, "weight", e.target.value)}
-                  className="w-20 rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-2.5 text-base text-neutral-100"
-                />
-                <select
-                  value={set.weightUnit}
-                  onChange={(e) => onUpdateSet(i, "weightUnit", e.target.value)}
-                  className="rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-2.5 text-base text-neutral-100"
-                >
-                  <option value="kg">kg</option>
-                  <option value="lb">lb</option>
-                </select>
-                <span className="text-neutral-500">×</span>
+                <div className="field flex h-10 items-center rounded-lg focus-within:border-accent">
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    placeholder="0"
+                    value={set.weight}
+                    onChange={(e) => onUpdateSet(i, "weight", e.target.value)}
+                    aria-label={`Set ${i + 1} weight`}
+                    className="h-full w-full min-w-0 bg-transparent pl-2.5 text-base tabular-nums outline-none placeholder:text-label-3"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => onUpdateSet(i, "weightUnit", set.weightUnit === "kg" ? "lb" : "kg")}
+                    aria-label={`Unit: ${set.weightUnit}. Switch to ${set.weightUnit === "kg" ? "lb" : "kg"}`}
+                    className="mr-1 h-7 shrink-0 rounded-md px-1.5 text-xs font-semibold text-label-2 hover:bg-fill"
+                  >
+                    {set.weightUnit}
+                  </button>
+                </div>
                 <input
                   type="number"
                   inputMode="numeric"
-                  placeholder="reps"
+                  placeholder="0"
                   value={set.reps}
                   onChange={(e) => onUpdateSet(i, "reps", e.target.value)}
-                  className="w-16 rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-2.5 text-base text-neutral-100"
+                  aria-label={`Set ${i + 1} reps`}
+                  className="field h-10 w-full min-w-0 rounded-lg px-2.5 text-base tabular-nums"
                 />
-                <button
-                  type="button"
-                  onClick={() => onRemoveSet(i)}
-                  aria-label={`Remove set ${i + 1}`}
-                  className="ml-auto flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-700 text-neutral-400"
-                >
-                  ✕
-                </button>
-              </div>
-              <div className="flex items-center gap-2 pl-9">
                 <button
                   type="button"
                   onClick={() => onToggleSetDone(i)}
                   aria-pressed={!!set.done}
                   aria-label={set.done ? `Set ${i + 1} done. Undo` : `Mark set ${i + 1} done and start rest`}
-                  className={`rounded-md border px-2 py-1 text-xs font-medium ${
+                  className={`grid size-10 place-items-center rounded-lg border ${
                     set.done
-                      ? "border-green-800 bg-green-950 text-green-400"
-                      : "border-neutral-700 text-neutral-300"
+                      ? "border-transparent bg-green text-white"
+                      : "border-separator text-label-3 hover:bg-fill hover:text-label-2"
                   }`}
                 >
-                  {set.done ? "✓ Done" : "✓"}
+                  <Icon name="checkmark" className="size-5" strokeWidth={2.5} />
                 </button>
-                <select
-                  value={set.rpe}
-                  onChange={(e) => onUpdateSet(i, "rpe", e.target.value)}
-                  aria-label={`Set ${i + 1} effort (RPE)`}
-                  className="rounded-md border border-neutral-800 bg-neutral-900 px-1.5 py-1 text-xs text-neutral-300"
-                >
-                  <option value="">RPE –</option>
-                  {RPE_OPTIONS.map((r) => (
-                    <option key={r} value={String(r)}>
-                      RPE {r}
-                    </option>
-                  ))}
-                </select>
-                {comparisonText && <p className="text-xs text-neutral-500">{comparisonText}</p>}
               </div>
-              {plates && <p className="pl-9 text-xs text-amber-300/80">{plates}</p>}
+              <div className="mt-1 flex min-h-7 items-center gap-2 pl-10">
+                <Select
+                  value={set.rpe}
+                  onChange={(v) => onUpdateSet(i, "rpe", v)}
+                  ariaLabel={`Set ${i + 1} effort (RPE)`}
+                  size="sm"
+                  className="h-7 w-[5.5rem] text-xs"
+                  options={[
+                    { value: "", label: "RPE –" },
+                    ...RPE_OPTIONS.map((r) => ({ value: String(r), label: `RPE ${r}` })),
+                  ]}
+                />
+                {comparisonText && <p className="min-w-0 flex-1 truncate text-xs text-label-2">{comparisonText}</p>}
+                <button
+                  type="button"
+                  onClick={() => onRemoveSet(i)}
+                  aria-label={`Remove set ${i + 1}`}
+                  className="ml-auto grid size-7 shrink-0 place-items-center rounded-md text-label-3 hover:bg-fill hover:text-red"
+                >
+                  <Icon name="close" className="size-4" strokeWidth={2} />
+                </button>
+              </div>
+              {plates && <p className="pl-10 text-xs text-orange">{plates}</p>}
             </div>
           );
         })}
@@ -344,47 +363,48 @@ export default function ExerciseLogPanel({
           <button
             type="button"
             onClick={onAddSet}
-            className="rounded-lg border border-neutral-700 px-3 py-1.5 text-sm font-medium text-neutral-100"
+            className="flex h-9 items-center gap-1.5 rounded-lg border border-dashed border-separator px-3 text-sm font-medium text-label-2 hover:bg-fill hover:text-label"
           >
-            + Add set
+            <Icon name="plus" className="size-4" strokeWidth={2.25} />
+            Add set
           </button>
           <button
             type="button"
             onClick={() => setShowPlates((v) => !v)}
             aria-pressed={showPlates}
-            className={`ml-auto rounded-lg px-3 py-1.5 text-xs ${
-              showPlates ? "bg-neutral-800 text-neutral-100" : "text-neutral-400"
+            className={`ml-auto h-8 rounded-lg px-2.5 text-xs font-medium ${
+              showPlates ? "bg-fill text-label" : "text-label-2 hover:bg-fill"
             }`}
           >
-            Plates
+            Plate math
           </button>
         </div>
-        {showPlates && (
-          <p className="text-xs text-neutral-600">Standard plates on a 20 kg / 45 lb bar.</p>
-        )}
-        <p className="text-xs text-neutral-600">Tap a set number to mark it warm-up (W), drop (D) or to failure (F).</p>
+        <p className="text-xs text-label-3">
+          {showPlates ? "Plates per side on a 20 kg / 45 lb bar. " : ""}Tap a set number to mark it warm-up (W), drop
+          (D) or to failure (F).
+        </p>
       </div>
 
       <textarea
         value={entry.notes}
         onChange={(e) => onUpdateNotes(e.target.value)}
         maxLength={MAX_EXERCISE_NOTE_LENGTH}
-        placeholder="Note for this exercise (seat height, grip…)"
-        rows={2}
+        placeholder="Note (seat height, grip…)"
+        rows={1}
         aria-label={`Note for ${entry.name}`}
-        className="mt-3 w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-base text-neutral-100 placeholder-neutral-600"
+        className="field mt-3 w-full resize-none rounded-lg px-3 py-2 text-sm field-sizing-content"
       />
 
       <button
         type="button"
         onClick={onToggleDone}
-        className={`mt-4 w-full rounded-lg px-4 py-2.5 text-sm font-medium ${
+        className={`mt-4 h-11 w-full rounded-[10px] px-4 text-[15px] font-semibold ${
           entry.done
-            ? "border border-neutral-700 text-neutral-300"
-            : "bg-white text-neutral-900"
+            ? "border border-separator text-label-2 hover:bg-fill"
+            : "bg-accent text-on-accent hover:bg-accent-hover"
         }`}
       >
-        {entry.done ? "Undo complete" : "✓ Complete exercise"}
+        {entry.done ? "Mark as not done" : "Finish exercise"}
       </button>
     </div>
   );

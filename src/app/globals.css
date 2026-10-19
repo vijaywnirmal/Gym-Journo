@@ -1,22 +1,301 @@
 @import "tailwindcss";
 
+/*
+ * Design system
+ *
+ * Calm, neutral surfaces with one accent color, so the workout data is what stands out.
+ * Every color is a semantic token redefined for dark mode; components use the roles
+ * (label, surface, accent), never raw palette steps.
+ *
+ *   background  page canvas            surface     cards and panels
+ *   fill        controls, chips        separator   borders and dividers
+ *   label       primary text           label-2/3   secondary / tertiary text
+ *   accent      primary actions        link        accent-colored text
+ */
+
 :root {
-  --background: #0a0a0a;
-  --foreground: #ededed;
-  color-scheme: dark;
+  color-scheme: light;
+
+  --background: #f6f6f7;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --fill: rgb(24 24 27 / 0.05);
+  --fill-strong: rgb(24 24 27 / 0.1);
+
+  --label: #18181b;
+  --label-2: #5c5c66;
+  --label-3: #93939c;
+  --separator: #e5e5e9;
+
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --on-accent: #ffffff;
+  --link: #4338ca;
+
+  --green: #15803d;
+  --red: #dc2626;
+  --orange: #c2410c;
+  --teal: #0e7490;
+
+  --material: rgb(255 255 255 / 0.85);
+  --shadow-card: 0 1px 2px rgb(24 24 27 / 0.04);
+  --shadow-popover: 0 0 0 1px rgb(24 24 27 / 0.06), 0 12px 32px -4px rgb(24 24 27 / 0.16);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --background: #0b0b0d;
+    --surface: #151518;
+    --surface-raised: #232328;
+    --fill: rgb(255 255 255 / 0.06);
+    --fill-strong: rgb(255 255 255 / 0.11);
+
+    --label: #f4f4f5;
+    --label-2: #a1a1aa;
+    --label-3: #6e6e78;
+    --separator: #27272c;
+
+    --accent: #6366f1;
+    --accent-hover: #7c7ff5;
+    --on-accent: #ffffff;
+    --link: #a5b4fc;
+
+    --green: #4ade80;
+    --red: #f87171;
+    --orange: #fb923c;
+    --teal: #22d3ee;
+
+    --material: rgb(21 21 24 / 0.85);
+    --shadow-card: none;
+    --shadow-popover: 0 0 0 1px rgb(255 255 255 / 0.08), 0 16px 40px -4px rgb(0 0 0 / 0.6);
+  }
 }
 
 @theme inline {
   --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-fill: var(--fill);
+  --color-fill-strong: var(--fill-strong);
+  --color-label: var(--label);
+  --color-label-2: var(--label-2);
+  --color-label-3: var(--label-3);
+  --color-separator: var(--separator);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-on-accent: var(--on-accent);
+  --color-link: var(--link);
+  --color-green: var(--green);
+  --color-red: var(--red);
+  --color-orange: var(--orange);
+  --color-teal: var(--teal);
+  --color-material: var(--material);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --radius-md: 0.5rem;
+  --radius-lg: 0.625rem;
+  --radius-xl: 0.875rem;
+  --radius-2xl: 1.125rem;
+
+  --shadow-card: var(--shadow-card);
+  --shadow-popover: var(--shadow-popover);
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--label);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+  }
+
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.015em;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--accent) 25%, transparent);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  input,
+  textarea {
+    caret-color: var(--accent);
+  }
+
+  input:focus-visible,
+  textarea:focus-visible {
+    outline: none;
+  }
+
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  /* Thin, theme-colored scrollbars wherever a panel scrolls. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--fill-strong) transparent;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: default;
+  }
+
+  /* Instant press feedback: no delay, no long transition on the way down. */
+  a[class*="rounded"],
+  button {
+    transition:
+      transform 160ms ease-out,
+      background-color 120ms ease,
+      color 120ms ease,
+      opacity 120ms ease;
+  }
+
+  a[class*="rounded"]:active,
+  button:not(:disabled):active {
+    transform: scale(0.98);
+    transition-duration: 0ms;
+  }
+}
+
+@layer components {
+  .page-title {
+    font-size: 1.625rem;
+    line-height: 2rem;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+  }
+
+  /* Section title above a group of cards */
+  .section-title {
+    margin-bottom: 0.5rem;
+    font-size: 0.8125rem;
+    line-height: 1.25rem;
+    font-weight: 600;
+    color: var(--label-2);
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--separator);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Text fields, selects and date triggers share one look. */
+  .control,
+  .field {
+    background: var(--surface);
+    border: 1px solid var(--separator);
+    color: var(--label);
+    transition:
+      border-color 120ms ease,
+      box-shadow 120ms ease;
+  }
+
+  .control:hover:not(:disabled),
+  .field:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--label) 22%, transparent);
+  }
+
+  .control[aria-expanded="true"],
+  .field:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+    outline: none;
+  }
+
+  .control:disabled,
+  .field:disabled {
+    opacity: 0.55;
+  }
+
+  .field::placeholder {
+    color: var(--label-3);
+  }
+
+  .popover {
+    background: var(--surface-raised);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-popover);
+    animation: popover-in 120ms ease-out;
+  }
+
+  @keyframes popover-in {
+    from {
+      opacity: 0;
+      transform: scale(0.98);
+    }
+  }
+
+  .material {
+    background: var(--material);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    backdrop-filter: blur(16px) saturate(160%);
+  }
+
+  .skeleton {
+    background: var(--fill);
+    border-radius: var(--radius-lg);
+    animation: skeleton-pulse 1.4s ease-in-out infinite;
+  }
+
+  @keyframes skeleton-pulse {
+    50% {
+      opacity: 0.55;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .material {
+    background: var(--surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --separator: var(--label-3);
+    --label-2: var(--label);
+  }
 }
 
 /* ExerciseDemo: the end frame sits over the start frame and fades in and out. */
