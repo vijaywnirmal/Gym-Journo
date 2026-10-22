@@ -1,10 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import type { WorkoutPlan } from "@/lib/types";
 import type { PreviousPerformance, WorkoutLogWithContext } from "@/lib/queries";
 import { formatDate } from "@/lib/date";
 import { formatSetDetail } from "@/lib/setData";
+import { isPerformedSet } from "@/lib/analyze/definitions";
+import { backupKey, browserLocalStorage, clearLogBackup } from "@/lib/logBackup";
+import { deleteLog } from "./actions";
 import LogForm from "./LogForm";
 import Icon from "@/components/Icon";
 import ShareWorkoutButton from "@/components/ShareWorkoutButton";
@@ -33,7 +37,24 @@ export default function HistoricalLogView({
   initialPreviousPerformance,
   backupScope,
 }: Props) {
+  const router = useRouter();
   const [mode, setMode] = useState<"summary" | "edit">("summary");
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, startDelete] = useTransition();
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  function handleDelete() {
+    setDeleteError(null);
+    startDelete(async () => {
+      const result = await deleteLog(date);
+      if (result.error) {
+        setDeleteError(result.error);
+        return;
+      }
+      if (backupScope) clearLogBackup(browserLocalStorage(), backupKey(backupScope, date));
+      router.push("/calendar");
+    });
+  }
 
   if (mode === "edit") {
     return (
@@ -97,7 +118,7 @@ export default function HistoricalLogView({
             <section key={le.id} className="p-4">
               <h2 className="mb-2 text-sm font-semibold">{le.exercise?.name ?? "Exercise"}</h2>
               <ul className="flex flex-col gap-1 text-sm">
-                {(le.logged_sets ?? []).map((s) => (
+                {(le.logged_sets ?? []).filter(isPerformedSet).map((s) => (
                   <li key={s.id} className="flex items-center gap-3">
                     <span className="w-5 text-right text-xs tabular-nums text-label-3">{s.set_number}</span>
                     <span className="tabular-nums">
@@ -109,7 +130,7 @@ export default function HistoricalLogView({
                     )}
                   </li>
                 ))}
-                {(le.logged_sets ?? []).length === 0 && <li className="text-label-2">No sets recorded.</li>}
+                {!(le.logged_sets ?? []).some(isPerformedSet) && <li className="text-label-2">Not done</li>}
               </ul>
               {le.notes && <p className="mt-2 text-xs text-label-2 italic">{le.notes}</p>}
             </section>
@@ -125,6 +146,37 @@ export default function HistoricalLogView({
       )}
 
       <ShareWorkoutButton date={date} />
+
+      {confirmingDelete ? (
+        <div role="alert" className="flex flex-wrap items-center gap-2 rounded-[10px] border border-red/30 bg-red/5 p-3">
+          <p className="mr-auto text-sm">Delete this workout and all its sets? This can&apos;t be undone.</p>
+          <button
+            type="button"
+            onClick={() => setConfirmingDelete(false)}
+            disabled={deleting}
+            className="h-8 rounded-lg border border-separator px-3 text-sm font-medium hover:bg-fill"
+          >
+            Keep
+          </button>
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={deleting}
+            className="h-8 rounded-lg bg-red px-3 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {deleting ? "Deleting…" : "Delete workout"}
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setConfirmingDelete(true)}
+          className="h-9 self-center rounded-lg px-3 text-sm font-medium text-red hover:bg-red/10"
+        >
+          Delete this workout
+        </button>
+      )}
+      {deleteError && <p className="text-center text-sm text-red">{deleteError}</p>}
     </div>
   );
 }

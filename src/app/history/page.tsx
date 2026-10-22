@@ -4,6 +4,7 @@ import PageHeader from "@/components/PageHeader";
 import Icon from "@/components/Icon";
 import { formatDate } from "@/lib/date";
 import { formatSetCompact } from "@/lib/setData";
+import { isPerformedSet } from "@/lib/analyze/definitions";
 import {
   buildSessionViews,
   pageSessionViews,
@@ -149,7 +150,7 @@ export default async function HistoryPage({
                       <li key={le.id} className="flex gap-3">
                         <span className="min-w-0 flex-1 truncate font-medium">{le.exercise?.name}</span>
                         <span className="shrink-0 text-right text-xs leading-5 tabular-nums text-label-2">
-                          {le.logged_sets?.map(formatSetCompact).join(", ")}
+                          {le.logged_sets?.filter(isPerformedSet).map(formatSetCompact).join(", ") || "Not done"}
                         </span>
                       </li>
                     ))}

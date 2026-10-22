@@ -4,11 +4,26 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 const getUser = vi.fn().mockResolvedValue({ data: { user: { id: "user-1" } } });
 const rpc = vi.fn();
+// delete().eq("user_id").eq("date").select("id") on workout_logs.
+const deleteCalls: { table: string; eqs: unknown[][] }[] = [];
+let deleteResult: { data: unknown; error: unknown } = { data: [{ id: "log-1" }], error: null };
+const from = vi.fn((table: string) => ({
+  delete: () => {
+    const call = { table, eqs: [] as unknown[][] };
+    deleteCalls.push(call);
+    const builder = {
+      eq: (...args: unknown[]) => (call.eqs.push(args), builder),
+      select: () => Promise.resolve(deleteResult),
+    };
+    return builder;
+  },
+}));
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
     auth: { getUser },
     rpc,
+    from,
   }),
 }));
 
@@ -21,7 +36,7 @@ vi.mock("@/lib/queries", () => ({
 
 vi.mock("@/lib/userDate", () => ({ getToday: async () => "2026-01-10" }));
 
-const { saveLog, fetchPreviousPerformance, fetchPersonalRecords } = await import("./actions");
+const { saveLog, deleteLog, fetchPreviousPerformance, fetchPersonalRecords } = await import("./actions");
 
 const basicInput = {
   date: "2026-01-05",
@@ -320,5 +335,33 @@ describe("saveLog — set type, RPE and exercise notes (M4)", () => {
     });
     expect(result.error).toBeTruthy();
     expect(rpc).not.toHaveBeenCalled();
+  });
+});
+
+describe("deleteLog", () => {
+  beforeEach(() => {
+    getUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
+    deleteCalls.length = 0;
+    deleteResult = { data: [{ id: "log-1" }], error: null };
+  });
+
+  it("deletes only the signed-in person's log for that date", async () => {
+    expect(await deleteLog("2026-01-05")).toEqual({ success: true });
+    expect(deleteCalls).toEqual([{ table: "workout_logs", eqs: [["user_id", "user-1"], ["date", "2026-01-05"]] }]);
+  });
+
+  it("rejects a malformed date and a signed-out request without touching the database", async () => {
+    expect(await deleteLog("2026-13-45")).toHaveProperty("error");
+    getUser.mockResolvedValue({ data: { user: null } });
+    expect(await deleteLog("2026-01-05")).toEqual({ error: "Not signed in" });
+    expect(deleteCalls).toHaveLength(0);
+  });
+
+  it("says so when there was nothing to delete, and hides database errors", async () => {
+    deleteResult = { data: [], error: null };
+    expect(await deleteLog("2026-01-05")).toEqual({ error: "This workout was already deleted." });
+    deleteResult = { data: null, error: { message: "permission denied for table workout_logs" } };
+    const result = await deleteLog("2026-01-05");
+    expect(result).toEqual({ error: "Couldn't delete this workout. Please try again." });
   });
 });
