@@ -24,6 +24,10 @@ export default async function BodyPage() {
     getWeeklyTrainingDays(),
   ]);
 
+  // Weeks that ended before the account existed can't have been missed.
+  const signUpDate = profile?.created_at?.slice(0, 10) ?? null;
+  const weeksSinceSignUp = signUpDate ? weeklyTraining.filter((week) => week.weekEnd >= signUpDate) : weeklyTraining;
+
   return (
     <main className="px-4 pt-6 md:px-8 md:pt-10">
       <PageHeader
@@ -48,9 +52,9 @@ export default async function BodyPage() {
               lastWorkoutDate={lastWorkout.date}
               todayStr={todayStr}
             />
-            {weeklyTraining.length > 0 && (
+            {weeksSinceSignUp.length > 0 && (
               <WeeklyTrainingDays
-                weeks={weeklyTraining}
+                weeks={weeksSinceSignUp}
                 targetDaysPerWeek={profile?.training_days_per_week ?? null}
               />
             )}

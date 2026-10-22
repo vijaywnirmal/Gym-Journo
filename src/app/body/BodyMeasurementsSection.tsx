@@ -52,6 +52,10 @@ export default function BodyMeasurementsSection({
     setError(null);
   }
 
+  // Logging a new entry on a date that already has one replaces it (one entry per date), so say so
+  // before the old weight and note are gone.
+  const replacing = editingId === "new" ? (measurements.find((m) => m.date === date) ?? null) : null;
+
   function handleSave() {
     setError(null);
     startTransition(async () => {
@@ -148,6 +152,12 @@ export default function BodyMeasurementsSection({
               className="field h-11 w-full rounded-[10px] px-3.5 text-base"
             />
           </label>
+          {replacing && (
+            <p className="text-sm text-orange">
+              You already logged {replacing.weight_kg} kg on {formatDate(replacing.date)}
+              {replacing.notes ? " with a note" : ""}. Saving replaces it.
+            </p>
+          )}
           {error && <p className="text-sm text-red">{error}</p>}
           <div className="flex gap-2">
             <button
@@ -156,7 +166,7 @@ export default function BodyMeasurementsSection({
               disabled={pending}
               className="h-10 rounded-[10px] bg-accent px-4 text-sm font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-50"
             >
-              {pending ? "Saving…" : "Save"}
+              {pending ? "Saving…" : replacing ? "Replace entry" : "Save"}
             </button>
             <button
               type="button"
