@@ -4,7 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Icon, { type IconName } from "@/components/Icon";
 
-const TABS: { href: string; label: string; icon: IconName }[] = [
+type Tab = { href: string; label: string; icon: IconName };
+
+const TABS: Tab[] = [
   { href: "/", label: "Today", icon: "today" },
   { href: "/calendar", label: "Calendar", icon: "calendar" },
   { href: "/history", label: "History", icon: "history" },
@@ -13,13 +15,22 @@ const TABS: { href: string; label: string; icon: IconName }[] = [
   { href: "/profile", label: "Profile", icon: "person" },
 ];
 
+const CLIENTS_TAB: Tab = { href: "/trainer", label: "Clients", icon: "people" };
+
+// Trainers get a Clients tab after Calendar. The phone bar has room for six, so there it takes
+// Exercises' place (the library is still a tap away when planning, and in the sidebar).
+function tabsFor(isTrainer: boolean, phone: boolean): Tab[] {
+  if (!isTrainer) return TABS;
+  const tabs = phone ? TABS.filter((t) => t.href !== "/exercises") : TABS;
+  return [...tabs.slice(0, 2), CLIENTS_TAB, ...tabs.slice(2)];
+}
+
 // Sub-pages highlight the tab they belong to.
 const SECTION_OF: [string, string][] = [
   ["/log", "/calendar"],
   ["/schedule", "/calendar"],
   ["/programs", "/calendar"],
   ["/body", "/profile"],
-  ["/trainer", "/profile"],
   ["/join", "/profile"],
   ["/coach", "/"],
   ["/ai-plan", "/"],
@@ -31,11 +42,13 @@ const HIDDEN_ON = ["/login", "/auth", "/onboarding", "/trainer/setup", "/forgot-
 function activeTab(pathname: string): string {
   const section = SECTION_OF.find(([prefix]) => pathname.startsWith(prefix));
   if (section) return section[1];
-  return TABS.find((t) => t.href !== "/" && pathname.startsWith(t.href))?.href ?? (pathname === "/" ? "/" : "");
+  return (
+    [...TABS, CLIENTS_TAB].find((t) => t.href !== "/" && pathname.startsWith(t.href))?.href ?? (pathname === "/" ? "/" : "")
+  );
 }
 
 // Primary navigation: a bottom bar on phones, a sidebar from tablet width up.
-export default function AppNav() {
+export default function AppNav({ isTrainer = false }: { isTrainer?: boolean }) {
   const pathname = usePathname();
   if (HIDDEN_ON.some((p) => pathname.startsWith(p))) return null;
   const current = activeTab(pathname);
@@ -47,7 +60,7 @@ export default function AppNav() {
         className="material fixed inset-x-0 bottom-0 z-30 border-t border-separator pb-[env(safe-area-inset-bottom)] md:hidden"
       >
         <ul className="mx-auto flex max-w-lg">
-          {TABS.map((tab) => {
+          {tabsFor(isTrainer, true).map((tab) => {
             const active = current === tab.href;
             return (
               <li key={tab.href} className="flex-1">
@@ -78,7 +91,7 @@ export default function AppNav() {
           <span className="text-[15px] font-semibold tracking-tight">Gym Journal</span>
         </Link>
         <ul className="flex flex-col gap-0.5">
-          {TABS.map((tab) => {
+          {tabsFor(isTrainer, false).map((tab) => {
             const active = current === tab.href;
             return (
               <li key={tab.href}>

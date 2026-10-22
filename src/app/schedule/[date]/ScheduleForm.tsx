@@ -7,20 +7,36 @@ import SegmentedControl from "@/components/ui/SegmentedControl";
 import Select from "@/components/ui/Select";
 import ToggleChip from "@/components/ui/ToggleChip";
 import Icon from "@/components/Icon";
-import { savePlan, deletePlan } from "./actions";
+import { savePlan, deletePlan, type SavePlanInput } from "./actions";
 import ExerciseTargetEditor, { type ExerciseTargets } from "./ExerciseTargetEditor";
 import TemplateManager from "./TemplateManager";
 import { toExerciseTargets } from "./exerciseTargets";
 import { DAY_TYPE_LABEL, DAY_TYPE_TITLE_PLACEHOLDER, DAY_TYPES, dayTypeOf, type DayType } from "@/lib/dayType";
+
+type PlanActionResult = { success?: boolean; error?: string };
 
 type Props = {
   date: string;
   muscleGroups: MuscleGroup[];
   existingPlan: WorkoutPlan | null;
   templates: WorkoutTemplate[];
+  // Where saving and removing go: the signed-in person's own plan by default, or, on a trainer's
+  // screen, a client's, through actions bound to that client.
+  saveAction?: (input: SavePlanInput) => Promise<PlanActionResult>;
+  deleteAction?: (planId: string, date: string) => Promise<PlanActionResult>;
+  // Creating and editing templates is for one's own plans.
+  manageTemplates?: boolean;
 };
 
-export default function ScheduleForm({ date, muscleGroups, existingPlan, templates }: Props) {
+export default function ScheduleForm({
+  date,
+  muscleGroups,
+  existingPlan,
+  templates,
+  saveAction = savePlan,
+  deleteAction = deletePlan,
+  manageTemplates = true,
+}: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [title, setTitle] = useState(existingPlan?.title ?? "");
@@ -79,7 +95,7 @@ export default function ScheduleForm({ date, muscleGroups, existingPlan, templat
     setRemoved(false);
     setError(null);
     startTransition(async () => {
-      const result = await savePlan({
+      const result = await saveAction({
         date,
         title,
         dayType,
@@ -210,7 +226,7 @@ export default function ScheduleForm({ date, muscleGroups, existingPlan, templat
               disabled={pending}
               onClick={() =>
                 startTransition(async () => {
-                  const result = await deletePlan(existingPlan.id, date);
+                  const result = await deleteAction(existingPlan.id, date);
                   setConfirmingDelete(false);
                   if (result.error) {
                     setError(result.error);
@@ -243,7 +259,9 @@ export default function ScheduleForm({ date, muscleGroups, existingPlan, templat
           </button>
         ))}
 
-      {isWorkout && <TemplateManager templates={templates} currentPlan={{ name: title, exercises: selectedExercises }} />}
+      {isWorkout && manageTemplates && (
+        <TemplateManager templates={templates} currentPlan={{ name: title, exercises: selectedExercises }} />
+      )}
     </div>
   );
 }
