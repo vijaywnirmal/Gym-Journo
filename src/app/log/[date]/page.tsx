@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { PreviousPerformance } from "@/lib/queries";
 import LogForm from "./LogForm";
 import HistoricalLogView from "./HistoricalLogView";
+import LogModeSwitch from "./LogModeSwitch";
 import BackLink from "@/components/BackLink";
 import PageHeader from "@/components/PageHeader";
 import Icon from "@/components/Icon";
@@ -63,10 +64,12 @@ export default async function LogPage({
   } = await supabase.auth.getUser();
   const [plan, log] = await Promise.all([getPlanForDate(date), getLogForDate(date)]);
 
-  // A previously-logged day (any date other than today that already has a log) defaults to the
+  // A previously-logged day (any date other than today that already has a log) opens on the
   // read-first summary view instead of the active-execution stepper — see HistoricalLogView.
   // Today always gets the normal execution experience regardless of completion state, and any
   // date with no log yet has nothing to review, so it also gets the normal starting flow.
+  // LogModeSwitch keeps whichever view the page opened on, so the log a first save creates
+  // doesn't swap the logger for the summary mid-entry.
   const isHistorical = date !== today && log !== null;
 
   // Preload "last time" context for every exercise already on the page, so it's available the
@@ -86,33 +89,41 @@ export default async function LogPage({
 
   return (
     <main className="px-4 pt-6 md:px-8 md:pt-10">
-      {isHistorical ? (
-        <>
-          <BackLink href="/calendar" label="Calendar" />
-          <HistoricalLogView
-            date={date}
-            plan={plan}
-            existingLog={log!}
-            initialPreviousPerformance={initialPreviousPerformance}
-          />
-        </>
-      ) : (
-        <>
-          <PageHeader
-            title={date === today ? "Today's workout" : formatDate(date)}
-            subtitle={plan?.title ? `Planned: ${plan.title}` : date === today ? formatDateLong(date) : "Logging a past day"}
-            back={{ href: date === today ? "/" : "/calendar", label: date === today ? "Today" : "Calendar" }}
-          />
-          <LogForm
-            date={date}
-            plan={plan}
-            existingLog={log}
-            initialPreviousPerformance={initialPreviousPerformance}
-            backupScope={user?.id ?? null}
-            lighter={lighter}
-          />
-        </>
-      )}
+      <LogModeSwitch
+        key={date}
+        startWithSummary={isHistorical}
+        summary={
+          log && (
+            <>
+              <BackLink href="/calendar" label="Calendar" />
+              <HistoricalLogView
+                date={date}
+                plan={plan}
+                existingLog={log}
+                initialPreviousPerformance={initialPreviousPerformance}
+                backupScope={user?.id ?? null}
+              />
+            </>
+          )
+        }
+        logger={
+          <>
+            <PageHeader
+              title={date === today ? "Today's workout" : formatDate(date)}
+              subtitle={plan?.title ? `Planned: ${plan.title}` : date === today ? formatDateLong(date) : "Logging a past day"}
+              back={{ href: date === today ? "/" : "/calendar", label: date === today ? "Today" : "Calendar" }}
+            />
+            <LogForm
+              date={date}
+              plan={plan}
+              existingLog={log}
+              initialPreviousPerformance={initialPreviousPerformance}
+              backupScope={user?.id ?? null}
+              lighter={lighter}
+            />
+          </>
+        }
+      />
     </main>
   );
 }

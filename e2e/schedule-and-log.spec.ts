@@ -46,3 +46,29 @@ test("a logged set is saved and still there after a reload", async ({ page }) =>
     page.getByRole("listitem").filter({ hasText: "Barbell Bench Press" }).filter({ hasText: "5×60kg" }),
   ).toBeVisible();
 });
+
+// Local only, like the test above. The first save of a past day creates its log and re-renders the
+// page; the logger must stay open (not turn into the day's summary) while sets are still being typed.
+test("logging a past day keeps the logger open after the first save", async ({ page }) => {
+  await page.goto(`/log/${testDate(-3)}`);
+  await page.getByRole("button", { name: "Add exercise", exact: true }).click();
+  await page.getByLabel("Search exercises").fill("barbell row");
+  await page.getByRole("button", { name: /^Barbell Row/ }).first().click();
+
+  await page.getByLabel("Set 1 weight").fill("50");
+  await page.getByLabel("Set 1 reps").fill("8");
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+
+  // Typed after the first save, while the page re-renders with the newly created log.
+  await page.getByRole("button", { name: "Add set" }).click();
+  await page.getByLabel("Set 2 weight").fill("50");
+  await page.getByLabel("Set 2 reps").fill("7");
+  await page.waitForTimeout(5_000);
+  await expect(page.getByLabel("Set 2 reps")).toHaveValue("7");
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+
+  // Coming back later, the logged day opens on its summary with both sets.
+  await page.reload();
+  await expect(page.getByText("50kg × 8")).toBeVisible();
+  await expect(page.getByText("50kg × 7")).toBeVisible();
+});
