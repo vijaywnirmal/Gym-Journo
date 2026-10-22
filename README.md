@@ -43,6 +43,9 @@ merge to `master` adds one. It dry-runs first and applies them with `supabase db
    approve each migration run.
 4. In Supabase → Authentication → URL Configuration, add the deployed URL's `/auth/callback` as a
    redirect URL (magic-link sign-in and password resets land there).
+5. In Vercel → Settings → Environment Variables, set `NEXT_PUBLIC_SITE_URL` to the production URL
+   (e.g. `https://your-app.example.com`) for every environment, then redeploy. Auth emails link
+   there, so a sign-up started on a preview deployment doesn't land on Vercel's login page.
 
 **Workout reminders** (optional; the Profile section stays hidden until they're configured):
 
