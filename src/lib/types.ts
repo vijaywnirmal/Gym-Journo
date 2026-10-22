@@ -5,6 +5,7 @@ export type MuscleGroup = {
 
 export type Profile = {
   id: string;
+  created_at?: string;
   // full_name is the joined display name; first_name / last_name are what the person edits.
   full_name: string | null;
   first_name: string | null;

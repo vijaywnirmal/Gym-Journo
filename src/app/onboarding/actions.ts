@@ -9,7 +9,9 @@ import {
   validateGender,
   validatePassword,
   validatePrimaryGoal,
+  validateHeightCm,
   validateTargetWeightKg,
+  validateWeightKg,
   validateTrainingDaysPerWeek,
 } from "@/lib/validation";
 
@@ -63,6 +65,16 @@ export async function completeOnboarding(input: CompleteOnboardingInput) {
   }
   const trainingDaysError = validateTrainingDaysPerWeek(input.trainingDaysPerWeek);
   if (trainingDaysError) return { error: trainingDaysError };
+
+  if (input.heightCm !== null) {
+    const heightError = validateHeightCm(input.heightCm);
+    if (heightError) return { error: heightError };
+  }
+
+  if (input.weightKg !== null) {
+    const weightError = validateWeightKg(input.weightKg);
+    if (weightError) return { error: weightError };
+  }
 
   if (input.targetWeightKg !== null) {
     const targetWeightError = validateTargetWeightKg(input.targetWeightKg);

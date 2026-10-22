@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { validateTargetWeight, WEIGHT_UNITS } from "@/lib/validation";
+import { validateTargetReps, validateTargetSets, validateTargetWeight, WEIGHT_UNITS } from "@/lib/validation";
 import { isDayType, offKindOf, type DayType } from "@/lib/dayType";
 
 export type SavePlanInput = {
@@ -28,7 +28,16 @@ export async function savePlan(input: SavePlanInput) {
   if (!user) return { error: "Not signed in" };
   if (!isDayType(input.dayType)) return { error: "Invalid day type." };
 
+  // Same bounds as templates (template-actions.ts), so 0 sets or -5 reps can't be planned.
   for (const ex of input.exercises) {
+    if (ex.targetSets != null) {
+      const setsError = validateTargetSets(ex.targetSets);
+      if (setsError) return { error: setsError };
+    }
+    if (ex.targetReps != null) {
+      const repsError = validateTargetReps(ex.targetReps);
+      if (repsError) return { error: repsError };
+    }
     if (ex.targetWeight != null) {
       const weightError = validateTargetWeight(ex.targetWeight);
       if (weightError) return { error: weightError };

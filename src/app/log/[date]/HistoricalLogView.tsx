@@ -14,6 +14,8 @@ type Props = {
   plan: WorkoutPlan | null;
   existingLog: WorkoutLogWithContext;
   initialPreviousPerformance: Record<string, PreviousPerformance | null>;
+  // Passed to the edit-mode LogForm so unsynced edits are backed up on this device, as when logging.
+  backupScope: string | null;
 };
 
 // A previously-logged day defaults to a read-first summary — the whole day at a glance — rather
@@ -29,6 +31,7 @@ export default function HistoricalLogView({
   plan,
   existingLog,
   initialPreviousPerformance,
+  backupScope,
 }: Props) {
   const [mode, setMode] = useState<"summary" | "edit">("summary");
 
@@ -54,6 +57,7 @@ export default function HistoricalLogView({
           existingLog={existingLog}
           initialPreviousPerformance={initialPreviousPerformance}
           showTargets={false}
+          backupScope={backupScope}
         />
       </div>
     );

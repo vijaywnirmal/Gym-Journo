@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPrompt, type AiPlanInput, type AiPlanProfile } from "./ai-plan-prompt";
+import { AI_PLAN_NOTICE, buildPrompt, type AiPlanInput, type AiPlanProfile } from "./ai-plan-prompt";
 
 const input: AiPlanInput = {
   activityLevel: "Moderate",
@@ -11,7 +11,6 @@ const input: AiPlanInput = {
 describe("buildPrompt", () => {
   it("includes goal, experience, training days, and target weight when present", () => {
     const profile: AiPlanProfile = {
-      full_name: "Test User",
       date_of_birth: "1995-06-20",
       height_cm: 180,
       weight_kg: 80,
@@ -29,7 +28,6 @@ describe("buildPrompt", () => {
 
   it("says Gender, passes a stated gender through, and treats 'prefer not to say' as not provided", () => {
     const base: AiPlanProfile = {
-      full_name: "Test User",
       date_of_birth: null,
       height_cm: null,
       weight_kg: null,
@@ -48,7 +46,6 @@ describe("buildPrompt", () => {
 
   it("does not crash and falls back sensibly when goal/training fields are null", () => {
     const profile: AiPlanProfile = {
-      full_name: null,
       date_of_birth: null,
       height_cm: null,
       weight_kg: null,
@@ -63,5 +60,30 @@ describe("buildPrompt", () => {
     expect(prompt).toContain("Experience level: N/A");
     expect(prompt).toContain("Training days per week: N/A");
     expect(prompt).not.toContain("target weight");
+  });
+
+  it("never sends the name, and the notice says what is sent", () => {
+    const profile = {
+      full_name: "Robin Tester",
+      date_of_birth: "1995-06-20",
+      height_cm: 180,
+      weight_kg: 80,
+      gender: "male",
+      primary_goal: "build_muscle",
+      target_weight_kg: null,
+      experience_level: "intermediate",
+      training_days_per_week: 4,
+    } as AiPlanProfile;
+    const prompt = buildPrompt(profile, { ...input, notes: "bad knee" }, "No history", "No schedule");
+    expect(prompt).not.toContain("Robin");
+    expect(prompt).not.toContain("Name:");
+    // Everything the prompt carries from the profile is named in the notice.
+    expect(prompt).toContain("- Age: ");
+    expect(prompt).toContain("- Height: 180 cm");
+    expect(prompt).toContain("- Gender: male");
+    expect(prompt).toContain("bad knee");
+    expect(AI_PLAN_NOTICE.shared.join(" ")).toMatch(/age.*height.*weight.*gender/);
+    expect(AI_PLAN_NOTICE.shared.join(" ")).toMatch(/notes/);
+    expect(AI_PLAN_NOTICE.notShared).toMatch(/name/);
   });
 });

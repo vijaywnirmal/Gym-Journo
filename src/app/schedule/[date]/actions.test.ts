@@ -92,6 +92,14 @@ describe("savePlan", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
+  it("rejects 0 or fractional sets and 0 or negative reps before calling the RPC", async () => {
+    for (const target of [{ targetSets: 0, targetReps: 8 }, { targetSets: 2.5, targetReps: 8 }, { targetSets: 3, targetReps: -5 }, { targetSets: 9999, targetReps: 8 }]) {
+      const result = await savePlan({ ...baseInput, exercises: [{ exerciseId: "ex-1", ...target }] });
+      expect(result.error).toMatch(/valid number of (sets|reps)/);
+    }
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
   it("rejects an invalid weight unit before calling the RPC", async () => {
     const result = await savePlan({
       ...baseInput,

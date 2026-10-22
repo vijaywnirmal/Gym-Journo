@@ -159,7 +159,7 @@ describe("deleteAccount", () => {
 
   it("deletes workout_plans, workout_logs, and workout_templates before exercises, then deletes the Auth user (service-role key present)", async () => {
     const deleteUser = vi.fn().mockResolvedValue({ error: null });
-    createAdminClient.mockReturnValue({ auth: { admin: { deleteUser } } });
+    createAdminClient.mockReturnValue({ auth: { admin: { deleteUser } }, from });
 
     const result = await deleteAccount();
     expect(result).toEqual({ success: true, fullyDeleted: true });
@@ -175,12 +175,14 @@ describe("deleteAccount", () => {
     expect(deleteOrder).toEqual(
       expect.arrayContaining(["workout_plans", "workout_logs", "workout_templates", "exercises"])
     );
+    // People can't delete these themselves (migration 0031), so the service role does.
+    expect(deleteOrder).toEqual(expect.arrayContaining(["ai_plans", "coach_replies"]));
   });
 
   it("stops and returns a safe generic error if workout_templates deletion fails, without touching exercises or the Auth user", async () => {
     failTable = "workout_templates";
     const deleteUser = vi.fn().mockResolvedValue({ error: null });
-    createAdminClient.mockReturnValue({ auth: { admin: { deleteUser } } });
+    createAdminClient.mockReturnValue({ auth: { admin: { deleteUser } }, from });
 
     const result = await deleteAccount();
     expect(result.error).toBe("Something went wrong deleting your account. Please try again.");
@@ -191,7 +193,7 @@ describe("deleteAccount", () => {
   it("stops and returns a safe generic error if workout_plans deletion fails, without touching exercises or the Auth user", async () => {
     failTable = "workout_plans";
     const deleteUser = vi.fn().mockResolvedValue({ error: null });
-    createAdminClient.mockReturnValue({ auth: { admin: { deleteUser } } });
+    createAdminClient.mockReturnValue({ auth: { admin: { deleteUser } }, from });
 
     const result = await deleteAccount();
     expect(result.error).toBe("Something went wrong deleting your account. Please try again.");
@@ -202,7 +204,7 @@ describe("deleteAccount", () => {
   it("stops and returns a safe generic error if exercises deletion fails (e.g. an unremoved reference), without deleting the Auth user", async () => {
     failTable = "exercises";
     const deleteUser = vi.fn().mockResolvedValue({ error: null });
-    createAdminClient.mockReturnValue({ auth: { admin: { deleteUser } } });
+    createAdminClient.mockReturnValue({ auth: { admin: { deleteUser } }, from });
 
     const result = await deleteAccount();
     expect(result.error).toBe("Something went wrong deleting your account. Please try again.");
@@ -211,7 +213,7 @@ describe("deleteAccount", () => {
 
   it("returns a safe generic error, not the raw Supabase error, when the Auth user deletion itself fails", async () => {
     const deleteUser = vi.fn().mockResolvedValue({ error: { message: "internal db detail" } });
-    createAdminClient.mockReturnValue({ auth: { admin: { deleteUser } } });
+    createAdminClient.mockReturnValue({ auth: { admin: { deleteUser } }, from });
 
     const result = await deleteAccount();
     expect(result.error).toBe("Something went wrong deleting your account. Please try again.");

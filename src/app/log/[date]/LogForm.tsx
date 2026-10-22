@@ -116,11 +116,17 @@ export default function LogForm({
 }: Props) {
   const backupStorageKey = backupScope ? backupKey(backupScope, date) : null;
   const plannedSets = (sets: number | null) => (lighter && sets !== null ? lighterSetCount(sets) : sets);
+  const planTarget = (pe: NonNullable<WorkoutPlan["planned_exercises"]>[number]): ExerciseEntry["target"] => ({
+    sets: plannedSets(pe.target_sets),
+    reps: pe.target_reps,
+    weight: lighter ? null : (pe.target_weight ?? null),
+    weightUnit: pe.target_weight_unit ?? "kg",
+  });
   const targetByExerciseId = new Map(
     showTargets
       ? plan?.planned_exercises?.map((pe) => [
           pe.exercise_id,
-          { sets: plannedSets(pe.target_sets), reps: pe.target_reps },
+          planTarget(pe),
         ]) ?? []
       : []
   );
@@ -149,7 +155,7 @@ export default function LogForm({
         exerciseId: pe.exercise_id,
         name: pe.exercise?.name ?? "Exercise",
         notes: "",
-        target: showTargets ? { sets: plannedSets(pe.target_sets), reps: pe.target_reps } : null,
+        target: showTargets ? planTarget(pe) : null,
         sets: Array.from({ length: plannedSets(pe.target_sets ?? 3) ?? 3 }, () => emptySet()),
         done: false,
       })) ?? [];

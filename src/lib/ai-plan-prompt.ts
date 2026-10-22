@@ -7,8 +7,25 @@ export type AiPlanInput = {
   mealsToday: string;
 };
 
+// What a plan request sends to Google's Gemini model, shown on the AI plan page before anything is
+// sent. Kept next to buildPrompt so the notice and the prompt change together (ai-plan-prompt.test.ts
+// checks the prompt against it). The name is deliberately not sent: the plan doesn't need it.
+export const AI_PLAN_NOTICE = {
+  summary: "To write your plan, these details are sent to Google's Gemini model each time you generate one:",
+  shared: [
+    "Your age (from your date of birth), height, weight and gender",
+    "Your goal settings: goal, target weight, experience level and training days per week",
+    "Your workouts from the last 14 days and your plans for the next 7",
+    "What you enter here: activity level, diet, what you've eaten today and any notes",
+  ],
+  notShared: "Your name and email are never sent.",
+  kept: "The plan is saved in your account, with your activity level, diet and notes.",
+} as const;
+
+// Upper bounds for the free-text fields, enforced in the form and again on the server.
+export const AI_PLAN_LIMITS = { notes: 1000, mealsToday: 2000 } as const;
+
 export type AiPlanProfile = {
-  full_name: string | null;
   date_of_birth: string | null;
   height_cm: number | null;
   weight_kg: number | null;
@@ -39,7 +56,6 @@ export function buildPrompt(
   return `You are a certified fitness coach and nutritionist. Create a personalized diet and workout recommendation for this person, using everything you know about their recent behavior.
 
 ## Profile
-- Name: ${profile.full_name ?? "N/A"}
 - Age: ${age ?? "N/A"}
 - Height: ${profile.height_cm ?? "N/A"} cm
 - Weight: ${profile.weight_kg ?? "N/A"} kg

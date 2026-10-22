@@ -5,6 +5,7 @@ import {
   validateDateOfBirth,
   validateExerciseName,
   validateExperienceLevel,
+  validateHeightCm,
   validateMeasurementDate,
   validateMeasurementNote,
   validatePassword,
@@ -167,6 +168,14 @@ describe("validatePassword", () => {
 
   it("accepts passwords at or above the minimum length", () => {
     expect(validatePassword("a".repeat(MIN_PASSWORD_LENGTH))).toBeNull();
+  });
+});
+
+describe("validateHeightCm", () => {
+  it("accepts realistic heights and rejects typos and garbage", () => {
+    expect(validateHeightCm(178)).toBeNull();
+    expect(validateHeightCm(152.5)).toBeNull();
+    for (const bad of [-5, 0, 49, 276, 5000, Number.NaN]) expect(validateHeightCm(bad)).not.toBeNull();
   });
 });
 
