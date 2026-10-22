@@ -114,6 +114,14 @@ export function validateTargetReps(value: number): string | null {
   return null;
 }
 
+// Profile height, same loose-sanity-bounds style: just enough to catch typos like 5000 cm or -5.
+export function validateHeightCm(value: number): string | null {
+  if (!Number.isFinite(value) || value < 50 || value > 275) {
+    return "Enter a height between 50 and 275 cm.";
+  }
+  return null;
+}
+
 // Same loose-sanity-bounds style as validateTargetWeightKg — just enough to catch typos/garbage,
 // not a precise medical bound.
 export function validateWeightKg(value: number): string | null {
