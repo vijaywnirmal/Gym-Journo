@@ -141,7 +141,7 @@ describe("deleteAccount", () => {
   // have their account deleted.
   it("deletes workout_plans, workout_logs, and workout_templates before exercises (no service-role key)", async () => {
     createAdminClient.mockReturnValue(null);
-    const result = await deleteAccount();
+    const result = await deleteAccount("DELETE");
     expect(result).toEqual({ success: true, fullyDeleted: false });
 
     const plansIndex = deleteOrder.indexOf("workout_plans");
@@ -161,7 +161,7 @@ describe("deleteAccount", () => {
     const deleteUser = vi.fn().mockResolvedValue({ error: null });
     createAdminClient.mockReturnValue({ auth: { admin: { deleteUser } }, from });
 
-    const result = await deleteAccount();
+    const result = await deleteAccount("DELETE");
     expect(result).toEqual({ success: true, fullyDeleted: true });
 
     const exercisesIndex = deleteOrder.indexOf("exercises");
@@ -184,7 +184,7 @@ describe("deleteAccount", () => {
     const deleteUser = vi.fn().mockResolvedValue({ error: null });
     createAdminClient.mockReturnValue({ auth: { admin: { deleteUser } }, from });
 
-    const result = await deleteAccount();
+    const result = await deleteAccount("DELETE");
     expect(result.error).toBe("Something went wrong deleting your account. Please try again.");
     expect(deleteOrder).not.toContain("exercises");
     expect(deleteUser).not.toHaveBeenCalled();
@@ -195,7 +195,7 @@ describe("deleteAccount", () => {
     const deleteUser = vi.fn().mockResolvedValue({ error: null });
     createAdminClient.mockReturnValue({ auth: { admin: { deleteUser } }, from });
 
-    const result = await deleteAccount();
+    const result = await deleteAccount("DELETE");
     expect(result.error).toBe("Something went wrong deleting your account. Please try again.");
     expect(deleteOrder).not.toContain("exercises");
     expect(deleteUser).not.toHaveBeenCalled();
@@ -206,7 +206,7 @@ describe("deleteAccount", () => {
     const deleteUser = vi.fn().mockResolvedValue({ error: null });
     createAdminClient.mockReturnValue({ auth: { admin: { deleteUser } }, from });
 
-    const result = await deleteAccount();
+    const result = await deleteAccount("DELETE");
     expect(result.error).toBe("Something went wrong deleting your account. Please try again.");
     expect(deleteUser).not.toHaveBeenCalled();
   });
@@ -215,14 +215,14 @@ describe("deleteAccount", () => {
     const deleteUser = vi.fn().mockResolvedValue({ error: { message: "internal db detail" } });
     createAdminClient.mockReturnValue({ auth: { admin: { deleteUser } }, from });
 
-    const result = await deleteAccount();
+    const result = await deleteAccount("DELETE");
     expect(result.error).toBe("Something went wrong deleting your account. Please try again.");
     expect(result.error).not.toContain("internal db detail");
   });
 
   it("only ever targets the currently authenticated user's id", async () => {
     createAdminClient.mockReturnValue(null);
-    await deleteAccount();
+    await deleteAccount("DELETE");
     expect(from).toHaveBeenCalledWith("workout_plans");
     expect(from).toHaveBeenCalledWith("workout_templates");
     expect(from).toHaveBeenCalledWith("exercises");
@@ -233,7 +233,7 @@ describe("deleteAccount", () => {
 
   it("deletes body_measurements (Phase 8)", async () => {
     createAdminClient.mockReturnValue(null);
-    await deleteAccount();
+    await deleteAccount("DELETE");
     expect(deleteOrder).toContain("body_measurements");
   });
 });

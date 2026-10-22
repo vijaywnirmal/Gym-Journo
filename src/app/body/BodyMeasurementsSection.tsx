@@ -8,6 +8,16 @@ import DateField from "@/components/ui/DateField";
 import Icon from "@/components/Icon";
 import { saveMeasurement, deleteMeasurement } from "./actions";
 
+// One format for every weight here: thousands separator, at most one decimal (74, 74.5).
+function formatKg(value: number): string {
+  return Number(value).toLocaleString("en-US", { maximumFractionDigits: 1 });
+}
+
+// Entries from another year show it, so a long history isn't ambiguous.
+function formatEntryDate(date: string, todayStr: string): string {
+  return date.slice(0, 4) === todayStr.slice(0, 4) ? formatDate(date) : `${formatDate(date)}, ${date.slice(0, 4)}`;
+}
+
 export default function BodyMeasurementsSection({
   measurements,
   todayStr,
@@ -54,7 +64,9 @@ export default function BodyMeasurementsSection({
 
   // Logging a new entry on a date that already has one replaces it (one entry per date), so say so
   // before the old weight and note are gone.
-  const replacing = editingId === "new" ? (measurements.find((m) => m.date === date) ?? null) : null;
+  const replacing =
+    editingId !== null ? (measurements.find((m) => m.date === date && m.id !== editingId) ?? null) : null;
+  const editing = editingId !== null && editingId !== "new" ? measurements.find((m) => m.id === editingId) : undefined;
 
   function handleSave() {
     setError(null);
@@ -68,16 +80,25 @@ export default function BodyMeasurementsSection({
         setError(result.error);
         return;
       }
-      setEditingId(null);
-      router.refresh();
+      // Moving an entry to another date saves it there and removes it from the old one.
+      if (editing && editing.date !== date) await deleteMeasurement(editing.id);
+      // Inside the transition, so the form stays open until the refreshed list (with this entry) arrives.
+      startTransition(() => {
+        setEditingId(null);
+        router.refresh();
+      });
     });
   }
 
   function handleDelete(id: string) {
     startTransition(async () => {
-      await deleteMeasurement(id);
+      const result = await deleteMeasurement(id);
       setConfirmDeleteId(null);
-      router.refresh();
+      if (result && "error" in result && result.error) {
+        setError(result.error);
+        return;
+      }
+      startTransition(() => router.refresh());
     });
   }
 
@@ -89,7 +110,7 @@ export default function BodyMeasurementsSection({
           <p className="text-3xl font-semibold tabular-nums tracking-tight">
             {latest ? (
               <>
-                {latest.weight_kg} <span className="text-base font-medium text-label-2">kg</span>
+                {formatKg(latest.weight_kg)} <span className="text-base font-medium text-label-2">kg</span>
               </>
             ) : (
               "—"
@@ -119,7 +140,6 @@ export default function BodyMeasurementsSection({
                 value={date}
                 onChange={setDate}
                 max={todayStr}
-                disabled={editingId !== "new"}
                 ariaLabel="Date"
               />
             </div>
@@ -191,8 +211,8 @@ export default function BodyMeasurementsSection({
               <li key={m.id} className="flex items-center gap-3 px-4 py-2.5">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm">
-                    <span className="font-medium tabular-nums">{m.weight_kg} kg</span>
-                    <span className="text-label-3"> · {formatDate(m.date)}</span>
+                    <span className="font-medium tabular-nums">{formatKg(m.weight_kg)} kg</span>
+                    <span className="text-label-3"> · {formatEntryDate(m.date, todayStr)}</span>
                   </p>
                   {m.notes && <p className="truncate text-xs text-label-2">{m.notes}</p>}
                 </div>
@@ -219,6 +239,7 @@ export default function BodyMeasurementsSection({
                     <button
                       type="button"
                       onClick={() => startEdit(m)}
+                      aria-label={`Edit entry for ${formatDate(m.date)}`}
                       className="h-8 rounded-lg px-2.5 text-sm font-medium text-link hover:bg-fill"
                     >
                       Edit

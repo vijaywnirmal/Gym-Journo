@@ -24,6 +24,10 @@ export default function ProfileEditForm({
   function handleSubmit() {
     setError(null);
 
+    if (!password && confirmPassword) {
+      setError("Enter the new password as well, or clear Confirm password.");
+      return;
+    }
     if (password && password !== confirmPassword) {
       setError("Passwords don't match.");
       return;

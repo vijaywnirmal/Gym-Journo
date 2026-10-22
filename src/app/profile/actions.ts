@@ -109,7 +109,10 @@ export async function updateProfile(input: UpdateProfileInput) {
     })
     .eq("id", user.id);
 
-  if (error) return { error: error.message };
+  if (error) {
+    console.error("Saving the profile failed:", error.message);
+    return { error: "Couldn't save your profile. Please try again." };
+  }
 
   revalidatePath("/profile");
   return { success: true };
@@ -149,7 +152,9 @@ export async function setCoachConsent(enabled: boolean) {
 // already unreferenced, so both the manual exercise delete and the eventual Auth user cascade
 // are safe. Without a service-role key, the Auth user record itself is left behind — callers
 // should treat `fullyDeleted: false` as "manual cleanup still required".
-export async function deleteAccount() {
+// confirmation: what the person typed — "DELETE" — checked here too, not only in the form.
+export async function deleteAccount(confirmation: string) {
+  if (confirmation !== "DELETE") return { error: 'Type DELETE to confirm.' };
   const supabase = await createClient();
   const {
     data: { user },

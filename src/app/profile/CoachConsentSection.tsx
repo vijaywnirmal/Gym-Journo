@@ -66,7 +66,14 @@ function useConsentChange() {
 
 // Profile setting: a single row with the current state, the notice one tap away, and on/off.
 // Consent is off until the person turns it on, and the server checks it on every Coach question.
-export default function CoachConsentSection({ consentedAt }: { consentedAt: string | null }) {
+export default function CoachConsentSection({
+  consentedAt,
+  timeZone = null,
+}: {
+  consentedAt: string | null;
+  // The profile's zone, so the consent day is the person's own, not UTC's.
+  timeZone?: string | null;
+}) {
   const { pending, error, change } = useConsentChange();
   const consented = consentedAt !== null;
 
@@ -89,7 +96,7 @@ export default function CoachConsentSection({ consentedAt }: { consentedAt: stri
           </h2>
           <p className="text-sm text-label-2">
             {consented
-              ? `Allowed since ${formatDateLong(consentedAt.slice(0, 10))}. Your training data is sent to Google's Gemini model when you ask a question.`
+              ? `Allowed since ${formatDateLong(new Date(consentedAt).toLocaleDateString("en-CA", { timeZone: timeZone ?? "UTC" }))}. Your training data is sent to Google's Gemini model when you ask a question.`
               : COACH_CONSENT.summary}
           </p>
         </div>
