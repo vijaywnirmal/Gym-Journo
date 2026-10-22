@@ -46,6 +46,12 @@ merge to `master` adds one. It dry-runs first and applies them with `supabase db
 5. In Vercel → Settings → Environment Variables, set `NEXT_PUBLIC_SITE_URL` to the production URL
    (e.g. `https://your-app.example.com`) for every environment, then redeploy. Auth emails link
    there, so a sign-up started on a preview deployment doesn't land on Vercel's login page.
+6. In Supabase → Authentication → URL Configuration, set **Site URL** to the same production URL.
+   Then in Authentication → Email Templates, paste [`confirmation.html`](supabase/templates/confirmation.html)
+   into *Confirm signup*, [`magic_link.html`](supabase/templates/magic_link.html) into *Magic Link* and
+   [`recovery.html`](supabase/templates/recovery.html) into *Reset Password*. Their links carry a
+   one-time token, so they work in any browser: Supabase's default links only work in the browser
+   that asked for the email, and send everyone else back to the login page.
 
 **Workout reminders** (optional; the Profile section stays hidden until they're configured):
 
