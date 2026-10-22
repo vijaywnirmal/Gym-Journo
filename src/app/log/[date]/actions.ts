@@ -38,11 +38,11 @@ function validateSaveLogInput(input: SaveLogInput): string | null {
       return `Exercise notes must be ${MAX_EXERCISE_NOTE_LENGTH} characters or fewer.`;
     }
     for (const s of ex.sets) {
-      if (s.reps !== null && (!Number.isInteger(s.reps) || s.reps < 0)) {
-        return "Reps must be a valid non-negative number.";
+      if (s.reps !== null && (!Number.isInteger(s.reps) || s.reps < 0 || s.reps > 1000)) {
+        return "Enter reps between 0 and 1000.";
       }
-      if (s.weight !== null && (!Number.isFinite(s.weight) || s.weight < 0)) {
-        return "Weight must be a valid non-negative number.";
+      if (s.weight !== null && (!Number.isFinite(s.weight) || s.weight < 0 || s.weight > 1000)) {
+        return "Enter a weight between 0 and 1000.";
       }
       if (!WEIGHT_UNITS.has(s.weightUnit)) return "Invalid weight unit.";
       if (s.setType !== undefined && !isSetType(s.setType)) return "Invalid set type.";

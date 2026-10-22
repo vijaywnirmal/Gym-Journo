@@ -3,7 +3,7 @@ import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import PageHeader from "@/components/PageHeader";
 import { getWeekOverview } from "@/lib/queries";
-import { formatDate, shiftDate, weekDates } from "@/lib/date";
+import { formatDate, shiftDate, weekDates, isValidIsoDate } from "@/lib/date";
 import { getToday } from "@/lib/userDate";
 import Icon from "@/components/Icon";
 import { describeCalendarDay, isMissedDay } from "./dayStatus";
@@ -17,7 +17,8 @@ export default async function CalendarPage({
 }) {
   const { week } = await searchParams;
   const todayDate = await getToday();
-  const centerDate = week ?? todayDate;
+  // A malformed ?week= (hand-edited or stale link) falls back to this week instead of crashing.
+  const centerDate = week && isValidIsoDate(week) ? week : todayDate;
   const dates = weekDates(centerDate);
   const overview = await getWeekOverview(dates);
 
@@ -83,15 +84,16 @@ export default async function CalendarPage({
                 <span className="text-lg leading-6 font-semibold tabular-nums">{format(day, "d")}</span>
               </div>
               <div className="min-w-0 flex-1">
-                <p className={`truncate text-sm font-medium ${info?.dayType ? "" : "text-label-3"}`}>{plan}</p>
+                <p className={`truncate text-sm font-medium ${info?.dayType || logged ? "" : "text-label-3"}`}>{plan}</p>
                 {status && (
                   <p
-                    className={`flex items-center gap-1 truncate text-xs first-letter:uppercase ${
+                    className={`flex items-start gap-1 text-xs first-letter:uppercase ${
                       missed ? "text-orange" : logged ? "text-green" : "text-label-2"
                     }`}
                   >
                     {logged && !missed && <Icon name="checkmark" className="size-3.5 shrink-0" strokeWidth={2.5} />}
-                    <span className="truncate first-letter:uppercase">{status}</span>
+                    {/* Wraps rather than truncating: on a phone the status is the useful part. */}
+                    <span className="min-w-0 break-words first-letter:uppercase">{status}</span>
                   </p>
                 )}
               </div>

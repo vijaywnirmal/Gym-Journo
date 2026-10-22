@@ -11,8 +11,9 @@ const HEIGHT = 120;
 const PAD_X = 6;
 const PAD_Y = 12;
 
+// One format for every number on the chart: thousands separators, at most one decimal.
 function fmt(value: number): string {
-  return Number.isInteger(value) ? value.toLocaleString("en-US") : value.toFixed(1);
+  return value.toLocaleString("en-US", { maximumFractionDigits: 1 });
 }
 
 export default function TrendChart({ points, unit }: { points: TrendPoint[]; unit: string }) {
@@ -63,7 +64,9 @@ export default function TrendChart({ points, unit }: { points: TrendPoint[]; uni
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         className="w-full overflow-visible text-accent"
         role="img"
-        aria-label={`Trend over ${points.length} sessions, from ${fmt(min)} to ${fmt(max)} ${unit}`}
+        aria-label={`Trend over ${points.length} sessions: ${fmt(first)} to ${fmt(last)} ${unit} (${
+          change > 0 ? "up" : change < 0 ? "down" : "no change"
+        }), ranging ${fmt(min)}–${fmt(max)} ${unit}`}
       >
         <defs>
           <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
@@ -83,7 +86,7 @@ export default function TrendChart({ points, unit }: { points: TrendPoint[]; uni
       <div className="mt-1.5 flex justify-between text-xs text-label-3">
         <span>{formatDate(points[0].date)}</span>
         <span>
-          Peak {fmt(max)} {unit}
+          Low {fmt(min)} · Peak {fmt(max)} {unit}
         </span>
         <span>{formatDate(points[points.length - 1].date)}</span>
       </div>

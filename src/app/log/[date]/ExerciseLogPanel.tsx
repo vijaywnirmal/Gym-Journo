@@ -52,7 +52,8 @@ export function compareSets(
   return currentSets.map((set, index) => {
     const setNumber = index + 1;
     const previousSet = previous?.sets.find((s) => s.setNumber === setNumber);
-    if (!previousSet) return null;
+    // Only like with like: a working set is never compared with last session's warm-up (or drop set).
+    if (!previousSet || toSetType(previousSet.setType) !== toSetType(set.setType)) return null;
 
     const currentWeight = set.weight ? parseFloat(set.weight) : null;
     const currentReps = set.reps ? parseInt(set.reps, 10) : null;

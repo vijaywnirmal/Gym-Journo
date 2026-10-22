@@ -30,8 +30,9 @@ export default function SuggestionCard(props: Props) {
         router.refresh();
         return;
       }
+      // No refresh here: the card stays, showing what happened, until the page is next opened
+      // (decideSuggestion revalidates the pages that show the plan, not this list).
       setDecided(accept ? "accepted" : "rejected");
-      router.refresh();
     });
   }
 

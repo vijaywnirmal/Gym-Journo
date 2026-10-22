@@ -51,6 +51,8 @@ describe("isMissedDay", () => {
 describe("describeCalendarDay", () => {
   it("names what was scheduled", () => {
     expect(describeCalendarDay(day(), TODAY, TODAY).plan).toBe("Not scheduled");
+    // A workout logged without a plan is named for what it was.
+    expect(describeCalendarDay(day({ performed: true }), TODAY, TODAY).plan).toBe("Freeform workout");
     expect(describeCalendarDay(day({ dayType: "workout" }), TODAY, TODAY).plan).toBe("Workout");
     expect(describeCalendarDay(day({ dayType: "workout", title: "Push" }), TODAY, TODAY).plan).toBe("Push");
     expect(describeCalendarDay(day({ dayType: "rest" }), TODAY, TODAY).plan).toBe("Rest day");

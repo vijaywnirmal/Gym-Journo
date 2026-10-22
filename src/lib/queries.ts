@@ -159,7 +159,8 @@ export async function getUpcomingScheduleSummary(days: number): Promise<string> 
       }
       const muscles = row.workout_plan_muscle_groups
         .map((m) => m.muscle_group?.name)
-        .filter(Boolean)
+        .filter((name): name is string => !!name)
+        .sort((a, b) => a.localeCompare(b))
         .join(", ");
       return `${row.date}: ${row.title ?? "Workout"}${muscles ? ` — ${muscles}` : ""}`;
     })
@@ -285,7 +286,10 @@ export async function getPlanForDate(date: string): Promise<WorkoutPlan | null> 
 
   return {
     ...row,
-    muscle_groups: row.workout_plan_muscle_groups?.map((r) => r.muscle_group) ?? [],
+    // Sorted so the order doesn't change between loads (the join comes back in no set order).
+    muscle_groups: (row.workout_plan_muscle_groups?.map((r) => r.muscle_group) ?? []).sort((a, b) =>
+      a.name.localeCompare(b.name)
+    ),
     planned_exercises: (row.planned_exercises ?? []).sort((a, b) => a.position - b.position),
   };
 }

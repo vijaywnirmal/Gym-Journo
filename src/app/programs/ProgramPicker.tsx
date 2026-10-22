@@ -14,7 +14,7 @@ import DateField from "@/components/ui/DateField";
 import Disclosure from "@/components/ui/Disclosure";
 import Icon from "@/components/Icon";
 import Select from "@/components/ui/Select";
-import { applyProgram, type ApplyProgramResult } from "./actions";
+import { applyProgram, undoProgram, type ApplyProgramResult } from "./actions";
 
 const PREVIEW_DAYS = 6;
 
@@ -70,6 +70,7 @@ function ProgramForm({ program, today }: { program: Program; today: string }) {
   const [weekdays, setWeekdays] = useState<Set<number>>(new Set(program.defaultWeekdays));
   const [weeks, setWeeks] = useState(program.defaultWeeks);
   const [result, setResult] = useState<ApplyProgramResult | null>(null);
+  const [undone, setUndone] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const schedule = useMemo(
@@ -87,8 +88,21 @@ function ProgramForm({ program, today }: { program: Program; today: string }) {
     });
   }
 
+  function undo(dates: string[]) {
+    startTransition(async () => {
+      const outcome = await undoProgram(program.id, dates);
+      if ("error" in outcome) {
+        setUndone(outcome.error);
+        return;
+      }
+      setResult(null);
+      setUndone(`Removed ${outcome.removed} workout${outcome.removed === 1 ? "" : "s"} from your calendar.`);
+    });
+  }
+
   function apply() {
     setResult(null);
+    setUndone(null);
     startTransition(async () => {
       setResult(await applyProgram({ programId: program.id, startDate, weekdays: [...weekdays], weeks }));
     });
@@ -200,8 +214,26 @@ function ProgramForm({ program, today }: { program: Program; today: string }) {
             <Link href={`/calendar?week=${result.firstDate}`} className="font-medium text-link">
               See calendar
             </Link>
+            {result.createdDates.length > 0 && (
+              <>
+                {" · "}
+                <button
+                  type="button"
+                  onClick={() => undo(result.createdDates)}
+                  disabled={pending}
+                  className="font-medium text-link disabled:opacity-50"
+                >
+                  Undo
+                </button>
+              </>
+            )}
           </p>
         </div>
+      )}
+      {undone && (
+        <p role="status" className="text-sm text-label-2">
+          {undone}
+        </p>
       )}
 
       <button
