@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   getLastCompletedLog,
@@ -24,6 +25,8 @@ import PageHeader from "@/components/PageHeader";
 import { dayTypeOf } from "@/lib/dayType";
 import { comebackGapDays } from "@/lib/analyze/comeback";
 import Icon, { type IconName } from "@/components/Icon";
+
+export const metadata: Metadata = { title: "Today" };
 
 const TRAINING_FREQUENCY_WINDOW_DAYS = 7;
 

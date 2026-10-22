@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import { PROGRAMS } from "@/lib/programs";
 import { getToday } from "@/lib/userDate";
 import PageHeader from "@/components/PageHeader";
 import ProgramPicker from "./ProgramPicker";
+
+export const metadata: Metadata = { title: "Programs" };
 
 export default async function ProgramsPage() {
   const today = await getToday();

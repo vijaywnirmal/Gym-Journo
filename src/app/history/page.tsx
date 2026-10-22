@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getExerciseFilterOptions, getExerciseSessions, getLogHistory, type LogHistoryPage } from "@/lib/queries";
 import PageHeader from "@/components/PageHeader";
@@ -14,6 +15,8 @@ import ExerciseFilter from "./ExerciseFilter";
 import { formatSessionSummary, summarizeVisibleSessions } from "./sessionSummary";
 import { formatExerciseRecurrence, summarizeExerciseRecurrence } from "./exerciseRecurrence";
 import { formatDaysSincePrevious, formatPerformedSet, formatSetChange } from "./exerciseHistoryFormat";
+
+export const metadata: Metadata = { title: "History" };
 
 const PAGE_SIZE = 30;
 

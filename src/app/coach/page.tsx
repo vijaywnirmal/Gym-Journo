@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import { getProfile } from "@/lib/queries";
 import { hasCoachConsent } from "@/lib/coach/consent";
 import PageHeader from "@/components/PageHeader";
 import { CoachConsentPrompt } from "@/app/profile/CoachConsentSection";
 import CoachChat from "./CoachChat";
+
+export const metadata: Metadata = { title: "Coach" };
 
 export default async function CoachPage() {
   const profile = await getProfile();

@@ -1,4 +1,7 @@
+import type { Metadata } from "next";
 import OnboardingForm from "./OnboardingForm";
+
+export const metadata: Metadata = { title: "Welcome" };
 
 export default function OnboardingPage() {
   return (

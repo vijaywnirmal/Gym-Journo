@@ -21,6 +21,16 @@ const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
 // A date picker that replaces <input type="date">: a calendar in a popover with month paging, a
 // year list for far-away dates (birthdays), min/max bounds, and arrow-key navigation over the days.
 // Value is yyyy-MM-dd, or "" for none.
+// Calendar cells (null = padding before the 1st or after the last day) in rows of seven.
+function weeksOf(cells: (string | null)[]): (string | null)[][] {
+  const weeks: (string | null)[][] = [];
+  for (let i = 0; i < cells.length; i += 7) {
+    const week = cells.slice(i, i + 7);
+    weeks.push([...week, ...Array.from({ length: 7 - week.length }, () => null)]);
+  }
+  return weeks;
+}
+
 export default function DateField({
   value,
   onChange,
@@ -208,36 +218,39 @@ export default function DateField({
                     </span>
                   ))}
                 </div>
-                <div ref={gridRef} role="grid" onKeyDown={onGridKey} className="grid grid-cols-7 gap-0.5">
-                  {Array.from({ length: leading }, (_, i) => (
-                    <span key={`pad-${i}`} />
+                {/* A grid of week rows (the ARIA grid pattern: grid > row > gridcell). */}
+                <div ref={gridRef} role="grid" onKeyDown={onGridKey} className="flex flex-col gap-0.5">
+                  {weeksOf([...Array.from({ length: leading }, () => null), ...days]).map((week, wi) => (
+                    <div key={wi} role="row" className="grid grid-cols-7 gap-0.5">
+                      {week.map((d, i) => {
+                        if (!d) return <span key={`pad-${wi}-${i}`} role="gridcell" />;
+                        const selected = d === value;
+                        const allowed = inRange(d);
+                        return (
+                          <button
+                            key={d}
+                            type="button"
+                            role="gridcell"
+                            data-date={d}
+                            tabIndex={d === focusDate ? 0 : -1}
+                            aria-selected={selected}
+                            aria-label={formatDateLong(d)}
+                            disabled={!allowed}
+                            onClick={() => pick(d)}
+                            className={`h-9 rounded-lg text-sm tabular-nums ${
+                              selected
+                                ? "bg-accent font-semibold text-on-accent"
+                                : d === today
+                                  ? "font-semibold text-link hover:bg-fill"
+                                  : "text-label hover:bg-fill"
+                            } disabled:pointer-events-none disabled:opacity-25`}
+                          >
+                            {parseISO(d).getDate()}
+                          </button>
+                        );
+                      })}
+                    </div>
                   ))}
-                  {days.map((d) => {
-                    const selected = d === value;
-                    const allowed = inRange(d);
-                    return (
-                      <button
-                        key={d}
-                        type="button"
-                        role="gridcell"
-                        data-date={d}
-                        tabIndex={d === focusDate ? 0 : -1}
-                        aria-selected={selected}
-                        aria-label={formatDateLong(d)}
-                        disabled={!allowed}
-                        onClick={() => pick(d)}
-                        className={`h-9 rounded-lg text-sm tabular-nums ${
-                          selected
-                            ? "bg-accent font-semibold text-on-accent"
-                            : d === today
-                              ? "font-semibold text-link hover:bg-fill"
-                              : "text-label hover:bg-fill"
-                        } disabled:pointer-events-none disabled:opacity-25`}
-                      >
-                        {parseISO(d).getDate()}
-                      </button>
-                    );
-                  })}
                 </div>
                 {inRange(today) && (
                   <button

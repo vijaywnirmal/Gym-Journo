@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import { getAiPlans, getNutritionForDate, getProfile } from "@/lib/queries";
 import { getToday } from "@/lib/userDate";
 import PageHeader from "@/components/PageHeader";
 import AIPlanForm from "./AIPlanForm";
+
+export const metadata: Metadata = { title: "AI plan" };
 
 export default async function AIPlanPage() {
   const [profile, pastPlans, mealsToday] = await Promise.all([

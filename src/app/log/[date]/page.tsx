@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getLogForDate, getPlanForDate, getPreviousPerformance } from "@/lib/queries";
@@ -11,6 +12,12 @@ import LogModeSwitch from "./LogModeSwitch";
 import BackLink from "@/components/BackLink";
 import PageHeader from "@/components/PageHeader";
 import Icon from "@/components/Icon";
+
+// The day in the title, so each day's page is announced on its own.
+export async function generateMetadata({ params }: { params: Promise<{ date: string }> }): Promise<Metadata> {
+  const { date } = await params;
+  return { title: isValidIsoDate(date) ? `Log · ${formatDate(date)}` : "Log" };
+}
 
 export default async function LogPage({
   params,

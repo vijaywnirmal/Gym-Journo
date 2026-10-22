@@ -11,7 +11,8 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Gym Journal & Scheduler",
+  // Each page sets its own title, so screen readers announce where a navigation landed.
+  title: { default: "Gym Journal", template: "%s · Gym Journal" },
   description: "Plan your workouts and log what you actually do.",
   appleWebApp: { capable: true, title: "Gym Journo", statusBarStyle: "default" },
   icons: { apple: "/icons/apple-touch-icon.png" },

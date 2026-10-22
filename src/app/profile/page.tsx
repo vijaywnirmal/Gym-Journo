@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Icon from "@/components/Icon";
 import { getProfile } from "@/lib/queries";
@@ -9,6 +10,8 @@ import ProfileCard from "./ProfileCard";
 import DeleteAccountSection from "./DeleteAccountSection";
 import CoachConsentSection from "./CoachConsentSection";
 import RemindersSection from "./RemindersSection";
+
+export const metadata: Metadata = { title: "Profile" };
 
 export default async function ProfilePage() {
   const [profile, supabase] = await Promise.all([getProfile(), createClient()]);

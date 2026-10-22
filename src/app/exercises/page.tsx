@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
 import { getMuscleGroups } from "@/lib/queries";
 import PageHeader from "@/components/PageHeader";
 import ExerciseLibrary from "./ExerciseLibrary";
+
+export const metadata: Metadata = { title: "Exercises" };
 
 // The library itself loads page by page from /api/exercises (see ExerciseLibraryBrowser); only the
 // muscle groups for the create form are read here.
