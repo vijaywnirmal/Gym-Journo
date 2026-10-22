@@ -16,6 +16,9 @@ export const EQUIPMENT_OPTIONS = [
 
 export type Equipment = (typeof EQUIPMENT_OPTIONS)[number];
 
+// Longest search term the exercises API accepts (exerciseLibrary.ts); the search box caps input to it.
+export const MAX_SEARCH_LENGTH = 100;
+
 // Common gym shorthand, expanded before matching.
 const ALIASES: Record<string, string> = {
   db: "dumbbell",
