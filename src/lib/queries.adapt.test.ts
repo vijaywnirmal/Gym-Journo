@@ -77,6 +77,41 @@ describe("getAdaptSuggestions", () => {
     expect(await getAdaptSuggestions()).toEqual([]);
   });
 
+  it("moves on to the next session once one occurrence was decided", async () => {
+    resultFor = (table) => {
+      if (table === "workout_plans")
+        return {
+          data: [
+            { date: shiftDate(t, 1), title: null, planned_exercises: [pe("pe-a", "sq")] },
+            { date: shiftDate(t, 4), title: null, planned_exercises: [pe("pe-b", "sq")] },
+          ],
+          error: null,
+        };
+      if (table === "recommendations") return { data: [{ planned_exercise_id: "pe-a" }], error: null };
+      return { data: [logRow(shiftDate(t, -3), "sq", 100)], error: null };
+    };
+    const result = await getAdaptSuggestions();
+    expect(result.map((s) => s.plannedExerciseId)).toEqual(["pe-b"]);
+  });
+
+  it("leaves out today's plan once today has been logged", async () => {
+    resultFor = (table) => {
+      if (table === "workout_plans")
+        return {
+          data: [
+            { date: t, title: null, planned_exercises: [pe("pe-today", "sq")] },
+            { date: shiftDate(t, 3), title: null, planned_exercises: [pe("pe-later", "sq")] },
+          ],
+          error: null,
+        };
+      if (table === "recommendations") return { data: [], error: null };
+      // workout_logs: today's log exists (the mock ignores filters), and earlier sessions.
+      return { data: [logRow(shiftDate(t, -3), "sq", 100)], error: null };
+    };
+    const result = await getAdaptSuggestions();
+    expect(result.map((s) => s.plannedExerciseId)).toEqual(["pe-later"]);
+  });
+
   it("returns [] when signed out, with no plans, or on errors", async () => {
     resultFor = () => ({ data: null, error: { message: "boom" } });
     expect(await getAdaptSuggestions()).toEqual([]);

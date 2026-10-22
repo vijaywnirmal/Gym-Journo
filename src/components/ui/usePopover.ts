@@ -10,7 +10,7 @@ const VIEWPORT_MARGIN = 12;
 // Shared open/close and positioning for every floating panel (selects, date picker).
 // The panel is `position: fixed` and measured from the trigger, so a card with overflow hidden
 // never clips it. It flips above the trigger when there is more room there, closes on outside
-// press or Escape, and hands focus back to the trigger on close.
+// press, Escape or Tab, and hands focus back to the trigger on close.
 export function usePopover<T extends HTMLElement = HTMLButtonElement>({
   preferredHeight = 320,
   minWidth = 0,
@@ -59,6 +59,13 @@ export function usePopover<T extends HTMLElement = HTMLButtonElement>({
       if (e.key === "Escape") {
         e.stopPropagation();
         close();
+      }
+      // Tab leaves the popover: close it and put focus back on the trigger without preventing the
+      // key, so the browser moves on from the trigger to the next (or previous) field. The panel is
+      // portalled to the end of the page, so left alone Tab would jump there or to the top.
+      if (e.key === "Tab") {
+        if (panelRef.current?.contains(document.activeElement)) triggerRef.current?.focus();
+        setOpen(false);
       }
     };
     window.addEventListener("pointerdown", onPointerDown, true);

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import PageHeader from "@/components/PageHeader";
@@ -6,6 +7,8 @@ import { formatDate, shiftDate, weekDates } from "@/lib/date";
 import { getToday } from "@/lib/userDate";
 import Icon from "@/components/Icon";
 import { describeCalendarDay, isMissedDay } from "./dayStatus";
+
+export const metadata: Metadata = { title: "Calendar" };
 
 export default async function CalendarPage({
   searchParams,

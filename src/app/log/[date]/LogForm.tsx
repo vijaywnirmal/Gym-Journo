@@ -149,7 +149,11 @@ export default function LogForm({
               done: s.reps !== null || s.weight !== null,
             }))
           : [emptySet()],
-        done: false,
+        // Exercise completion isn't stored, so it's rebuilt on reload: everything is done in a
+        // finished workout, and otherwise an exercise is done once every saved set has values.
+        done:
+          !!existingLog.completed_at ||
+          (!!le.logged_sets?.length && le.logged_sets.every((s) => s.reps !== null || s.weight !== null)),
       }))
     : plan?.planned_exercises?.map((pe) => ({
         exerciseId: pe.exercise_id,
@@ -358,7 +362,13 @@ export default function LogForm({
     return () => {
       document.removeEventListener("visibilitychange", flushIfHidden);
       window.removeEventListener("pagehide", bestEffortFlushOnUnload);
-      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+      // Leaving the logger in the app (e.g. "Done" back to a past day's summary) sends an edit still
+      // waiting out the debounce instead of dropping it; doSave reads the latest state from stateRef.
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+        debounceTimer.current = null;
+        void doSave();
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

@@ -24,7 +24,7 @@
 
   --label: #18181b;
   --label-2: #5c5c66;
-  --label-3: #93939c;
+  --label-3: #70707a; /* 4.9:1 on surface, 4.5:1 on background (WCAG AA) */
   --separator: #e5e5e9;
 
   --accent: #4f46e5;
@@ -54,11 +54,11 @@
 
     --label: #f4f4f5;
     --label-2: #a1a1aa;
-    --label-3: #6e6e78;
+    --label-3: #8b8b95; /* 5.4:1 on surface (WCAG AA) */
     --separator: #27272c;
 
-    --accent: #6366f1;
-    --accent-hover: #7c7ff5;
+    --accent: #5b5ee8; /* white text 5:1 (WCAG AA) */
+    --accent-hover: #5153e0;
     --on-accent: #ffffff;
     --link: #a5b4fc;
 

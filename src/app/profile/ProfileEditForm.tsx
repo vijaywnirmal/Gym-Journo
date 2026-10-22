@@ -66,14 +66,14 @@ export default function ProfileEditForm({
         />
       </section>
 
-      {error && (
-        <p role="alert" className="text-sm text-red">
-          {error}
-        </p>
-      )}
-
-      {/* Stays in view on a phone while the long form scrolls. */}
-      <div className="material sticky bottom-20 z-10 -mx-1 flex justify-end gap-2 rounded-xl border border-separator p-2 shadow-popover md:bottom-4">
+      {/* Stays in view on a phone while the long form scrolls; errors show here, next to Save,
+          so a failed save is never off-screen. */}
+      <div className="material sticky bottom-20 z-10 -mx-1 flex flex-wrap items-center justify-end gap-2 rounded-xl border border-separator p-2 shadow-popover md:bottom-4">
+        {error && (
+          <p role="alert" className="mr-auto min-w-0 flex-1 basis-48 px-1 text-sm text-red">
+            {error}
+          </p>
+        )}
         <button
           type="button"
           onClick={onCancel}

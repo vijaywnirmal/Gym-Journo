@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import {
   getBodyMeasurements,
   getLastPerformedWorkoutDate,
@@ -13,6 +14,8 @@ import { getTargetWeightKg } from "@/lib/home";
 import WeeklyTrainingDays from "./WeeklyTrainingDays";
 import { getToday } from "@/lib/userDate";
 import PageHeader from "@/components/PageHeader";
+
+export const metadata: Metadata = { title: "Body" };
 
 export default async function BodyPage() {
   const [todayStr, measurements, training, profile, lastWorkout, weeklyTraining] = await Promise.all([

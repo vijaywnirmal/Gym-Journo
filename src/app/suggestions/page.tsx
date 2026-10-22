@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import { getAdaptSuggestions } from "@/lib/queries";
 import { formatDate } from "@/lib/date";
 import { explainSuggestion } from "@/lib/analyze/overload";
 import SuggestionCard from "./SuggestionCard";
 import PageHeader from "@/components/PageHeader";
+
+export const metadata: Metadata = { title: "Weight suggestions" };
 
 export default async function SuggestionsPage() {
   const suggestions = await getAdaptSuggestions();

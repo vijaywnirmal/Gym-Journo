@@ -1,32 +1,47 @@
 import { describe, expect, it } from "vitest";
-import { isDefinitiveOutcome, shouldSyncTimeZone } from "./timezoneSync";
+import { isDefinitiveOutcome, sameTimeZone, timeZoneAction } from "./timezoneSync";
 
-describe("shouldSyncTimeZone", () => {
+describe("timeZoneAction", () => {
   const base = {
     stored: null as string | null,
     browser: "Asia/Kolkata" as string | null,
     attemptedThisSession: null as string | null,
+    keptOnThisDevice: null as string | null,
   };
 
-  it("syncs when nothing is stored yet", () => {
-    expect(shouldSyncTimeZone(base)).toBe(true);
+  it("stores the zone without asking when nothing is stored yet", () => {
+    expect(timeZoneAction(base)).toBe("sync");
   });
 
-  it("syncs when the device timezone differs from the stored one (travel, new device)", () => {
-    expect(shouldSyncTimeZone({ ...base, stored: "America/New_York" })).toBe(true);
+  it("asks when the device is in a different zone than the account (travel, second device)", () => {
+    expect(timeZoneAction({ ...base, stored: "America/New_York" })).toBe("ask");
   });
 
-  it("does nothing when they already match", () => {
-    expect(shouldSyncTimeZone({ ...base, stored: "Asia/Kolkata" })).toBe(false);
+  it("does nothing when they match, including another name for the same zone", () => {
+    expect(timeZoneAction({ ...base, stored: "Asia/Kolkata" })).toBe("none");
+    expect(timeZoneAction({ ...base, stored: "Asia/Calcutta" })).toBe("none");
   });
 
   it("does nothing when the device reports no timezone", () => {
-    expect(shouldSyncTimeZone({ ...base, browser: null })).toBe(false);
+    expect(timeZoneAction({ ...base, browser: null })).toBe("none");
   });
 
   it("does not retry the same timezone in one session, but does for a new one", () => {
-    expect(shouldSyncTimeZone({ ...base, attemptedThisSession: "Asia/Kolkata" })).toBe(false);
-    expect(shouldSyncTimeZone({ ...base, attemptedThisSession: "America/New_York" })).toBe(true);
+    expect(timeZoneAction({ ...base, attemptedThisSession: "Asia/Kolkata" })).toBe("none");
+    expect(timeZoneAction({ ...base, attemptedThisSession: "America/New_York" })).toBe("sync");
+  });
+
+  it("stops asking on a device where the person kept the account's zone", () => {
+    expect(timeZoneAction({ ...base, stored: "America/New_York", keptOnThisDevice: "Asia/Kolkata" })).toBe("none");
+    expect(timeZoneAction({ ...base, stored: "America/New_York", keptOnThisDevice: "Europe/London" })).toBe("ask");
+  });
+});
+
+describe("sameTimeZone", () => {
+  it("treats aliases as one zone and different zones as different", () => {
+    expect(sameTimeZone("Asia/Calcutta", "Asia/Kolkata")).toBe(true);
+    expect(sameTimeZone("Asia/Kolkata", "Asia/Dhaka")).toBe(false);
+    expect(sameTimeZone("Not/AZone", "Not/AZone")).toBe(true);
   });
 });
 

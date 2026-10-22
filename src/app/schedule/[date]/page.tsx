@@ -1,8 +1,15 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getMuscleGroups, getPlanForDate, getTemplates } from "@/lib/queries";
 import { formatDate, isValidIsoDate } from "@/lib/date";
 import PageHeader from "@/components/PageHeader";
 import ScheduleForm from "./ScheduleForm";
+
+// The day in the title, so each day's page is announced on its own.
+export async function generateMetadata({ params }: { params: Promise<{ date: string }> }): Promise<Metadata> {
+  const { date } = await params;
+  return { title: isValidIsoDate(date) ? `Plan · ${formatDate(date)}` : "Plan" };
+}
 
 export default async function SchedulePage({
   params,

@@ -165,13 +165,14 @@ export default function RemindersSection({ enabled, time }: { enabled: boolean; 
           <div className="min-w-0 flex-1">
             <h2 className="flex items-center gap-2 text-sm font-semibold">
               Workout reminders
-              {support === "ready" && (
+              {/* The account's setting, which may be on through another device. */}
+              {support !== "checking" && (
                 <span
                   className={`rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${
-                    thisDeviceOn ? "bg-green/12 text-green" : "bg-fill text-label-2"
+                    enabled ? "bg-green/12 text-green" : "bg-fill text-label-2"
                   }`}
                 >
-                  {thisDeviceOn ? "On" : "Off"}
+                  {enabled ? "On" : "Off"}
                 </span>
               )}
             </h2>
@@ -256,8 +257,19 @@ export default function RemindersSection({ enabled, time }: { enabled: boolean; 
             </div>
           )}
 
+          {/* Reminders on through another (or a lost) device can be turned off from anywhere. */}
           {enabled && !thisDeviceOn && support !== "checking" && (
-            <p className="text-xs text-label-3">Reminders are on, but not for this device.</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xs text-label-2">Reminders are on, but not for this device.</p>
+              <button
+                type="button"
+                onClick={turnOff}
+                disabled={pending}
+                className="h-8 rounded-lg px-3 text-sm font-medium text-label-2 hover:bg-fill disabled:opacity-50"
+              >
+                Turn off reminders
+              </button>
+            </div>
           )}
           {notice && <p className="text-sm text-green">{notice}</p>}
           {error && <p className="text-sm text-red">{error}</p>}

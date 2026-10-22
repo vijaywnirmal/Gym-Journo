@@ -6,6 +6,7 @@ import { getPreviousPerformance, getPriorExerciseSessions } from "@/lib/queries"
 import { getToday } from "@/lib/userDate";
 import { detectPersonalRecords, type PersonalRecord } from "@/lib/analyze/personalRecords";
 import { WEIGHT_UNITS } from "@/lib/validation";
+import { isValidIsoDate } from "@/lib/date";
 import { isSetType, isValidRpe, MAX_EXERCISE_NOTE_LENGTH, type SetType } from "@/lib/setData";
 
 export type SaveLogInput = {
@@ -99,6 +100,32 @@ export async function saveLog(input: SaveLogInput) {
 
 // Client-callable lookup for an exercise added mid-session (not part of the initial page load),
 // so "previous performance" context stays available even for unplanned additions.
+// Deletes the day's workout log; its exercises and sets go with it (ON DELETE CASCADE). The day's
+// plan, if any, stays.
+export async function deleteLog(date: string) {
+  if (!isValidIsoDate(date)) return { error: "Invalid date." };
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in" };
+
+  const { data, error } = await supabase
+    .from("workout_logs")
+    .delete()
+    .eq("user_id", user.id)
+    .eq("date", date)
+    .select("id");
+  if (error) return { error: "Couldn't delete this workout. Please try again." };
+  if (!data?.length) return { error: "This workout was already deleted." };
+
+  revalidatePath(`/log/${date}`);
+  revalidatePath("/history");
+  revalidatePath("/calendar");
+  revalidatePath("/");
+  return { success: true };
+}
+
 export async function fetchPreviousPerformance(exerciseId: string, beforeDate: string) {
   const supabase = await createClient();
   const {

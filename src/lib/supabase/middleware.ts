@@ -1,6 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+// Set once this browser's signed-in person is known to be onboarded, holding their user id, so the
+// proxy doesn't query the profile on every request (each query was a round trip to the database,
+// prefetches included). Only ever skips the onboarding redirect for that same user.
+const ONBOARDED_COOKIE = "gj-onboarded";
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -23,9 +28,10 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims verifies the session token locally against the project's published signing keys
+  // (refreshing an expiring session first), instead of a round trip to Supabase Auth per request.
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const userId = typeof claimsData?.claims?.sub === "string" ? claimsData.claims.sub : null;
 
   const pathname = request.nextUrl.pathname;
   const isAuthRoute =
@@ -40,21 +46,21 @@ export async function updateSession(request: NextRequest) {
   // Scheduled jobs are called by the scheduler, not a person, and check their own secret.
   if (pathname.startsWith("/api/cron/")) return supabaseResponse;
 
-  if (!user && isApiRoute) {
+  if (!userId && isApiRoute) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401, headers: { "Cache-Control": "no-store" } });
   }
 
-  if (!user && !isAuthRoute) {
+  if (!userId && !isAuthRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  if (user && !isAuthRoute && !isOnboardingRoute && !isApiRoute) {
+  if (userId && !isAuthRoute && !isOnboardingRoute && !isApiRoute && request.cookies.get(ONBOARDED_COOKIE)?.value !== userId) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("onboarded")
-      .eq("id", user.id)
+      .eq("id", userId)
       .maybeSingle();
 
     if (!profile?.onboarded) {
@@ -62,6 +68,13 @@ export async function updateSession(request: NextRequest) {
       url.pathname = "/onboarding";
       return NextResponse.redirect(url);
     }
+    supabaseResponse.cookies.set(ONBOARDED_COOKIE, userId, {
+      path: "/",
+      httpOnly: true,
+      sameSite: "lax",
+      secure: request.nextUrl.protocol === "https:",
+      maxAge: 60 * 60 * 24 * 365,
+    });
   }
 
   return supabaseResponse;

@@ -878,15 +878,26 @@ export async function getAdaptSuggestions(): Promise<AdaptSuggestion[]> {
     .order("date", { ascending: true });
   if (error || !data) return [];
 
-  // The next occurrence of each exercise only — one suggestion per exercise, not one per future day.
-  const next = new Map<string, { plan: UpcomingPlanRow; pe: NonNullable<UpcomingPlanRow["planned_exercises"]>[number] }>();
-  for (const plan of data as unknown as UpcomingPlanRow[]) {
-    const ordered = [...(plan.planned_exercises ?? [])].sort((a, b) => a.position - b.position);
-    for (const pe of ordered) if (!next.has(pe.exercise_id)) next.set(pe.exercise_id, { plan, pe });
-  }
-  if (next.size === 0) return [];
+  // Today's plan is left out once today has been logged: that workout already happened.
+  const { data: todayLogs } = await supabase
+    .from("workout_logs")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("date", todayStr)
+    .limit(1);
+  const todayLogged = (todayLogs ?? []).length > 0;
+  const plans = (data as unknown as UpcomingPlanRow[]).filter((plan) => !(todayLogged && plan.date === todayStr));
 
-  const plannedIds = [...next.values()].map((n) => n.pe.id);
+  // Every upcoming occurrence of each exercise, soonest first.
+  type Occurrence = { plan: UpcomingPlanRow; pe: NonNullable<UpcomingPlanRow["planned_exercises"]>[number] };
+  const occurrences = new Map<string, Occurrence[]>();
+  for (const plan of plans) {
+    const ordered = [...(plan.planned_exercises ?? [])].sort((a, b) => a.position - b.position);
+    for (const pe of ordered) occurrences.set(pe.exercise_id, [...(occurrences.get(pe.exercise_id) ?? []), { plan, pe }]);
+  }
+  if (occurrences.size === 0) return [];
+
+  const plannedIds = [...occurrences.values()].flat().map((o) => o.pe.id);
   const { data: decided, error: decidedError } = await supabase
     .from("recommendations")
     .select("planned_exercise_id")
@@ -895,6 +906,15 @@ export async function getAdaptSuggestions(): Promise<AdaptSuggestion[]> {
   if (decidedError) return [];
   const decidedIds = new Set((decided ?? []).map((r) => r.planned_exercise_id as string));
 
+  // One suggestion per exercise, not one per future day: its soonest occurrence not decided yet, so
+  // accepting or rejecting one session's suggestion moves on to the next session.
+  const next = new Map<string, Occurrence>();
+  for (const [exerciseId, list] of occurrences) {
+    const open = list.find((o) => !decidedIds.has(o.pe.id));
+    if (open) next.set(exerciseId, open);
+  }
+  if (next.size === 0) return [];
+
   const lastDate = [...next.values()].reduce((max, n) => (n.plan.date > max ? n.plan.date : max), todayStr);
   // Sessions before the latest plan date; each plan then keeps only those before its own date.
   const history = await getPriorExerciseSessions([...next.keys()], lastDate);
@@ -902,7 +922,6 @@ export async function getAdaptSuggestions(): Promise<AdaptSuggestion[]> {
 
   const suggestions: AdaptSuggestion[] = [];
   for (const [exerciseId, { plan, pe }] of next) {
-    if (decidedIds.has(pe.id)) continue;
     const before = (history[exerciseId] ?? []).filter((s) => s.date < plan.date);
     const suggestion = suggestOverload(
       {

@@ -1,9 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getExerciseFilterOptions, getExerciseSessions, getLogHistory, type LogHistoryPage } from "@/lib/queries";
 import PageHeader from "@/components/PageHeader";
 import Icon from "@/components/Icon";
 import { formatDate } from "@/lib/date";
 import { formatSetCompact } from "@/lib/setData";
+import { isPerformedSet } from "@/lib/analyze/definitions";
 import {
   buildSessionViews,
   pageSessionViews,
@@ -13,6 +15,8 @@ import ExerciseFilter from "./ExerciseFilter";
 import { formatSessionSummary, summarizeVisibleSessions } from "./sessionSummary";
 import { formatExerciseRecurrence, summarizeExerciseRecurrence } from "./exerciseRecurrence";
 import { formatDaysSincePrevious, formatPerformedSet, formatSetChange } from "./exerciseHistoryFormat";
+
+export const metadata: Metadata = { title: "History" };
 
 const PAGE_SIZE = 30;
 
@@ -149,7 +153,7 @@ export default async function HistoryPage({
                       <li key={le.id} className="flex gap-3">
                         <span className="min-w-0 flex-1 truncate font-medium">{le.exercise?.name}</span>
                         <span className="shrink-0 text-right text-xs leading-5 tabular-nums text-label-2">
-                          {le.logged_sets?.map(formatSetCompact).join(", ")}
+                          {le.logged_sets?.filter(isPerformedSet).map(formatSetCompact).join(", ") || "Not done"}
                         </span>
                       </li>
                     ))}

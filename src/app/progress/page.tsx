@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getExerciseFilterOptions, getExerciseSessions } from "@/lib/queries";
 import { formatDate } from "@/lib/date";
@@ -15,6 +16,8 @@ import ExerciseFilter from "@/app/history/ExerciseFilter";
 import TrendChart from "@/components/TrendChart";
 import PageHeader from "@/components/PageHeader";
 import Icon from "@/components/Icon";
+
+export const metadata: Metadata = { title: "Progress" };
 
 function round1(value: number): string {
   return (Math.round(value * 10) / 10).toString();
