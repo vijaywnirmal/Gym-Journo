@@ -8,6 +8,8 @@ import PlanMarkdown from "@/components/PlanMarkdown";
 import Disclosure from "@/components/ui/Disclosure";
 import Select from "@/components/ui/Select";
 import { formatDateTime } from "@/lib/date";
+import { AI_PLAN_LIMITS, AI_PLAN_NOTICE } from "@/lib/ai-plan-prompt";
+import Icon from "@/components/Icon";
 import { generatePlan } from "./actions";
 
 const ACTIVITY_OPTIONS = [
@@ -40,6 +42,7 @@ export default function AIPlanForm({
   const [dietaryPreference, setDietaryPreference] = useState("");
   const [notes, setNotes] = useState("");
   const [mealsToday, setMealsToday] = useState(initialMealsToday);
+  const [shareConsent, setShareConsent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(pastPlans[0]?.plan_markdown ?? null);
   const [formOpen, setFormOpen] = useState(pastPlans.length === 0);
@@ -47,7 +50,7 @@ export default function AIPlanForm({
   function handleSubmit() {
     setError(null);
     startTransition(async () => {
-      const res = await generatePlan({ activityLevel, dietaryPreference, notes, mealsToday });
+      const res = await generatePlan({ activityLevel, dietaryPreference, notes, mealsToday, shareConsent });
       if (res.error) {
         setError(res.error);
         return;
@@ -114,6 +117,7 @@ export default function AIPlanForm({
             value={mealsToday}
             onChange={(e) => setMealsToday(e.target.value)}
             rows={2}
+            maxLength={AI_PLAN_LIMITS.mealsToday}
             placeholder="e.g. oats and banana for breakfast, dal and rice for lunch"
             className={textareaClass}
           />
@@ -128,17 +132,50 @@ export default function AIPlanForm({
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={2}
+            maxLength={AI_PLAN_LIMITS.notes}
             placeholder="Injuries, equipment, preferences — e.g. bad knee, only dumbbells at home"
             className={textareaClass}
           />
         </label>
 
-        {error && <p className="text-sm text-red">{error}</p>}
+        <div className="rounded-[10px] bg-fill px-3.5 py-3 text-sm">
+          <p className="mb-1.5 text-label-2">{AI_PLAN_NOTICE.summary}</p>
+          <ul className="mb-1.5 flex list-disc flex-col gap-0.5 pl-5 text-label-2">
+            {AI_PLAN_NOTICE.shared.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+          <p className="text-xs text-label-2">
+            {AI_PLAN_NOTICE.notShared} {AI_PLAN_NOTICE.kept}
+          </p>
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={shareConsent}
+            onClick={() => setShareConsent((value) => !value)}
+            className="mt-3 flex items-center gap-2.5 text-left font-medium"
+          >
+            <span
+              className={`grid size-5 shrink-0 place-items-center rounded-md border ${
+                shareConsent ? "border-transparent bg-accent text-on-accent" : "border-label-3 bg-surface"
+              }`}
+            >
+              {shareConsent && <Icon name="checkmark" className="size-3.5" strokeWidth={3} />}
+            </span>
+            Send these details to Gemini for this plan
+          </button>
+        </div>
+
+        {error && (
+          <p role="alert" className="text-sm text-red">
+            {error}
+          </p>
+        )}
 
         <button
           type="button"
           onClick={handleSubmit}
-          disabled={pending}
+          disabled={pending || !shareConsent}
           className="h-11 rounded-[10px] bg-accent px-4 text-[15px] font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-50"
         >
           {pending ? "Writing your plan…" : "Generate plan"}

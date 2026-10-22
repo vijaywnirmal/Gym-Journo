@@ -6,13 +6,29 @@ import { generateWithGemini } from "@/lib/gemini";
 import { getRecentTrainingSummary, getUpcomingScheduleSummary } from "@/lib/queries";
 import { startOfDayIn, todayIn } from "@/lib/date";
 import { getUserTimeZone } from "@/lib/userDate";
-import { buildPrompt, type AiPlanInput } from "@/lib/ai-plan-prompt";
+import { AI_PLAN_LIMITS, buildPrompt, type AiPlanInput } from "@/lib/ai-plan-prompt";
 
 const DAILY_LIMIT = 3;
 
-export type GeneratePlanInput = AiPlanInput;
+// shareConsent: the person ticked that their details may be sent to Gemini (AI_PLAN_NOTICE), for
+// this plan. Nothing is sent without it.
+export type GeneratePlanInput = AiPlanInput & { shareConsent: boolean };
+
+function inputError(input: GeneratePlanInput): string | null {
+  const fields = [input.activityLevel, input.dietaryPreference, input.notes, input.mealsToday];
+  if (fields.some((value) => typeof value !== "string")) return "Something went wrong. Reload the page and try again.";
+  if (input.shareConsent !== true) return "Confirm that your details can be sent to Google's Gemini model.";
+  if (input.activityLevel.length > 100 || input.dietaryPreference.length > 100) return "Choose an option from the list.";
+  if (input.notes.length > AI_PLAN_LIMITS.notes) return `Keep your notes under ${AI_PLAN_LIMITS.notes} characters.`;
+  if (input.mealsToday.length > AI_PLAN_LIMITS.mealsToday)
+    return `Keep what you've eaten under ${AI_PLAN_LIMITS.mealsToday} characters.`;
+  return null;
+}
 
 export async function generatePlan(input: GeneratePlanInput) {
+  const invalid = inputError(input);
+  if (invalid) return { error: invalid };
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -37,7 +53,7 @@ export async function generatePlan(input: GeneratePlanInput) {
     supabase
       .from("profiles")
       .select(
-        "full_name, date_of_birth, height_cm, weight_kg, gender, primary_goal, target_weight_kg, experience_level, training_days_per_week"
+        "date_of_birth, height_cm, weight_kg, gender, primary_goal, target_weight_kg, experience_level, training_days_per_week"
       )
       .eq("id", user.id)
       .maybeSingle(),
@@ -62,7 +78,6 @@ export async function generatePlan(input: GeneratePlanInput) {
     planMarkdown = await generateWithGemini(
       buildPrompt(
         profile ?? {
-          full_name: null,
           date_of_birth: null,
           height_cm: null,
           weight_kg: null,
@@ -78,7 +93,9 @@ export async function generatePlan(input: GeneratePlanInput) {
       )
     );
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Failed to generate plan." };
+    // The provider's own error text (status codes, JSON) means nothing to the person; log it here.
+    console.error("AI plan generation failed:", e instanceof Error ? e.message : e);
+    return { error: "Couldn't write your plan just now. Please try again in a few minutes." };
   }
 
   const { error: insertError } = await supabase.from("ai_plans").insert({
@@ -88,7 +105,10 @@ export async function generatePlan(input: GeneratePlanInput) {
     notes: input.notes || null,
     plan_markdown: planMarkdown,
   });
-  if (insertError) return { error: insertError.message };
+  if (insertError) {
+    console.error("Saving the AI plan failed:", insertError.message);
+    return { error: "Your plan was written but couldn't be saved. Please try again." };
+  }
 
   revalidatePath("/ai-plan");
   return { success: true, planMarkdown };
