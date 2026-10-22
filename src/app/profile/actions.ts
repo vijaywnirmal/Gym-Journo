@@ -171,14 +171,17 @@ export async function deleteAccount() {
     .eq("user_id", user.id);
   if (exercisesError) return genericError;
 
-  await supabase.from("ai_plans").delete().eq("user_id", user.id);
-  await supabase.from("coach_replies").delete().eq("user_id", user.id);
+  // People can't delete their own AI plans or Coach records (they hold the daily AI limits, see
+  // migration 0031), so the service role removes them; without it they go with the Auth user.
+  const admin = createAdminClient();
+  const historyClient = admin ?? supabase;
+  await historyClient.from("ai_plans").delete().eq("user_id", user.id);
+  await historyClient.from("coach_replies").delete().eq("user_id", user.id);
   await supabase.from("nutrition_logs").delete().eq("user_id", user.id);
   await supabase.from("body_measurements").delete().eq("user_id", user.id);
   // Stop reminders at once, even if the Auth user itself can't be removed below.
   await supabase.from("push_subscriptions").delete().eq("user_id", user.id);
 
-  const admin = createAdminClient();
   if (admin) {
     const { error } = await admin.auth.admin.deleteUser(user.id);
     if (error) return genericError;
