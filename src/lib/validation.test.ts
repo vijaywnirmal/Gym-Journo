@@ -62,11 +62,11 @@ describe("isValidEmail", () => {
 });
 
 describe("validateDateOfBirth", () => {
-  it("rejects impossible dates and people under 13", () => {
+  it("rejects impossible dates and people under 18", () => {
     expect(validateDateOfBirth("2000-02-30")).not.toBeNull();
-    const twelve = new Date();
-    twelve.setFullYear(twelve.getFullYear() - 12);
-    expect(validateDateOfBirth(twelve.toISOString().slice(0, 10))).toMatch(/at least 13/);
+    const seventeen = new Date();
+    seventeen.setFullYear(seventeen.getFullYear() - 17);
+    expect(validateDateOfBirth(seventeen.toISOString().slice(0, 10))).toMatch(/18 or older/);
     expect(validateDateOfBirth("1990-06-15")).toBeNull();
   });
 

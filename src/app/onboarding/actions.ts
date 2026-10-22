@@ -27,6 +27,8 @@ export type CompleteOnboardingInput = {
   experienceLevel: string;
   trainingDaysPerWeek: number | null;
   password?: string;
+  // The person ticked "I'm 18 or older"; date of birth is optional, so this is the age check.
+  confirmedAdult: boolean;
 };
 
 // Password management is independent from onboarding: a user who registered with
@@ -37,6 +39,8 @@ export async function completeOnboarding(input: CompleteOnboardingInput) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not signed in" };
+
+  if (input.confirmedAdult !== true) return { error: "Gym Journal is for people 18 or older. Please confirm your age." };
 
   if (input.dateOfBirth) {
     const dobError = validateDateOfBirth(input.dateOfBirth);
