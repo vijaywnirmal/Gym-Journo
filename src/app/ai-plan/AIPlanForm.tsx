@@ -25,14 +25,16 @@ const DIET_OPTIONS = [
 ];
 
 const labelClass = "mb-1.5 block text-sm font-medium";
-const textareaClass = "field w-full resize-none rounded-[10px] px-3.5 py-2.5 text-sm field-sizing-content";
+// 16px on phones (iOS zooms into smaller fields on focus), 14px from tablet width up.
+const textareaClass = "field w-full resize-none rounded-[10px] px-3.5 py-2.5 text-base sm:text-sm field-sizing-content";
 
 export default function AIPlanForm({
-  hasProfile,
+  missingProfile,
   pastPlans,
   initialMealsToday,
 }: {
-  hasProfile: boolean;
+  // Profile details the plan would use but that aren't filled in yet.
+  missingProfile: string[];
   pastPlans: AiPlan[];
   initialMealsToday: string;
 }) {
@@ -63,9 +65,11 @@ export default function AIPlanForm({
 
   return (
     <div className="flex flex-col gap-4 pb-6">
-      {!hasProfile && (
+      {missingProfile.length > 0 && (
         <div className="card flex items-center gap-3 border-orange/30 bg-orange/5 px-4 py-3 text-sm">
-          <p className="flex-1">Add your age, height, weight and goal for a more accurate plan.</p>
+          <p className="flex-1">
+            Add your {missingProfile.join(", ").replace(/, ([^,]*)$/, " and $1")} in your profile for a more accurate plan.
+          </p>
           <Link href="/profile" className="shrink-0 font-semibold text-link">
             Profile
           </Link>

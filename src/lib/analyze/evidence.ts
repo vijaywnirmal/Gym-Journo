@@ -23,13 +23,13 @@ export const LIMITATIONS = {
   records_are_editable:
     "Workout logs and body measurements can be edited after the fact and no audit history is kept, so these facts describe the records as they currently stand.",
   no_effort_data:
-    "Effort (RPE/RIR), duration, recovery and pain are not recorded, so nothing here says how hard a set was or how the person felt.",
+    "Effort ratings (RPE), duration, recovery and pain are not included here, so nothing here says how hard a set was or how the person felt.",
   today_uses_stored_timezone:
     "\"Today\" and calendar weeks follow the person's saved timezone, or the server's if none is saved yet.",
   goal_is_current_state_only:
     "Goal, target weight and the training-days target are the person's current settings. Their history is not kept, so they are not necessarily what applied in past weeks.",
   set_matching_is_positional:
-    "Sets are compared by set number within a session. Warm-up versus working sets, and added or removed sets, are not distinguished, so a same-numbered set is not necessarily the same kind of set.",
+    "Sets are compared by set number within a session. Each set's type (warm-up, working, drop, failure) is listed, but added or removed sets shift the numbering, so a same-numbered set is not necessarily the same kind of set.",
   mixed_units:
     "Some sets are recorded in different weight units (kg and lb). Weight is never converted, so weight changes across those sets are unavailable.",
   single_measurement: "Only one body-weight measurement is recorded, so no change can be stated.",
@@ -74,6 +74,7 @@ export type SetEvidence = {
   reps: number | null;
   weight: number | null;
   weightUnit: string;
+  setType: string;
   // Against the same-numbered set in the previous performed session; null when there is none.
   changeVsPreviousSession: { weight: ValueComparison; reps: ValueComparison } | null;
 };
@@ -221,6 +222,8 @@ export function buildTrainingEvidence(input: TrainingEvidenceInput): TrainingEvi
             reps: set.reps,
             weight: set.weight,
             weightUnit: set.weightUnit,
+            // "working" | "warmup" | "drop" | "failure" (absent reads as working).
+            setType: set.setType ?? "working",
             changeVsPreviousSession: comparison,
           })),
         })),

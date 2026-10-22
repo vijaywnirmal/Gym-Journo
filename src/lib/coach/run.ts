@@ -56,6 +56,15 @@ export const QUOTA_MESSAGE =
 
 export const UNAVAILABLE_MESSAGE = "Coach couldn't get an answer just now. Please try again in a minute.";
 
+// The provider rejected the app's own credentials (HTTP 401 or 403). Retrying won't help until the
+// key is fixed, so it doesn't suggest waiting a minute.
+export const MISCONFIGURED_MESSAGE =
+  "Coach can't reach its language model because of a setup problem on our side. Trying again won't help until it's fixed.";
+
+function isAuthError(error: unknown): boolean {
+  return error instanceof Error && /failed \((401|403)\)/.test(error.message);
+}
+
 export const REJECTED_MESSAGE =
   "Coach couldn't produce an answer it could verify against your records. Please try again.";
 
@@ -106,7 +115,7 @@ export async function runCoach(args: {
     return rejected(
       null,
       [{ code: "generation_failed", statementIndex: null, detail: describeGenerationFailure(error) }],
-      isQuotaError(error) ? QUOTA_MESSAGE : UNAVAILABLE_MESSAGE
+      isQuotaError(error) ? QUOTA_MESSAGE : isAuthError(error) ? MISCONFIGURED_MESSAGE : UNAVAILABLE_MESSAGE
     );
   }
 

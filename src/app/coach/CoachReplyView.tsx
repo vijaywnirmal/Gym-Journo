@@ -46,8 +46,8 @@ export default function CoachReplyView({
         </p>
       )}
       <p className="mt-1 text-xs text-label-3">
-        Checked against your records. Records can be edited after the fact, and effort isn&apos;t
-        tracked.
+        Checked against your records. Records can be edited after the fact, and effort ratings (RPE)
+        aren&apos;t included.
       </p>
     </div>
   );

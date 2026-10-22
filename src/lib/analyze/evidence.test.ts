@@ -271,6 +271,7 @@ describe("buildTrainingEvidence — exercises", () => {
       reps: 10,
       weight: 80,
       weightUnit: "kg",
+      setType: "working",
       changeVsPreviousSession: { weight: { type: "same" }, reps: { type: "delta", delta: 2 } },
     });
     expect(e.recentSessions[0].sets[2].changeVsPreviousSession?.weight).toEqual({ type: "delta", delta: -5, unit: "kg" });

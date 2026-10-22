@@ -21,7 +21,12 @@ export default async function AIPlanPage() {
         back={{ href: "/", label: "Today" }}
       />
       <AIPlanForm
-        hasProfile={!!(profile?.date_of_birth && profile?.height_cm && profile?.weight_kg)}
+        missingProfile={[
+          !profile?.date_of_birth && "date of birth",
+          !profile?.height_cm && "height",
+          !profile?.weight_kg && "weight",
+          !profile?.primary_goal && "goal",
+        ].filter((field): field is string => !!field)}
         pastPlans={pastPlans}
         initialMealsToday={mealsToday ?? ""}
       />
