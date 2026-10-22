@@ -31,7 +31,8 @@ export type ExerciseEntry = {
   exerciseId: string;
   name: string;
   notes: string;
-  target: { sets: number | null; reps: number | null } | null;
+  // The plan's target; weight is left out of a lighter session, which lightens the load.
+  target: { sets: number | null; reps: number | null; weight?: number | null; weightUnit?: string } | null;
   sets: SetRow[];
   done: boolean;
 };
@@ -136,10 +137,16 @@ export function exerciseHistoryHref(exerciseId: string): string {
 }
 
 function targetLabel(target: ExerciseEntry["target"]): string | null {
-  if (!target || (!target.sets && !target.reps)) return null;
+  if (!target || (!target.sets && !target.reps && !target.weight)) return null;
   const sets = target.sets ?? "?";
   const reps = target.reps ?? "?";
-  return `${sets} × ${reps}`;
+  const weight = target.weight ? ` @ ${target.weight} ${target.weightUnit ?? "kg"}` : "";
+  return `${sets} × ${reps}${weight}`;
+}
+
+// Removing an exercise deletes its sets too, so it asks first once anything has been entered.
+function hasEnteredData(sets: SetRow[]): boolean {
+  return sets.some((set) => set.weight.trim() || set.reps.trim() || set.rpe.trim() || set.done);
 }
 
 // A set counts as logged once it has recorded content (reps or weight) — a freshly plan-seeded
@@ -185,6 +192,7 @@ export default function ExerciseLogPanel({
 }: Props) {
   const [showPlates, setShowPlates] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [confirmingRemove, setConfirmingRemove] = useState(false);
   const tutorialPanelId = useId();
   const canCopyPrevious = !!previous && previous.sets.length > 0 && countLoggedSets(entry.sets) === 0;
   const target = targetLabel(entry.target);
@@ -222,7 +230,7 @@ export default function ExerciseLogPanel({
           </Link>
           <button
             type="button"
-            onClick={onRemoveExercise}
+            onClick={() => (hasEnteredData(entry.sets) ? setConfirmingRemove(true) : onRemoveExercise())}
             aria-label={`Remove ${entry.name} from this workout`}
             className="grid size-8 place-items-center rounded-lg text-label-3 hover:bg-fill hover:text-red"
           >
@@ -230,6 +238,29 @@ export default function ExerciseLogPanel({
           </button>
         </div>
       </div>
+
+      {confirmingRemove && (
+        <div role="alert" className="mb-3 flex flex-wrap items-center gap-2 rounded-[10px] border border-red/30 bg-red/5 p-3">
+          <p className="mr-auto text-sm">Remove {entry.name} and its sets from this workout?</p>
+          <button
+            type="button"
+            onClick={() => setConfirmingRemove(false)}
+            className="h-8 rounded-lg border border-separator px-3 text-sm font-medium hover:bg-fill"
+          >
+            Keep
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setConfirmingRemove(false);
+              onRemoveExercise();
+            }}
+            className="h-8 rounded-lg bg-red px-3 text-sm font-semibold text-white"
+          >
+            Remove
+          </button>
+        </div>
+      )}
 
       {showTutorial && (
         <div className="mb-3 rounded-lg border border-separator p-3">
