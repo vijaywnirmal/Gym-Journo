@@ -93,8 +93,11 @@ export default async function CalendarPage({
                 )}
               </div>
               <div className="flex shrink-0 gap-1.5">
+                {/* Not prefetched: a week has up to 14 of these per-day links, and prefetching each
+                    one is a full server render that the person mostly never opens. */}
                 <Link
                   href={`/schedule/${date}`}
+                  prefetch={false}
                   className="flex h-8 items-center rounded-lg px-3 text-sm font-medium text-label-2 hover:bg-fill hover:text-label"
                 >
                   {info?.dayType ? "Edit" : "Plan"}
@@ -102,6 +105,7 @@ export default async function CalendarPage({
                 {!isFuture && !dayOff && (
                   <Link
                     href={`/log/${date}`}
+                    prefetch={false}
                     className="flex h-8 items-center rounded-lg bg-accent px-3 text-sm font-semibold text-on-accent hover:bg-accent-hover"
                   >
                     {logged ? "View" : "Log"}
