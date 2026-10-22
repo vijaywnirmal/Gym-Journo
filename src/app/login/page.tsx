@@ -18,7 +18,12 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
-  const [mode, setMode] = useState<"password" | "magic-link" | "register">("password");
+  // "I'm a trainer" and invite links mostly bring people who don't have an account yet.
+  const asTrainer = searchParams.get("role") === "trainer";
+  const fromInvite = searchParams.get("invite") === "1";
+  const [mode, setMode] = useState<"password" | "magic-link" | "register">(
+    asTrainer || fromInvite ? "register" : "password"
+  );
   // Switching between password, magic link and sign-up keeps focus in the form (the button that
   // was clicked disappears), on the email field.
   const emailRef = useRef<HTMLInputElement>(null);
@@ -111,12 +116,16 @@ function LoginForm() {
     });
   }
 
-  const title = mode === "register" ? "Create your account" : "Gym Journal";
+  const title = mode === "register" ? (asTrainer ? "Create your trainer account" : "Create your account") : "Gym Journal";
   const subtitle =
     mode === "password"
-      ? "Sign in with your email and password."
+      ? fromInvite
+        ? "Sign in to join your trainer."
+        : "Sign in with your email and password."
       : mode === "register"
-        ? "Sign up with your email and a password."
+        ? fromInvite
+          ? "Create an account to join your trainer."
+          : "Sign up with your email and a password."
         : "Sign in with your email — we'll send you a magic link, no password needed.";
 
   return (
@@ -254,6 +263,12 @@ function LoginForm() {
               >
                 Create a new account
               </button>
+            )}
+            {!asTrainer && !fromInvite && (
+              // A full page load, so the proxy remembers the choice through sign-up.
+              <a href="/login?role=trainer" className="text-center text-sm text-link">
+                I&apos;m a trainer
+              </a>
             )}
           </div>
         </form>

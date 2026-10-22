@@ -1,7 +1,9 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { SIGNUP_COOKIE } from "@/lib/trainerInvites";
 import { cleanName, joinName, validateName } from "@/lib/names";
 import {
   validateDateOfBirth,
@@ -117,6 +119,8 @@ export async function completeOnboarding(input: CompleteOnboardingInput) {
   });
   if (profileError) return { error: profileError.message };
 
+  // Set up as a regular account, so an earlier "I'm a trainer" no longer applies.
+  (await cookies()).delete(SIGNUP_COOKIE);
   revalidatePath("/", "layout");
   return { success: true };
 }
