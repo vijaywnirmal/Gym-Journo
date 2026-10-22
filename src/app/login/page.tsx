@@ -116,7 +116,7 @@ function LoginForm() {
     mode === "password"
       ? "Sign in with your email and password."
       : mode === "register"
-        ? "Sign up with your email and a password. Gym Journal is for people 18 or older."
+        ? "Sign up with your email and a password."
         : "Sign in with your email — we'll send you a magic link, no password needed.";
 
   return (
