@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
+import { PROD_SAFE } from "./testUser";
 
-test("a muscle group lists ten exercises at a time, and a name opens its tutorial", async ({ page }) => {
+test("a muscle group lists ten exercises at a time, and a name opens its tutorial", { tag: PROD_SAFE }, async ({ page }) => {
   await page.goto("/exercises");
 
   await page.getByRole("button", { name: /Chest/ }).click();
@@ -15,7 +16,7 @@ test("a muscle group lists ten exercises at a time, and a name opens its tutoria
   await expect(page.getByText("Chest · Shoulders · Triceps")).toBeVisible();
 });
 
-test("search expands gym shorthand and pages through matches across groups", async ({ page }) => {
+test("search expands gym shorthand and pages through matches across groups", { tag: PROD_SAFE }, async ({ page }) => {
   await page.goto("/exercises");
   await page.getByLabel("Search exercises").fill("db press");
 
@@ -23,15 +24,18 @@ test("search expands gym shorthand and pages through matches across groups", asy
   await expect(page.getByRole("button", { name: /Barbell Bench Press/ })).toHaveCount(0);
 });
 
-test("a custom exercise can be created, found and deleted", async ({ page }) => {
+// Deletes what it creates. The name is unique per run, so a run that stopped halfway on a deployed
+// site can't break the next one.
+test("a custom exercise can be created, found and deleted", { tag: PROD_SAFE }, async ({ page }) => {
+  const name = `E2E Cable Curl ${Date.now().toString(36)}`;
   await page.goto("/exercises");
   await page.getByRole("button", { name: "New custom exercise" }).click();
-  await page.getByLabel("Name", { exact: true }).fill("E2E Cable Curl");
+  await page.getByLabel("Name", { exact: true }).fill(name);
   await page.getByRole("button", { name: "Biceps", exact: true }).click();
   await page.getByRole("button", { name: "Add exercise", exact: true }).click();
 
-  await page.getByLabel("Search exercises").fill("e2e cable curl");
-  const row = page.getByRole("button", { name: /^E2E Cable Curl/ });
+  await page.getByLabel("Search exercises").fill(name.toLowerCase());
+  const row = page.getByRole("button", { name: new RegExp(`^${name}`) });
   await expect(row).toBeVisible();
 
   // Deleting takes two taps: open the row, ask to delete, then confirm.

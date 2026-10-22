@@ -1,18 +1,27 @@
 import { createClient } from "@supabase/supabase-js";
 
-// The one account the end-to-end specs use. Recreated from scratch at the start of every run (its
-// logs, plans and custom exercises go with it via ON DELETE CASCADE), so runs never depend on
-// what an earlier run left behind.
+// Two ways to run the specs:
+// - Locally and in CI (the default): against a local Supabase. The one test account is recreated
+//   from scratch at the start of every run (its logs, plans and custom exercises go with it via
+//   ON DELETE CASCADE), so runs never depend on what an earlier run left behind.
+// - Against a deployed site, when E2E_BASE_URL is set (production after a deploy): the specs sign in
+//   as an existing account (E2E_EMAIL, E2E_PASSWORD, E2E_FIRST_NAME), never create or delete one,
+//   need no service role key, and only the specs tagged PROD_SAFE run: they only read, or remove
+//   what they create. See e2e/README.md.
+export const REMOTE_BASE_URL = process.env.E2E_BASE_URL || null;
+export const isRemote = REMOTE_BASE_URL !== null;
+export const PROD_SAFE = "@prod-safe";
 
-export const TEST_USER = {
-  email: "e2e@example.test",
-  password: "e2e-password-123",
-  firstName: "Robin",
-};
+// The account's time zone. The browser runs in it too, so TimezoneSync never changes the account's.
+export const TEST_TIMEZONE = process.env.E2E_TIMEZONE || "UTC";
+
+export const TEST_USER = isRemote
+  ? { email: requireEnv("E2E_EMAIL"), password: requireEnv("E2E_PASSWORD"), firstName: requireEnv("E2E_FIRST_NAME") }
+  : { email: "e2e@example.test", password: "e2e-password-123", firstName: "Robin" };
 
 function requireEnv(name: string): string {
   const value = process.env[name];
-  if (!value) throw new Error(`${name} is not set — start the local Supabase and see e2e/README.md.`);
+  if (!value) throw new Error(`${name} is not set — see e2e/README.md.`);
   return value;
 }
 
@@ -56,9 +65,7 @@ export async function recreateTestUser(): Promise<string> {
   return data.user.id;
 }
 
-// The test user's today — the profile and the browser both use UTC.
-export function todayUtc(offsetDays = 0): string {
-  const date = new Date();
-  date.setUTCDate(date.getUTCDate() + offsetDays);
-  return date.toISOString().slice(0, 10);
+// A day in the test account's time zone, as YYYY-MM-DD: today, or offsetDays from it.
+export function testDate(offsetDays = 0): string {
+  return new Date(Date.now() + offsetDays * 86_400_000).toLocaleDateString("en-CA", { timeZone: TEST_TIMEZONE });
 }

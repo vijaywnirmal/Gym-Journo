@@ -1,0 +1,61 @@
+name: Production E2E
+
+# The @prod-safe end-to-end specs against the live site, after every successful production deploy
+# (Vercel reports it as a GitHub deployment) and on demand. They sign in as a dedicated test account
+# and only read, or remove what they create. See e2e/README.md for the secrets and variables.
+on:
+  deployment_status:
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-production
+  cancel-in-progress: false
+
+jobs:
+  e2e:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.deployment_status.state == 'success' && github.event.deployment_status.environment == 'Production')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      E2E_BASE_URL: ${{ vars.E2E_BASE_URL || 'https://www.gymjourno.fit' }}
+      E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+      E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+      E2E_FIRST_NAME: ${{ vars.E2E_FIRST_NAME }}
+      E2E_TIMEZONE: ${{ vars.E2E_TIMEZONE || 'UTC' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The specs that match what was deployed.
+          ref: ${{ github.event.deployment.sha || github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Check the test account is configured
+        run: |
+          if [ -z "$E2E_EMAIL" ] || [ -z "$E2E_PASSWORD" ] || [ -z "$E2E_FIRST_NAME" ]; then
+            echo "::error::Add the E2E_EMAIL and E2E_PASSWORD secrets and the E2E_FIRST_NAME variable (see e2e/README.md)."
+            exit 1
+          fi
+
+      - name: Install Playwright's Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: End-to-end tests against production
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-production
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
