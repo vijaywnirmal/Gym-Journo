@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/currentUser";
 import { shiftDate, weekDates } from "@/lib/date";
 import { suggestOverload, type OverloadSuggestion } from "@/lib/analyze/overload";
 import {
@@ -51,9 +52,7 @@ export type AiPlan = {
 
 export async function getAiPlans(): Promise<AiPlan[]> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return [];
 
   const { data } = await supabase
@@ -68,9 +67,7 @@ export async function getAiPlans(): Promise<AiPlan[]> {
 
 export async function getNutritionForDate(date: string): Promise<string | null> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return null;
 
   const { data } = await supabase
@@ -86,9 +83,7 @@ export async function getNutritionForDate(date: string): Promise<string | null> 
 // Compact text summary of the last N days of actual workout activity, for feeding into an AI prompt.
 export async function getRecentTrainingSummary(days: number): Promise<string> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return "No training history available.";
 
   const sinceStr = shiftDate(await getToday(), -days);
@@ -124,9 +119,7 @@ export async function getRecentTrainingSummary(days: number): Promise<string> {
 // Compact text summary of the next N days of scheduled workouts/rest days, for feeding into an AI prompt.
 export async function getUpcomingScheduleSummary(days: number): Promise<string> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return "No schedule available.";
 
   const todayStr = await getToday();
@@ -169,9 +162,7 @@ export async function getUpcomingScheduleSummary(days: number): Promise<string> 
 
 export async function getProfile(): Promise<Profile | null> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return null;
 
   const { data } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
@@ -239,9 +230,7 @@ export async function getExerciseFilterOptions(selectedId?: string): Promise<Exe
 
 export async function getTemplates(): Promise<WorkoutTemplate[]> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return [];
 
   const { data, error } = await supabase
@@ -264,9 +253,7 @@ export async function getTemplates(): Promise<WorkoutTemplate[]> {
 
 export async function getPlanForDate(date: string): Promise<WorkoutPlan | null> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return null;
 
   const { data, error } = await supabase
@@ -309,9 +296,7 @@ export type WeekDayOverview = {
 
 export async function getWeekOverview(dates: string[]) {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return new Map<string, WeekDayOverview>();
 
   const todayStr = await getToday();
@@ -379,9 +364,7 @@ export async function getLogHistory(options: {
 } = {}): Promise<LogHistoryPage> {
   const { before, pageSize = DEFAULT_HISTORY_PAGE_SIZE } = options;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return { logs: [], hasMore: false };
 
   let query = supabase
@@ -427,9 +410,7 @@ export async function getLogHistory(options: {
 // set_number. A single request is subject to the API's max-rows cap (commonly 1,000 logs).
 export async function getExerciseSessions(exerciseId: string): Promise<ExerciseSession[]> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return [];
 
   const todayStr = await getToday();
@@ -456,9 +437,7 @@ export type LastCompletedLog = {
 // Narrow, Home-specific lookup — avoids pulling the full nested history just to find one row.
 export async function getLastCompletedLog(): Promise<LastCompletedLog | null> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return null;
 
   const { data, error } = await supabase
@@ -496,9 +475,7 @@ export async function getPreviousPerformance(
   beforeDate: string
 ): Promise<PreviousPerformance | null> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return null;
 
   // Walks back through matching logs a page at a time until one contains performed sets — blank
@@ -554,9 +531,7 @@ async function fetchPerformedWorkoutDates(
 // are irrelevant. workout_logs.date is unique per user (0001_init.sql), so each date counts once.
 export async function getTrainingConsistency(windowDays = 28): Promise<TrainingConsistency> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return { windowDays, daysPerformed: 0 };
 
   const todayStr = await getToday();
@@ -569,9 +544,7 @@ export async function getTrainingConsistency(windowDays = 28): Promise<TrainingC
 // workouts" from "couldn't read".
 export async function getPerformedWorkoutDates(sinceDate: string): Promise<string[] | null> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return null;
 
   return fetchPerformedWorkoutDates(supabase, sinceDate, await getToday());
@@ -594,9 +567,7 @@ export async function getWeeklyTrainingDays(
 // query error — the streak then simply isn't paused by them.
 export async function getAbsenceDates(from: string, to: string): Promise<string[]> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return [];
 
   const { data, error } = await supabase
@@ -617,9 +588,7 @@ export type LastPerformedWorkout = { date: string | null };
 // keys off completed_at): a performed but never-completed session counts here.
 export async function getLastPerformedWorkoutDate(): Promise<LastPerformedWorkout> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return { date: null };
 
   const { data, error } = await supabase
@@ -634,9 +603,7 @@ export async function getLastPerformedWorkoutDate(): Promise<LastPerformedWorkou
 // most one row per day) — no cap/pagination is warranted here, unlike workout history.
 export async function getBodyMeasurements(): Promise<BodyMeasurement[]> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return [];
 
   const { data, error } = await supabase
@@ -651,9 +618,7 @@ export async function getBodyMeasurements(): Promise<BodyMeasurement[]> {
 
 export async function getLogForDate(date: string): Promise<WorkoutLogWithContext | null> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return null;
 
   const { data, error } = await supabase
@@ -687,9 +652,7 @@ export async function getLogForDate(date: string): Promise<WorkoutLogWithContext
 // history itself can't be read (other sources degrade to "nothing recorded", as elsewhere).
 export async function getTrainingEvidence(): Promise<TrainingEvidence | null> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return null;
 
   const todayStr = await getToday();
@@ -742,9 +705,7 @@ export async function getPriorExerciseSessions(
   beforeDate: string
 ): Promise<Record<string, ExerciseSession[]> | null> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return null;
 
   const ids = [...new Set(exerciseIds)];
@@ -782,9 +743,7 @@ export const ADHERENCE_WINDOW_DAYS = 28;
 // Sunday–Saturday, like Calendar. Null when signed out or when the workout history can't be read.
 export async function getWeeklyInsights(): Promise<WeeklyInsights | null> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return null;
 
   const todayStr = await getToday();
@@ -864,9 +823,7 @@ type UpcomingPlanRow = {
 // Planned exercises the person already decided on are left out. [] when signed out or on error.
 export async function getAdaptSuggestions(): Promise<AdaptSuggestion[]> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return [];
 
   const todayStr = await getToday();

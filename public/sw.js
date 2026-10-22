@@ -1,4 +1,4 @@
-// Gym-Journo service worker. Deliberately small:
+// Gym Journal service worker. Deliberately small:
 // - Hashed build assets (/_next/static) are cached on first use, so the app shell loads fast and
 //   keeps working through flaky gym Wi-Fi.
 // - Page loads always go to the network (they are per-user and must never be served stale or to
@@ -50,7 +50,8 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/icons/")) {
     event.respondWith(
       caches.open(STATIC_CACHE).then(async (cache) => {
-        const cached = await cache.match(request);
+        // The shell cache (offline page assets, icons) counts too, so the offline page's icon loads.
+        const cached = (await cache.match(request)) ?? (await caches.match(request));
         if (cached) return cached;
         const response = await fetch(request);
         if (response.ok) cache.put(request, response.clone());
@@ -69,7 +70,7 @@ self.addEventListener("push", (event) => {
   }
   const url = typeof payload.url === "string" && payload.url.startsWith("/") ? payload.url : "/";
   event.waitUntil(
-    self.registration.showNotification(payload.title || "Gym-Journo", {
+    self.registration.showNotification(payload.title || "Gym Journal", {
       body: payload.body || "",
       tag: payload.tag || undefined,
       icon: "/icons/icon-192.png",
