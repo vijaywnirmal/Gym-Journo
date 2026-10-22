@@ -1,6 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+const deleteCookie = vi.fn();
+vi.mock("next/headers", () => ({ cookies: async () => ({ delete: deleteCookie }) }));
 
 const upsert = vi.fn().mockResolvedValue({ error: null });
 const getUser = vi.fn().mockResolvedValue({ data: { user: { id: "user-1" } } });

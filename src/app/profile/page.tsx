@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Icon from "@/components/Icon";
 import { getProfile } from "@/lib/queries";
+import { getMyTrainer, getMyTrainerProfile } from "@/lib/trainers";
 import { profileFieldsFromProfile } from "@/lib/profile-fields";
+import { formatDateLong, todayIn } from "@/lib/date";
 import SignOutButton from "@/components/SignOutButton";
 import PageHeader from "@/components/PageHeader";
 import { createClient } from "@/lib/supabase/server";
@@ -10,11 +12,17 @@ import ProfileCard from "./ProfileCard";
 import DeleteAccountSection from "./DeleteAccountSection";
 import CoachConsentSection from "./CoachConsentSection";
 import RemindersSection from "./RemindersSection";
+import YourTrainerSection from "./YourTrainerSection";
 
 export const metadata: Metadata = { title: "Profile" };
 
 export default async function ProfilePage() {
-  const [profile, supabase] = await Promise.all([getProfile(), createClient()]);
+  const [profile, supabase, myTrainer, trainerProfile] = await Promise.all([
+    getProfile(),
+    createClient(),
+    getMyTrainer(),
+    getMyTrainerProfile(),
+  ]);
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -24,6 +32,13 @@ export default async function ProfilePage() {
       <PageHeader title="Profile" />
 
       <ProfileCard initial={profileFieldsFromProfile(profile)} email={user?.email ?? null} />
+
+      {myTrainer && (
+        <YourTrainerSection
+          myTrainer={myTrainer}
+          since={formatDateLong(todayIn(profile?.timezone, new Date(myTrainer.startedAt)))}
+        />
+      )}
 
       <h2 className="section-title mt-8">Tracking</h2>
       <Link href="/body" className="card flex items-center gap-3 px-4 py-3 hover:bg-fill">
@@ -37,6 +52,20 @@ export default async function ProfilePage() {
         <Icon name="chevronRight" className="size-4 text-label-3" strokeWidth={2} />
       </Link>
 
+      {trainerProfile && (
+        <>
+          <h2 className="section-title mt-8">Trainer</h2>
+          <section className="card divide-y divide-separator">
+            <LinkRow href="/trainer/invite" title="Invite a client" text="Share your join link on WhatsApp" />
+            <LinkRow
+              href="/trainer/setup"
+              title="Trainer details"
+              text={[trainerProfile.display_name, trainerProfile.gym_name, trainerProfile.city].filter(Boolean).join(" · ")}
+            />
+          </section>
+        </>
+      )}
+
       <RemindersSection
         enabled={profile?.workout_reminders ?? false}
         time={(profile?.reminder_time ?? "18:00").slice(0, 5)}
@@ -47,6 +76,9 @@ export default async function ProfilePage() {
 
       <h2 className="section-title mt-8">Account</h2>
       <section className="card divide-y divide-separator">
+        {!trainerProfile && (
+          <LinkRow href="/trainer/setup" title="Set up a trainer account" text="Invite clients and plan their workouts" />
+        )}
         <div className="flex items-center justify-between gap-3 px-4 py-3">
           <div className="min-w-0">
             <p className="text-sm font-semibold">Sign out</p>
@@ -57,5 +89,17 @@ export default async function ProfilePage() {
         <DeleteAccountSection />
       </section>
     </main>
+  );
+}
+
+function LinkRow({ href, title, text }: { href: string; title: string; text: string }) {
+  return (
+    <Link href={href} className="flex items-center gap-3 px-4 py-3 hover:bg-fill">
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold">{title}</span>
+        <span className="block truncate text-sm text-label-2">{text}</span>
+      </span>
+      <Icon name="chevronRight" className="size-4 text-label-3" strokeWidth={2} />
+    </Link>
   );
 }

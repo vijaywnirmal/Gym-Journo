@@ -130,3 +130,26 @@ export type BodyMeasurement = {
   created_at: string;
   updated_at: string;
 };
+
+// Trainers (migration 0034). Having a trainer_profiles row is what makes an account a trainer.
+export type TrainerProfile = {
+  user_id: string;
+  display_name: string;
+  gym_name: string | null;
+  city: string | null;
+  // Digits with a leading +, e.g. +919876543210.
+  whatsapp: string | null;
+  created_at: string;
+};
+
+export type TrainerInvite = {
+  code: string;
+  expires_at: string;
+};
+
+// The signed-in client's current trainer, as their Profile shows it.
+export type MyTrainer = {
+  linkId: string;
+  startedAt: string;
+  trainer: Pick<TrainerProfile, "display_name" | "gym_name" | "city" | "whatsapp">;
+};
