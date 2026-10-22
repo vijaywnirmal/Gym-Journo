@@ -14,7 +14,7 @@ export default function ExerciseCreateForm({
   onDone,
 }: {
   muscleGroups: MuscleGroup[];
-  onCreated: () => void;
+  onCreated: (name: string) => void;
   onDone: () => void;
 }) {
   const [pending, startTransition] = useTransition();
@@ -25,6 +25,7 @@ export default function ExerciseCreateForm({
   const [error, setError] = useState<string | null>(null);
 
   function toggleMuscleGroup(id: string) {
+    setError(null);
     setSelectedMuscleGroups((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -33,8 +34,13 @@ export default function ExerciseCreateForm({
     });
   }
 
-  function handleSubmit() {
+  function handleSubmit(event?: React.FormEvent) {
+    event?.preventDefault();
     setError(null);
+    if (selectedMuscleGroups.size === 0) {
+      setError("Choose at least one muscle group.");
+      return;
+    }
     startTransition(async () => {
       const result = await createExercise({
         name,
@@ -46,13 +52,13 @@ export default function ExerciseCreateForm({
         setError(result.error);
         return;
       }
-      onCreated();
+      onCreated(name.trim().replace(/\s+/g, " "));
       onDone();
     });
   }
 
   return (
-    <section className="card p-4">
+    <form onSubmit={handleSubmit} className="card p-4">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-base font-semibold">New custom exercise</h2>
         <button
@@ -70,7 +76,10 @@ export default function ExerciseCreateForm({
             <span className="mb-1.5 block text-sm font-medium">Name</span>
             <input
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value);
+                setError(null);
+              }}
               placeholder="e.g. Landmine press"
               autoFocus
               className="field h-11 w-full rounded-[10px] px-3.5 text-base"
@@ -116,12 +125,15 @@ export default function ExerciseCreateForm({
           />
         </label>
 
-        {error && <p className="text-sm text-red">{error}</p>}
+        {error && (
+          <p role="alert" className="text-sm text-red">
+            {error}
+          </p>
+        )}
 
         <div className="flex gap-2">
           <button
-            type="button"
-            onClick={handleSubmit}
+            type="submit"
             disabled={pending || !name.trim()}
             className="h-10 rounded-[10px] bg-accent px-4 text-sm font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-50"
           >
@@ -136,6 +148,6 @@ export default function ExerciseCreateForm({
           </button>
         </div>
       </div>
-    </section>
+    </form>
   );
 }

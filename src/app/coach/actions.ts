@@ -49,6 +49,8 @@ async function countExchanges(
 }
 
 export async function askCoach(question: string): Promise<AskCoachResult> {
+  // Server actions can be called with anything; a non-string is a malformed request, not a 500.
+  if (typeof question !== "string") return { status: "empty", message: "Type a question for Coach." };
   const supabase = await createClient();
   const {
     data: { user },

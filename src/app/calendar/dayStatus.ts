@@ -35,7 +35,9 @@ export function describeCalendarDay(day: CalendarDay, date: string, todayStr: st
         ? withTitle("Absence")
         : day.dayType === "workout"
           ? (day.title ?? "Workout")
-          : "Not scheduled";
+          : day.performed
+            ? "Freeform workout"
+            : "Not scheduled";
 
   const parts = [formatDayStatus(day)].filter(Boolean);
   if (isMissedDay(day, date, todayStr)) parts.push("planned, not logged");

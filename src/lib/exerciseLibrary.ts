@@ -1,11 +1,12 @@
 import { z } from "zod";
-import { EQUIPMENT_OPTIONS } from "./exerciseSearch";
+import { EQUIPMENT_OPTIONS, MAX_SEARCH_LENGTH } from "./exerciseSearch";
+
+export { MAX_SEARCH_LENGTH };
 
 // The exercise library API's contract (app/api/exercises), shared by the route handlers and the
 // browser. Pure — no I/O — so both sides agree on shapes, limits and URLs.
 
 export const EXERCISE_PAGE_SIZE = 10;
-export const MAX_SEARCH_LENGTH = 100;
 
 export type ExerciseListItem = {
   id: string;
@@ -55,7 +56,8 @@ export const exerciseIdSchema = z.uuid();
 // Keyset position: the last row's name and id (browse_exercises orders by both).
 export type ExerciseCursor = { name: string; id: string };
 
-const cursorSchema = z.object({ name: z.string().min(1).max(200), id: z.uuid() });
+// NUL can't be stored in Postgres text, so a crafted cursor with one is rejected here (400), not by the database (500).
+const cursorSchema = z.object({ name: z.string().min(1).max(200).refine((name) => !name.includes("\u0000")), id: z.uuid() });
 
 function toBase64Url(text: string): string {
   const bytes = new TextEncoder().encode(text);

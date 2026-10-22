@@ -40,6 +40,7 @@ export default function DateField({
   ariaLabel,
   className = "",
   disabled = false,
+  clearable = false,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -49,6 +50,8 @@ export default function DateField({
   ariaLabel?: string;
   className?: string;
   disabled?: boolean;
+  // Offer "Clear" for an optional date, which sets it back to "".
+  clearable?: boolean;
 }) {
   const { triggerRef, panelRef, open, setOpen, close, panelStyle } = usePopover({
     preferredHeight: 380,
@@ -252,15 +255,31 @@ export default function DateField({
                     </div>
                   ))}
                 </div>
-                {inRange(today) && (
-                  <button
-                    type="button"
-                    onClick={() => pick(today)}
-                    className="mt-2 h-8 self-start rounded-lg px-2 text-sm font-medium text-link hover:bg-fill"
-                  >
-                    Today
-                  </button>
-                )}
+                <div className="mt-2 flex justify-between">
+                  {inRange(today) ? (
+                    <button
+                      type="button"
+                      onClick={() => pick(today)}
+                      className="h-8 rounded-lg px-2 text-sm font-medium text-link hover:bg-fill"
+                    >
+                      Today
+                    </button>
+                  ) : (
+                    <span />
+                  )}
+                  {clearable && value && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onChange("");
+                        close();
+                      }}
+                      className="h-8 rounded-lg px-2 text-sm font-medium text-label-2 hover:bg-fill"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
               </>
             )}
           </div>,

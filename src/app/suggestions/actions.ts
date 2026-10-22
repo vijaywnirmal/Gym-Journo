@@ -37,7 +37,6 @@ export async function decideSuggestion(
   });
   if (error) return { error: "Couldn't save your decision. Nothing was changed — please try again." };
 
-  revalidatePath("/suggestions");
   revalidatePath("/");
   revalidatePath(`/schedule/${current.planDate}`);
   revalidatePath(`/log/${current.planDate}`);

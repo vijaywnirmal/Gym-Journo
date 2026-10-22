@@ -82,7 +82,7 @@ describe("setCoachConsent", () => {
 
 describe("deleteAccount removes Coach history", () => {
   it("deletes the person's coach_replies along with their other data", async () => {
-    await deleteAccount();
+    await deleteAccount("DELETE");
     expect(deleteOrder).toContain("coach_replies");
     expect(deleteOrder).toContain("ai_plans");
   });

@@ -62,6 +62,14 @@ describe("isValidEmail", () => {
 });
 
 describe("validateDateOfBirth", () => {
+  it("rejects impossible dates and people under 18", () => {
+    expect(validateDateOfBirth("2000-02-30")).not.toBeNull();
+    const seventeen = new Date();
+    seventeen.setFullYear(seventeen.getFullYear() - 17);
+    expect(validateDateOfBirth(seventeen.toISOString().slice(0, 10))).toMatch(/18 or older/);
+    expect(validateDateOfBirth("1990-06-15")).toBeNull();
+  });
+
   it("accepts a reasonable past date", () => {
     expect(validateDateOfBirth("1990-05-15")).toBeNull();
   });

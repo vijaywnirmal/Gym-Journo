@@ -42,6 +42,7 @@ export function useDebouncedValue<T>(value: T, delayMs: number): T {
 // while the previous counts stay on screen.
 export function useExerciseGroups(filters: ExerciseFilters, version = 0) {
   const url = exerciseGroupsUrl(filters);
+  const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<{ url: string; groups: MuscleGroupCount[] | null; status: LoadStatus }>({
     url,
     groups: null,
@@ -56,10 +57,14 @@ export function useExerciseGroups(filters: ExerciseFilters, version = 0) {
         if (!isAbort(error)) setState({ url, groups: null, status: "error" });
       });
     return () => controller.abort();
-  }, [url, version]);
+  }, [url, version, attempt]);
 
+  const retry = () => {
+    setState((previous) => ({ ...previous, status: "loading" }));
+    setAttempt((value) => value + 1);
+  };
   // Until the response for the current filters arrives, show the previous groups as still loading.
-  return state.url === url ? state : { ...state, status: "loading" as const };
+  return state.url === url ? { ...state, retry } : { ...state, status: "loading" as const, retry };
 }
 
 // Pages of exercises for one set of list parameters: the first page loads on mount, loadMore()

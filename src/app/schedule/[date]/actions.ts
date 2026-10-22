@@ -84,8 +84,21 @@ export async function savePlan(input: SavePlanInput) {
 
 export async function deletePlan(planId: string, date: string) {
   const supabase = await createClient();
-  await supabase.from("workout_plans").delete().eq("id", planId);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in" };
+
+  const { data, error } = await supabase
+    .from("workout_plans")
+    .delete()
+    .eq("id", planId)
+    .eq("user_id", user.id)
+    .select("id");
+  if (error) return { error: "Couldn't remove the plan. Please try again." };
+  if (!data?.length) return { error: "This plan was already removed." };
   revalidatePath(`/schedule/${date}`);
   revalidatePath("/calendar");
   revalidatePath("/");
+  return { success: true };
 }

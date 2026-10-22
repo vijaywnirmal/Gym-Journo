@@ -9,15 +9,30 @@ let libraryResult: { data: unknown; error: unknown } = { data: [], error: null }
 const libraryQuery = {
   is: () => libraryQuery,
   in: () => libraryQuery,
+  eq: () => libraryQuery,
   then: (resolve: (v: unknown) => unknown) => Promise.resolve(libraryResult).then(resolve),
 };
-const from = vi.fn(() => ({ select: () => libraryQuery }));
+// workout_plans: the days that already have a plan (none by default).
+let plansResult: { data: unknown; error: unknown } = { data: [], error: null };
+const plansQuery = {
+  eq: () => plansQuery,
+  in: () => plansQuery,
+  then: (resolve: (v: unknown) => unknown) => Promise.resolve(plansResult).then(resolve),
+};
+const deleted: unknown[][] = [];
+const from = vi.fn((table: string) => ({
+  select: () => (table === "workout_plans" ? plansQuery : libraryQuery),
+  delete: () => {
+    const builder = { eq: () => builder, in: (_column: string, ids: unknown[]) => (deleted.push(ids), Promise.resolve({ error: null })) };
+    return builder;
+  },
+}));
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({ auth: { getUser }, from, rpc }),
 }));
 
-const { applyProgram } = await import("./actions");
+const { applyProgram, undoProgram } = await import("./actions");
 const { findProgram } = await import("@/lib/programs");
 
 const fullBody = findProgram("full-body-ab")!;
@@ -35,12 +50,15 @@ describe("applyProgram", () => {
     getUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
     rpc.mockReset();
     libraryResult = { data: library, error: null };
+    plansResult = { data: [], error: null };
+    deleted.length = 0;
   });
 
   it("schedules every day in one RPC call with ids, targets and muscle groups", async () => {
     rpc.mockResolvedValue({ data: 6, error: null });
     const result = await applyProgram(valid);
-    expect(result).toEqual({ success: true, created: 6, skipped: 0, firstDate: "2026-09-28" });
+    expect(result).toMatchObject({ success: true, created: 6, skipped: 0, firstDate: "2026-09-28" });
+    expect("success" in result && result.createdDates).toHaveLength(6);
     expect(rpc).toHaveBeenCalledTimes(1);
     const plans = rpc.mock.calls[0][1].p_plans;
     expect(plans).toHaveLength(6);
@@ -90,5 +108,31 @@ describe("applyProgram", () => {
   it("requires sign-in", async () => {
     getUser.mockResolvedValue({ data: { user: null } });
     expect(await applyProgram(valid)).toEqual({ error: "Not signed in" });
+  });
+});
+
+describe("undoProgram", () => {
+  beforeEach(() => {
+    getUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
+    deleted.length = 0;
+  });
+
+  it("removes only the plans the program created, recognised by its titles", async () => {
+    plansResult = {
+      data: [
+        { id: "p-1", title: `${fullBody.name} · Day A` },
+        { id: "p-2", title: "My own leg day" },
+      ],
+      error: null,
+    };
+    expect(await undoProgram("full-body-ab", ["2026-09-28", "2026-09-30"])).toEqual({ removed: 1 });
+    expect(deleted).toEqual([["p-1"]]);
+  });
+
+  it("rejects bad input without touching anything", async () => {
+    expect(await undoProgram("nope", ["2026-09-28"])).toHaveProperty("error");
+    expect(await undoProgram("full-body-ab", [])).toHaveProperty("error");
+    expect(await undoProgram("full-body-ab", ["not-a-date"])).toHaveProperty("error");
+    expect(deleted).toHaveLength(0);
   });
 });

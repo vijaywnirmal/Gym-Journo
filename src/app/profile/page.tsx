@@ -43,7 +43,7 @@ export default async function ProfilePage() {
       />
 
       <h2 className="section-title mt-8">Privacy</h2>
-      <CoachConsentSection consentedAt={profile?.coach_consent_at ?? null} />
+      <CoachConsentSection consentedAt={profile?.coach_consent_at ?? null} timeZone={profile?.timezone ?? null} />
 
       <h2 className="section-title mt-8">Account</h2>
       <section className="card divide-y divide-separator">

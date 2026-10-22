@@ -54,6 +54,17 @@ export async function removePushSubscription(endpoint: string): Promise<Result> 
   return error ? { error: "Couldn't remove this device. Please try again." } : { success: true };
 }
 
+// Removes every device registered for reminders except this one (keepEndpoint, when it has one):
+// a lost or reset phone stays registered otherwise, and push services often still accept sends to it.
+export async function removeOtherPushSubscriptions(keepEndpoint: string | null): Promise<Result> {
+  const session = await signedIn();
+  if (!session) return { error: "Not signed in" };
+  let query = session.supabase.from("push_subscriptions").delete().eq("user_id", session.userId);
+  if (keepEndpoint) query = query.neq("endpoint", keepEndpoint);
+  const { error } = await query;
+  return error ? { error: "Couldn't remove the other devices. Please try again." } : { success: true };
+}
+
 export async function updateReminderSettings(input: { enabled: boolean; time: string }): Promise<Result> {
   const session = await signedIn();
   if (!session) return { error: "Not signed in" };

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useTransition } from "react";
+import { Suspense, useState, useTransition, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Icon from "@/components/Icon";
@@ -19,6 +19,17 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
   const [mode, setMode] = useState<"password" | "magic-link" | "register">("password");
+  // Switching between password, magic link and sign-up keeps focus in the form (the button that
+  // was clicked disappears), on the email field.
+  const emailRef = useRef<HTMLInputElement>(null);
+  const firstRender = useRef(true);
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    emailRef.current?.focus();
+  }, [mode]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(
@@ -144,10 +155,13 @@ function LoginForm() {
           className="flex flex-col gap-3"
         >
           <input
+            ref={emailRef}
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            aria-label="Email"
+            autoComplete="email"
             placeholder="you@example.com"
             className="field rounded-xl px-4 py-3 text-base"
           />
@@ -158,6 +172,8 @@ function LoginForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              aria-label="Password"
+              autoComplete={mode === "register" ? "new-password" : "current-password"}
               placeholder={mode === "register" ? "Password (at least 8 characters)" : "Password"}
               className="field rounded-xl px-4 py-3 text-base"
             />
@@ -169,7 +185,11 @@ function LoginForm() {
             </Link>
           )}
 
-          {error && <p className="text-sm text-red">{error}</p>}
+          {error && (
+            <p role="alert" className="text-sm text-red">
+              {error}
+            </p>
+          )}
           {needsConfirmation && !resent && (
             <button
               type="button"

@@ -1,3 +1,4 @@
+import { isValidIsoDate } from "./date";
 
 // Only allow same-origin, path-relative redirect targets — prevents open redirects via a crafted `next` param.
 export function safeRedirectPath(next: string | null | undefined, fallback = "/"): string {
@@ -13,13 +14,22 @@ export function isValidEmail(email: string): boolean {
 
 // Loose sanity bounds — not a precise policy, just enough to catch typos (e.g. future dates,
 // or a birth year so old it's clearly a mistake).
+// Matches the date picker's range (ProfileFields): at most 120 years ago, and at least 18 years ago.
+// 18 is a rule, not a typo check: India's data protection law (DPDP Act) needs a parent's consent
+// for anyone younger, so Gym Journal is for adults only (also confirmed at onboarding).
+export const MIN_AGE_YEARS = 18;
+export const MAX_AGE_YEARS = 120;
+
 export function validateDateOfBirth(dateOfBirth: string): string | null {
+  // A real yyyy-MM-dd date: new Date() would roll 2000-02-30 over to March.
+  if (!isValidIsoDate(dateOfBirth)) return "Enter a valid date of birth.";
   const parsed = new Date(dateOfBirth);
-  if (Number.isNaN(parsed.getTime())) return "Enter a valid date of birth.";
   const now = new Date();
   if (parsed > now) return "Date of birth can't be in the future.";
-  const minDate = new Date(now.getFullYear() - 120, now.getMonth(), now.getDate());
+  const minDate = new Date(now.getFullYear() - MAX_AGE_YEARS, now.getMonth(), now.getDate());
   if (parsed < minDate) return "Enter a valid date of birth.";
+  const youngest = new Date(now.getFullYear() - MIN_AGE_YEARS, now.getMonth(), now.getDate());
+  if (parsed > youngest) return `You need to be ${MIN_AGE_YEARS} or older to use Gym Journal.`;
   return null;
 }
 
@@ -150,9 +160,7 @@ export function validateTargetWeight(value: number): string | null {
 // the same one Calendar, Home and the logger use. A UTC-derived date could disagree with it near
 // midnight and wrongly reject the current day's own date.
 export function validateMeasurementDate(date: string, todayStr: string): string | null {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(new Date(date).getTime())) {
-    return "Enter a valid date.";
-  }
+  if (!isValidIsoDate(date)) return "Enter a valid date.";
   if (date > todayStr) return "Date can't be in the future.";
   return null;
 }

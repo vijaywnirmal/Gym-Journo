@@ -25,11 +25,26 @@ const validInput = {
   targetWeightKg: null,
   experienceLevel: "beginner",
   trainingDaysPerWeek: 3,
+  confirmedAdult: true,
 };
 
 describe("completeOnboarding", () => {
   beforeEach(() => {
     upsert.mockClear();
+  });
+
+  it("requires confirming the person is 18 or older", async () => {
+    const result = await completeOnboarding({ ...validInput, confirmedAdult: false });
+    expect(result.error).toMatch(/18 or older/);
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it("rejects a date of birth under 18", async () => {
+    const seventeen = new Date();
+    seventeen.setFullYear(seventeen.getFullYear() - 17);
+    const result = await completeOnboarding({ ...validInput, dateOfBirth: seventeen.toISOString().slice(0, 10) });
+    expect(result.error).toMatch(/18 or older/);
+    expect(upsert).not.toHaveBeenCalled();
   });
 
   it("does not mark onboarding complete when primaryGoal is missing", async () => {

@@ -52,7 +52,8 @@ export function compareSets(
   return currentSets.map((set, index) => {
     const setNumber = index + 1;
     const previousSet = previous?.sets.find((s) => s.setNumber === setNumber);
-    if (!previousSet) return null;
+    // Only like with like: a working set is never compared with last session's warm-up (or drop set).
+    if (!previousSet || toSetType(previousSet.setType) !== toSetType(set.setType)) return null;
 
     const currentWeight = set.weight ? parseFloat(set.weight) : null;
     const currentReps = set.reps ? parseInt(set.reps, 10) : null;
@@ -206,7 +207,7 @@ export default function ExerciseLogPanel({
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-medium text-label-3">{positionLabel}</p>
-          <h2 className="truncate text-lg font-semibold">{entry.name}</h2>
+          <h2 className="text-lg font-semibold break-words">{entry.name}</h2>
           <p className="text-sm text-label-2">
             {target ? <>Target {target}</> : "No target set"}
             {remainingPlannedSets && <span className="text-label-3"> · {remainingPlannedSets}</span>}
@@ -321,7 +322,8 @@ export default function ExerciseLogPanel({
                 >
                   {SET_TYPE_BADGE[set.setType] ?? i + 1}
                 </button>
-                <div className="field flex h-10 items-center rounded-lg focus-within:border-accent">
+                {/* The same focus ring as the other fields (.field:focus), drawn around the whole box. */}
+                <div className="field flex h-10 items-center rounded-lg focus-within:border-accent focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--accent)_22%,transparent)]">
                   <input
                     type="number"
                     inputMode="decimal"

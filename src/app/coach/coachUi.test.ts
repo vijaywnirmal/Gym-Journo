@@ -49,7 +49,7 @@ describe("CoachReplyView", () => {
     expect(out).toContain("Coach asks");
     expect(out).toContain("Was Sep 11 a lighter session?");
     expect(out).toContain("Checked against your records");
-    expect(out).toContain("effort isn't tracked");
+    expect(out).toContain("effort ratings (RPE)");
   });
 
   it("omits the questions and sources blocks when there are none", () => {

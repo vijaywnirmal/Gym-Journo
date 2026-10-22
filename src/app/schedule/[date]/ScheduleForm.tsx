@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { MuscleGroup, WorkoutPlan, WorkoutTemplate } from "@/lib/types";
 import SegmentedControl from "@/components/ui/SegmentedControl";
@@ -34,6 +34,25 @@ export default function ScheduleForm({ date, muscleGroups, existingPlan, templat
   );
   const [templateId, setTemplateId] = useState("");
   const [saved, setSaved] = useState(false);
+  const [removed, setRemoved] = useState(false);
+  // What was last saved (or loaded), to tell whether there are unsaved changes.
+  const formKey = JSON.stringify([
+    title.trim(),
+    dayType,
+    [...selectedMuscles].sort(),
+    [...selectedExercises.entries()],
+  ]);
+  const [savedKey, setSavedKey] = useState(formKey);
+  const dirty = formKey !== savedKey;
+
+  // Closing or reloading the tab with unsaved changes asks first. (In-app links aren't covered:
+  // the router has no hook for blocking a navigation.)
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,6 +76,7 @@ export default function ScheduleForm({ date, muscleGroups, existingPlan, templat
 
   function handleSubmit() {
     setSaved(false);
+    setRemoved(false);
     setError(null);
     startTransition(async () => {
       const result = await savePlan({
@@ -74,6 +94,7 @@ export default function ScheduleForm({ date, muscleGroups, existingPlan, templat
       });
       if (result.success) {
         setSaved(true);
+        setSavedKey(formKey);
         router.refresh();
         return;
       }
@@ -150,6 +171,11 @@ export default function ScheduleForm({ date, muscleGroups, existingPlan, templat
           {error}
         </p>
       )}
+      {removed && (
+        <p role="status" className="text-sm text-label-2">
+          Plan removed. This day is unplanned now.
+        </p>
+      )}
 
       <div className="flex items-center gap-3">
         <button
@@ -184,8 +210,21 @@ export default function ScheduleForm({ date, muscleGroups, existingPlan, templat
               disabled={pending}
               onClick={() =>
                 startTransition(async () => {
-                  await deletePlan(existingPlan.id, date);
+                  const result = await deletePlan(existingPlan.id, date);
                   setConfirmingDelete(false);
+                  if (result.error) {
+                    setError(result.error);
+                    return;
+                  }
+                  // The form was filled from the plan; clear it so it doesn't still show the removed plan.
+                  setTitle("");
+                  setDayType("workout");
+                  setSelectedMuscles(new Set());
+                  setSelectedExercises(new Map());
+                  setTemplateId("");
+                  setSaved(false);
+                  setRemoved(true);
+                  setSavedKey(JSON.stringify(["", "workout", [], []]));
                   router.refresh();
                 })
               }
@@ -204,7 +243,7 @@ export default function ScheduleForm({ date, muscleGroups, existingPlan, templat
           </button>
         ))}
 
-      {isWorkout && <TemplateManager templates={templates} />}
+      {isWorkout && <TemplateManager templates={templates} currentPlan={{ name: title, exercises: selectedExercises }} />}
     </div>
   );
 }

@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   // Each page sets its own title, so screen readers announce where a navigation landed.
   title: { default: "Gym Journal", template: "%s · Gym Journal" },
   description: "Plan your workouts and log what you actually do.",
-  appleWebApp: { capable: true, title: "Gym Journo", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "Gym Journal", statusBarStyle: "default" },
   icons: { apple: "/icons/apple-touch-icon.png" },
 };
 
@@ -33,11 +33,20 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full bg-background text-label">
+        {/* First stop for keyboard users, past the navigation. */}
+        <a
+          href="#content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-lg focus:bg-surface focus:px-3 focus:py-2 focus:text-sm focus:font-semibold focus:shadow-popover"
+        >
+          Skip to content
+        </a>
         <OfflineBanner />
         <AppNav />
         {/* Phones: content above the bottom bar. Wider screens: content beside the sidebar. */}
         <div className="pt-[env(safe-area-inset-top)] pb-24 md:pb-10 md:pl-60">
-          <div className="mx-auto w-full max-w-2xl">{children}</div>
+          <div id="content" tabIndex={-1} className="mx-auto w-full max-w-2xl outline-none">
+            {children}
+          </div>
         </div>
         {signedIn && <TimezoneSync stored={timeZone} />}
         <ServiceWorkerRegister />

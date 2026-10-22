@@ -41,9 +41,18 @@ describe("createExercise", () => {
     );
   });
 
+  it("collapses runs of spaces and requires a muscle group", async () => {
+    single.mockResolvedValue({ data: { id: "new-1" }, error: null });
+    expect(await createExercise({ name: "Cable   Fly", equipment: "", muscleGroupIds: [] })).toEqual({
+      error: "Choose at least one muscle group.",
+    });
+    expect(await createExercise({ name: "  Cable   Fly ", equipment: "", muscleGroupIds: ["mg-1"] })).toEqual({ success: true });
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({ name: "Cable Fly" }));
+  });
+
   it("creates a valid custom exercise", async () => {
     single.mockResolvedValue({ data: { id: "new-1" }, error: null });
-    const result = await createExercise({ name: "Incline Bench Press", equipment: "Barbell", muscleGroupIds: [] });
+    const result = await createExercise({ name: "Incline Bench Press", equipment: "Barbell", muscleGroupIds: ["mg-1"] });
     expect(result).toEqual({ success: true });
     expect(insert).toHaveBeenCalledWith(
       expect.objectContaining({ name: "Incline Bench Press", user_id: "user-1" })
@@ -51,44 +60,44 @@ describe("createExercise", () => {
   });
 
   it("rejects an invalid (empty) name", async () => {
-    const result = await createExercise({ name: "   ", equipment: "", muscleGroupIds: [] });
+    const result = await createExercise({ name: "   ", equipment: "", muscleGroupIds: ["mg-1"] });
     expect(result.error).toBeTruthy();
     expect(insert).not.toHaveBeenCalled();
   });
 
   it("rejects an exact case-insensitive duplicate", async () => {
-    const result = await createExercise({ name: "bench press", equipment: "", muscleGroupIds: [] });
+    const result = await createExercise({ name: "bench press", equipment: "", muscleGroupIds: ["mg-1"] });
     expect(result.error).toBe("An exercise with this name already exists.");
     expect(insert).not.toHaveBeenCalled();
   });
 
   it("rejects a duplicate with surrounding whitespace", async () => {
-    const result = await createExercise({ name: "  Reverse Lunge  ", equipment: "", muscleGroupIds: [] });
+    const result = await createExercise({ name: "  Reverse Lunge  ", equipment: "", muscleGroupIds: ["mg-1"] });
     expect(result.error).toBe("An exercise with this name already exists.");
   });
 
   it("looks up the trimmed name", async () => {
     single.mockResolvedValue({ data: { id: "new-3" }, error: null });
-    await createExercise({ name: "  Zercher Squat ", equipment: "", muscleGroupIds: [] });
+    await createExercise({ name: "  Zercher Squat ", equipment: "", muscleGroupIds: ["mg-1"] });
     expect(visibleExerciseNamed).toHaveBeenCalledWith("Zercher Squat");
   });
 
   it("fails closed when the duplicate check can't run", async () => {
     visibleExerciseNamed.mockResolvedValue(null);
-    const result = await createExercise({ name: "Zercher Squat", equipment: "", muscleGroupIds: [] });
+    const result = await createExercise({ name: "Zercher Squat", equipment: "", muscleGroupIds: ["mg-1"] });
     expect(result.error).toBe("Something went wrong creating this exercise. Please try again.");
     expect(insert).not.toHaveBeenCalled();
   });
 
   it("accepts a similar but distinct name", async () => {
     single.mockResolvedValue({ data: { id: "new-2" }, error: null });
-    const result = await createExercise({ name: "Dumbbell Bench Press", equipment: "", muscleGroupIds: [] });
+    const result = await createExercise({ name: "Dumbbell Bench Press", equipment: "", muscleGroupIds: ["mg-1"] });
     expect(result).toEqual({ success: true });
   });
 
   it("returns a safe generic error on an unexpected DB failure", async () => {
     single.mockResolvedValue({ data: null, error: { message: "connection reset", code: "08000" } });
-    const result = await createExercise({ name: "New Exercise", equipment: "", muscleGroupIds: [] });
+    const result = await createExercise({ name: "New Exercise", equipment: "", muscleGroupIds: ["mg-1"] });
     expect(result.error).toBe("Something went wrong creating this exercise. Please try again.");
     expect(result.error).not.toContain("connection reset");
   });
@@ -112,7 +121,7 @@ describe("deleteExercise", () => {
     });
     const result = await deleteExercise("custom-1");
     expect(result.error).toBe(
-      "This exercise is used in a workout plan, workout log, or template and can't be deleted."
+      "This exercise is in a workout plan, log or template. Remove it from those first, then delete it."
     );
   });
 
@@ -143,14 +152,14 @@ describe("createExercise — instructions (M6)", () => {
 
   it("saves trimmed instructions, or null when blank", async () => {
     single.mockResolvedValue({ data: { id: "new-2" }, error: null });
-    await createExercise({ name: "Zercher Squat", equipment: "Barbell", instructions: "  Bar in the elbows.  ", muscleGroupIds: [] });
-    expect(insert).toHaveBeenLastCalledWith(expect.objectContaining({ instructions: "Bar in the elbows." }));
-    await createExercise({ name: "Jefferson Curl", equipment: "", instructions: "   ", muscleGroupIds: [] });
-    expect(insert).toHaveBeenLastCalledWith(expect.objectContaining({ instructions: null }));
+    await createExercise({ name: "Zercher Squat", equipment: "Barbell", instructions: "  Bar in the elbows.  ", muscleGroupIds: ["mg-1"] });
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({ instructions: "Bar in the elbows." }));
+    await createExercise({ name: "Jefferson Curl", equipment: "", instructions: "   ", muscleGroupIds: ["mg-1"] });
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({ name: "Jefferson Curl", instructions: null }));
   });
 
   it("rejects instructions over 1000 characters", async () => {
-    const result = await createExercise({ name: "Long One", equipment: "", instructions: "x".repeat(1001), muscleGroupIds: [] });
+    const result = await createExercise({ name: "Long One", equipment: "", instructions: "x".repeat(1001), muscleGroupIds: ["mg-1"] });
     expect(result.error).toBeTruthy();
     expect(insert).not.toHaveBeenCalled();
   });

@@ -11,7 +11,14 @@ import { toExerciseTargets } from "./exerciseTargets";
 
 // Lightweight template management (create/rename+re-select exercises/delete), folded into the
 // scheduling flow rather than a new page or nav item. Deleting asks once more.
-export default function TemplateManager({ templates }: { templates: WorkoutTemplate[] }) {
+export default function TemplateManager({
+  templates,
+  currentPlan,
+}: {
+  templates: WorkoutTemplate[];
+  // The plan being edited on this page, offered as a starting point for a new template.
+  currentPlan?: { name: string; exercises: ExerciseTargets };
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [editingId, setEditingId] = useState<string | "new" | null>(null);
@@ -20,10 +27,10 @@ export default function TemplateManager({ templates }: { templates: WorkoutTempl
   const [error, setError] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
-  function startCreate() {
+  function startCreate(from?: { name: string; exercises: ExerciseTargets }) {
     setEditingId("new");
-    setName("");
-    setSelected(new Map());
+    setName(from?.name.trim() ?? "");
+    setSelected(new Map(from?.exercises ?? []));
     setError(null);
   }
 
@@ -142,14 +149,25 @@ export default function TemplateManager({ templates }: { templates: WorkoutTempl
       )}
 
       {editingId === null && (
-        <button
-          type="button"
-          onClick={startCreate}
-          className="flex h-9 items-center gap-1 self-start rounded-lg px-2.5 text-sm font-semibold text-link hover:bg-fill"
-        >
-          <Icon name="plus" className="size-4" strokeWidth={2.5} />
-          New template
-        </button>
+        <div className="flex flex-wrap gap-1">
+          <button
+            type="button"
+            onClick={() => startCreate()}
+            className="flex h-9 items-center gap-1 rounded-lg px-2.5 text-sm font-semibold text-link hover:bg-fill"
+          >
+            <Icon name="plus" className="size-4" strokeWidth={2.5} />
+            New template
+          </button>
+          {currentPlan && currentPlan.exercises.size > 0 && (
+            <button
+              type="button"
+              onClick={() => startCreate(currentPlan)}
+              className="flex h-9 items-center rounded-lg px-2.5 text-sm font-semibold text-link hover:bg-fill"
+            >
+              Save this plan as a template
+            </button>
+          )}
+        </div>
       )}
 
       {editingId !== null && (

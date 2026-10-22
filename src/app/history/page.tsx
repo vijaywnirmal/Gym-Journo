@@ -151,7 +151,7 @@ export default async function HistoryPage({
                   <ul className="mt-3 flex flex-col gap-1.5 border-t border-separator pt-3 text-sm">
                     {log.logged_exercises.map((le) => (
                       <li key={le.id} className="flex gap-3">
-                        <span className="min-w-0 flex-1 truncate font-medium">{le.exercise?.name}</span>
+                        <span className="min-w-0 flex-1 font-medium break-words">{le.exercise?.name}</span>
                         <span className="shrink-0 text-right text-xs leading-5 tabular-nums text-label-2">
                           {le.logged_sets?.filter(isPerformedSet).map(formatSetCompact).join(", ") || "Not done"}
                         </span>

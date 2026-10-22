@@ -22,6 +22,8 @@ export default function DeleteExerciseButton({
     startTransition(async () => {
       const result = await deleteExercise(exerciseId);
       if (result.error) {
+        // Back to the plain "Delete exercise" button: the confirm row would just fail again.
+        setConfirming(false);
         setError(result.error);
         return;
       }
@@ -60,7 +62,11 @@ export default function DeleteExerciseButton({
           Delete exercise
         </button>
       )}
-      {error && <p className="mt-1 text-xs text-red">{error}</p>}
+      {error && (
+        <p role="alert" className="mt-1 text-xs text-red">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

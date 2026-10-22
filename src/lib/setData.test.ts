@@ -63,7 +63,7 @@ describe("formatSetDetail / formatSetCompact", () => {
   });
 
   it("formats compact lines with badge and RPE", () => {
-    expect(formatSetCompact({ reps: 10, weight: 40, weight_unit: "kg", set_type: "warmup", rpe: 8 })).toBe("W 10×40kg @8");
-    expect(formatSetCompact({ reps: 5, weight: 100, weight_unit: "kg" })).toBe("5×100kg");
+    expect(formatSetCompact({ reps: 10, weight: 40, weight_unit: "kg", set_type: "warmup", rpe: 8 })).toBe("W 40kg×10 @8");
+    expect(formatSetCompact({ reps: 5, weight: 100, weight_unit: "kg" })).toBe("100kg×5");
   });
 });

@@ -43,7 +43,7 @@ test("a logged set is saved and still there after a reload", async ({ page }) =>
 
   await page.goto("/history");
   await expect(
-    page.getByRole("listitem").filter({ hasText: "Barbell Bench Press" }).filter({ hasText: "5×60kg" }),
+    page.getByRole("listitem").filter({ hasText: "Barbell Bench Press" }).filter({ hasText: "60kg×5" }),
   ).toBeVisible();
 });
 

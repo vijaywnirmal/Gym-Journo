@@ -57,7 +57,7 @@ export function formatSetDetail(setType: unknown, rpe: number | null | undefined
   return parts.join(" · ");
 }
 
-// Compact form for one-line lists: "W 10×40kg @8".
+// Compact form for one-line lists, weight first like everywhere else: "W 40kg×10 @8".
 export function formatSetCompact(set: {
   reps: number | null;
   weight: number | null;
@@ -67,5 +67,5 @@ export function formatSetCompact(set: {
 }): string {
   const badge = SET_TYPE_BADGE[toSetType(set.set_type)];
   const rpe = set.rpe === null || set.rpe === undefined ? "" : ` @${Number(set.rpe)}`;
-  return `${badge ? `${badge} ` : ""}${set.reps ?? "?"}×${set.weight ?? "?"}${set.weight_unit}${rpe}`;
+  return `${badge ? `${badge} ` : ""}${set.weight ?? "?"}${set.weight_unit}×${set.reps ?? "?"}${rpe}`;
 }

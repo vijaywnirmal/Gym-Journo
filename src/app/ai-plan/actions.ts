@@ -49,13 +49,22 @@ export async function generatePlan(input: GeneratePlanInput) {
     return { error: `You've reached today's limit of ${DAILY_LIMIT} AI plans. Try again tomorrow.` };
   }
 
-  const [{ data: profile }, trainingSummary, scheduleSummary] = await Promise.all([
+  const [{ data: profile }, { data: latestWeight }, trainingSummary, scheduleSummary] = await Promise.all([
     supabase
       .from("profiles")
       .select(
         "date_of_birth, height_cm, weight_kg, gender, primary_goal, target_weight_kg, experience_level, training_days_per_week"
       )
       .eq("id", user.id)
+      .maybeSingle(),
+    // The latest logged body weight is more current than the profile's.
+    supabase
+      .from("body_measurements")
+      .select("weight_kg")
+      .eq("user_id", user.id)
+      .lte("date", todayStr)
+      .order("date", { ascending: false })
+      .limit(1)
       .maybeSingle(),
     getRecentTrainingSummary(14),
     getUpcomingScheduleSummary(7),
@@ -77,7 +86,7 @@ export async function generatePlan(input: GeneratePlanInput) {
   try {
     planMarkdown = await generateWithGemini(
       buildPrompt(
-        profile ?? {
+        (profile && { ...profile, weight_kg: latestWeight?.weight_kg ?? profile.weight_kg }) ?? {
           date_of_birth: null,
           height_cm: null,
           weight_kg: null,

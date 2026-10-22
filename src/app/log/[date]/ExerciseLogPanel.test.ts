@@ -355,4 +355,17 @@ describe("plateText (M3)", () => {
     expect(plateText({ reps: "5", weight: "20", weightUnit: "kg", setType: "working", rpe: "" })).toBeNull();
     expect(plateText({ reps: "5", weight: "21", weightUnit: "kg", setType: "working", rpe: "" })).toBeNull();
   });
+
+  it("doesn't compare a working set with last time's warm-up in the same position", () => {
+    const previous: PreviousPerformance = {
+      date: "2026-09-10",
+      sets: [
+        { setNumber: 1, weight: 40, reps: 10, weightUnit: "kg", setType: "warmup" },
+        { setNumber: 2, weight: 80, reps: 5, weightUnit: "kg", setType: "working" },
+      ],
+    };
+    const [first, second] = compareSets([{ ...set("80", "5"), setType: "working" }, { ...set("80", "5"), setType: "working" }], previous);
+    expect(first).toBeNull();
+    expect(formatSetComparison(second)).toBe("same weight as last time · same reps as last time");
+  });
 });

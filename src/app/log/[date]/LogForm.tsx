@@ -198,7 +198,13 @@ export default function LogForm({
   );
   const storedBackup = useMemo(() => parseLogBackup(rawBackup), [rawBackup]);
   const [backupHandled, setBackupHandled] = useState(false);
-  const pendingBackup = backupHandled ? null : storedBackup;
+  // A backup the server already has (say a save sent as the page closed, which finished after it
+  // unloaded) is nothing to restore, so it isn't offered.
+  const backupMatchesServer =
+    !!storedBackup &&
+    logContentKey(storedBackup) ===
+      logContentKey({ entries: initialEntries, notes: existingLog?.notes ?? "", workoutCompleted: !!existingLog?.completed_at });
+  const pendingBackup = backupHandled || backupMatchesServer ? null : storedBackup;
   const [personalRecords, setPersonalRecords] = useState<Record<string, PersonalRecord[]>>({});
   // Only the newest lookup may update the records — an older response arriving late must not
   // overwrite a newer one.
@@ -824,6 +830,29 @@ export default function LogForm({
 
 const noopSubscribe = () => () => {};
 
+// What a log holds, for telling whether a device backup differs from the saved log: notes,
+// finished or not, and each exercise's filled-in sets (blank rows and the per-set "done" ticks
+// aren't saved, so they don't count). Numbers are compared as numbers ("60" and "60.0" match).
+type LogContent = {
+  entries: { exerciseId: string; notes: string; sets: Pick<SetRow, "reps" | "weight" | "weightUnit" | "setType" | "rpe">[] }[];
+  notes: string;
+  workoutCompleted: boolean;
+};
+function logContentKey(state: LogContent): string {
+  const num = (value: string) => (value.trim() === "" ? null : Number(value));
+  return JSON.stringify([
+    state.notes.trim(),
+    state.workoutCompleted,
+    state.entries.map((e) => [
+      e.exerciseId,
+      e.notes.trim(),
+      e.sets
+        .filter((s) => s.reps.trim() || s.weight.trim())
+        .map((s) => [num(s.reps), num(s.weight), s.weightUnit, s.setType, num(s.rpe)]),
+    ]),
+  ]);
+}
+
 function formatBackupTime(savedAt: number): string {
   return new Date(savedAt).toLocaleString(undefined, {
     month: "short",
@@ -847,7 +876,7 @@ function SaveStatus({
 
   if (state === "error") {
     return (
-      <div className="flex items-center justify-between rounded-lg bg-red/12 px-3 py-2">
+      <div role="alert" className="flex items-center justify-between rounded-lg bg-red/12 px-3 py-2">
         <p className="text-sm text-red">{error ?? "Couldn't save — your changes are kept here."}</p>
         <button
           type="button"
@@ -861,7 +890,7 @@ function SaveStatus({
   }
 
   return (
-    <p className="text-xs text-label-2">
+    <p role="status" aria-live="polite" className="text-xs text-label-2">
       {state === "saving"
         ? offline
           ? "Offline — kept on this device, will sync when you're back online"

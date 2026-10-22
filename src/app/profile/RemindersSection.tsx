@@ -8,8 +8,7 @@ import {
   removePushSubscription,
   savePushSubscription,
   sendTestNotification,
-  updateReminderSettings,
-} from "./reminderActions";
+  updateReminderSettings, removeOtherPushSubscriptions } from "./reminderActions";
 
 type Support =
   | "checking"
@@ -151,6 +150,14 @@ export default function RemindersSection({ enabled, time }: { enabled: boolean; 
     });
   }
 
+  function removeOthers() {
+    run(async () => {
+      const result = await removeOtherPushSubscriptions(subscription?.endpoint ?? null);
+      if ("error" in result) throw new Error(result.error);
+      return subscription ? "Other devices removed. Reminders now go to this device only." : "All devices removed.";
+    });
+  }
+
   const thisDeviceOn = enabled && subscription !== null;
   const timeChanged = reminderTime !== time;
 
@@ -211,7 +218,7 @@ export default function RemindersSection({ enabled, time }: { enabled: boolean; 
           {support === "needs-install" && (
             <p className="text-sm text-label-2">
               On iPhone and iPad, reminders work from the installed app: tap Share → Add to Home Screen, then open
-              Gym-Journo from your Home Screen and turn reminders on there.
+              Gym Journo from your Home Screen and turn reminders on there.
             </p>
           )}
           {support === "no-worker" && (
@@ -242,6 +249,14 @@ export default function RemindersSection({ enabled, time }: { enabled: boolean; 
                     className="h-8 rounded-lg px-3 text-sm font-medium text-label-2 hover:bg-fill disabled:opacity-50"
                   >
                     Turn off
+                  </button>
+                  <button
+                    type="button"
+                    onClick={removeOthers}
+                    disabled={pending}
+                    className="h-8 rounded-lg px-3 text-sm font-medium text-label-2 hover:bg-fill disabled:opacity-50"
+                  >
+                    Remove other devices
                   </button>
                 </>
               ) : (

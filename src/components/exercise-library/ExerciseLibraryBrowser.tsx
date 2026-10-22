@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { EQUIPMENT_OPTIONS, searchWords, type Equipment } from "@/lib/exerciseSearch";
+import { EQUIPMENT_OPTIONS, MAX_SEARCH_LENGTH, searchWords, type Equipment } from "@/lib/exerciseSearch";
 import type { ExerciseListItem } from "@/lib/exerciseLibrary";
 import Disclosure from "@/components/ui/Disclosure";
 import Icon from "@/components/Icon";
@@ -43,6 +43,7 @@ export default function ExerciseLibraryBrowser({ renderExercise, version = 0, au
             onChange={(e) => setTerm(e.target.value)}
             placeholder="Search name, muscle or equipment"
             aria-label="Search exercises"
+            maxLength={MAX_SEARCH_LENGTH}
             autoFocus={autoFocus}
             className="h-full w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-label-3"
           />
@@ -62,7 +63,7 @@ export default function ExerciseLibraryBrowser({ renderExercise, version = 0, au
           onChange={(v) => setEquipment(v as Equipment | "")}
           options={[{ value: "", label: "All equipment" }, ...EQUIPMENT_OPTIONS.map((o) => ({ value: o, label: o }))]}
           ariaLabel="Filter by equipment"
-          className="w-36 shrink-0"
+          className="w-28 shrink-0 sm:w-36"
         />
       </div>
 
@@ -97,14 +98,22 @@ function MuscleGroupAccordion({
   renderExercise: Props["renderExercise"];
   version: number;
 }) {
-  const { groups, status } = useExerciseGroups(filters, version);
+  const { groups, status, retry } = useExerciseGroups(filters, version);
   const [openGroupId, setOpenGroupId] = useState<string | null>(null);
   const visible = (groups ?? []).filter((group) => group.exerciseCount > 0);
 
-  if (status === "error") return <p className="px-1 text-sm text-red">Couldn&apos;t load muscle groups.</p>;
+  if (status === "error")
+    return (
+      <p className="px-1 text-sm text-red">
+        Couldn&apos;t load muscle groups.{" "}
+        <button type="button" onClick={retry} className="font-medium text-link">
+          Try again
+        </button>
+      </p>
+    );
   if (!groups)
     return (
-      <div className="flex flex-col gap-2" aria-label="Loading muscle groups">
+      <div className="flex flex-col gap-2" role="status" aria-label="Loading muscle groups">
         {[0, 1, 2, 3].map((i) => (
           <div key={i} className="skeleton h-11" />
         ))}

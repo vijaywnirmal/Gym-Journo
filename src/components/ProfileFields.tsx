@@ -2,7 +2,7 @@
 
 import { useId, useState, type ReactNode } from "react";
 import type { ProfileFieldsValue } from "@/lib/profile-fields";
-import { GENDER_LABELS, GENDERS, MIN_PASSWORD_LENGTH } from "@/lib/validation";
+import { GENDER_LABELS, GENDERS, MIN_PASSWORD_LENGTH, MAX_AGE_YEARS, MIN_AGE_YEARS } from "@/lib/validation";
 import Select, { type SelectOption } from "@/components/ui/Select";
 import DateField from "@/components/ui/DateField";
 import { DATE_FMT } from "@/lib/date";
@@ -129,8 +129,9 @@ export default function ProfileFields({
           <DateField
             value={value.dateOfBirth}
             onChange={(v) => set("dateOfBirth", v)}
-            min="1900-01-01"
-            max={format(subYears(new Date(), 13), DATE_FMT)}
+            min={format(subYears(new Date(), MAX_AGE_YEARS), DATE_FMT)}
+            max={format(subYears(new Date(), MIN_AGE_YEARS), DATE_FMT)}
+            clearable
             placeholder="Select your birthday"
             ariaLabel="Date of birth"
           />

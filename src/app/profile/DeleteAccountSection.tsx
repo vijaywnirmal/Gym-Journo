@@ -15,7 +15,7 @@ export default function DeleteAccountSection() {
   function handleDelete() {
     setError(null);
     startTransition(async () => {
-      const result = await deleteAccount();
+      const result = await deleteAccount(confirmText.trim());
       if (result.error) {
         setError(result.error);
         return;
@@ -30,7 +30,10 @@ export default function DeleteAccountSection() {
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-red">Delete account</p>
-          <p className="text-sm text-label-2">Removes all your workouts, plans and Coach history.</p>
+          <p className="text-sm text-label-2">
+            Removes your account and everything in it: workouts, plans, templates, custom exercises, body weight,
+            AI plans, Coach history and reminders.
+          </p>
         </div>
         {!confirming && (
           <button
