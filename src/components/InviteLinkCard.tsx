@@ -4,10 +4,24 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import { whatsappShareUrl } from "@/lib/trainerInvites";
-import { createInviteLink } from "./actions";
 
-// expiresOn is formatted on the server, in the trainer's time zone, so it renders the same in the browser.
-export default function InviteLinkCard({ invite }: { invite: { url: string; expiresOn: string } | null }) {
+// A join link to share, with a way to replace it. expiresOn is formatted on the server, in the
+// person's time zone, so it renders the same in the browser; null is a link that doesn't expire.
+export default function InviteLinkCard({
+  invite,
+  makeLink: createLink,
+  shareText,
+  replaceWarning = "Your current link will stop working.",
+  children,
+}: {
+  invite: { url: string; expiresOn: string | null } | null;
+  makeLink: () => Promise<{ error?: string }>;
+  // The WhatsApp message, before the link.
+  shareText: string;
+  replaceWarning?: string;
+  // Extra actions shown under the share buttons.
+  children?: React.ReactNode;
+}) {
   const url = invite?.url ?? null;
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -18,7 +32,7 @@ export default function InviteLinkCard({ invite }: { invite: { url: string; expi
   function makeLink() {
     setError(null);
     startTransition(async () => {
-      const result = await createInviteLink();
+      const result = await createLink();
       if (result.error) {
         setError(result.error);
         return;
@@ -61,10 +75,10 @@ export default function InviteLinkCard({ invite }: { invite: { url: string; expi
       <p className="select-all break-all rounded-[10px] bg-fill px-3 py-2.5 font-mono text-sm">
         {url.replace(/^https?:\/\/(www\.)?/, "")}
       </p>
-      <p className="text-xs text-label-2">Works until {invite.expiresOn}.</p>
+      {invite.expiresOn && <p className="text-xs text-label-2">Works until {invite.expiresOn}.</p>}
       <div className="flex flex-wrap gap-2">
         <a
-          href={whatsappShareUrl(`Join me on Gym Journal: ${url}`)}
+          href={whatsappShareUrl(`${shareText} ${url}`)}
           target="_blank"
           rel="noopener noreferrer"
           className="flex h-10 items-center gap-1.5 rounded-[10px] bg-accent px-4 text-sm font-semibold text-on-accent hover:bg-accent-hover"
@@ -79,11 +93,12 @@ export default function InviteLinkCard({ invite }: { invite: { url: string; expi
         >
           {copied ? "Copied" : "Copy link"}
         </button>
+        {children}
       </div>
 
       {confirmingNew ? (
         <div className="flex flex-wrap items-center gap-2 border-t border-separator pt-3">
-          <p className="flex-1 text-sm text-label-2">Your current link will stop working.</p>
+          <p className="flex-1 text-sm text-label-2">{replaceWarning}</p>
           <button
             type="button"
             onClick={() => setConfirmingNew(false)}

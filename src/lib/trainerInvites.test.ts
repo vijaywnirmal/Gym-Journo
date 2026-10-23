@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  gymInviteUrl,
+  gymJoinCodeOf,
   inviteUrl,
   joinCodeOf,
   normalizeWhatsapp,
@@ -56,6 +58,19 @@ describe("pendingRedirect", () => {
     expect(pendingRedirect({ pathname: "/", joinCookie: undefined, signupCookie: "trainer" })).toBe("/trainer/setup");
     expect(pendingRedirect({ pathname: "/calendar", joinCookie: "abcde23456", signupCookie: undefined })).toBeNull();
     expect(pendingRedirect({ pathname: "/", joinCookie: undefined, signupCookie: undefined })).toBeNull();
+  });
+
+  it("handles gym links and gym sign-up the same way", () => {
+    expect(pendingRedirect({ pathname: "/", joinCookie: undefined, gymJoinCookie: "abcde23456", signupCookie: "gym" })).toBe(
+      "/g/abcde23456"
+    );
+    expect(pendingRedirect({ pathname: "/", joinCookie: undefined, signupCookie: "gym" })).toBe("/gym/setup");
+    expect(pendingRedirect({ pathname: "/", joinCookie: undefined, signupCookie: "owner" })).toBeNull();
+    expect(gymJoinCodeOf("/g/ABCDE23456")).toBe("abcde23456");
+    expect(gymJoinCodeOf("/gym/abcde23456")).toBeNull();
+    expect(gymInviteUrl("https://www.gymjourno.fit", "abcde23456")).toBe("https://www.gymjourno.fit/g/abcde23456");
+    expect(gymInviteUrl("https://www.gymjourno.fit/", "abcde23456", "trainer")).toBe("https://www.gymjourno.fit/g/abcde23456?role=trainer");
+    expect(gymInviteUrl("https://www.gymjourno.fit", "abcde23456", "member")).toBe("https://www.gymjourno.fit/g/abcde23456");
   });
 
   it("never redirects to a malformed code", () => {

@@ -16,6 +16,7 @@ import { getUserTimeZone } from "@/lib/userDate";
 import { namePartsOf } from "@/lib/names";
 import { planAuthorLabel } from "@/lib/planAuthors";
 import { getKnownTrainer } from "@/lib/trainers";
+import { getMyGymTrainerOffer } from "@/lib/gyms";
 import {
   formatGoalSummary,
   formatPlannedExercise,
@@ -49,7 +50,7 @@ function ShortcutCard({ href, icon, title, text }: { href: string; icon: IconNam
 export default async function TodayPage() {
   const { timeZone } = await getUserTimeZone();
   const date = todayIn(timeZone);
-  const [profile, plan, log, trainingConsistency, weeklyInsights, suggestions, lastWorkout, trainer] = await Promise.all([
+  const [profile, plan, log, trainingConsistency, weeklyInsights, suggestions, lastWorkout, trainer, gymOffer] = await Promise.all([
     getProfile(),
     getPlanForDate(date),
     getLogForDate(date),
@@ -58,6 +59,7 @@ export default async function TodayPage() {
     getAdaptSuggestions(),
     getLastPerformedWorkoutDate(),
     getKnownTrainer(),
+    getMyGymTrainerOffer(),
   ]);
   const planAuthor = plan && profile ? planAuthorLabel(plan, profile.id, trainer) : null;
 
@@ -85,6 +87,18 @@ export default async function TodayPage() {
   return (
     <main className="px-4 pt-6 md:px-8 md:pt-10">
       <PageHeader title={greeting} subtitle={formatDateLong(date)} />
+
+      {gymOffer && (
+        <Link href="/profile#gym-offer" className="card mb-4 flex items-center gap-3 border-accent/30 px-4 py-3 hover:bg-fill">
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold">
+              {gymOffer.gym_name} suggests {gymOffer.trainer_name} as your trainer
+            </span>
+            <span className="block text-sm text-label-2">Accept or decline in Profile</span>
+          </span>
+          <Icon name="chevronRight" className="size-4 shrink-0 text-label-3" strokeWidth={2} />
+        </Link>
+      )}
 
       {gapDays !== null && lastWorkout.date && (
         <section className="card mb-4 border-teal/30 bg-teal/5 p-5" role="status">

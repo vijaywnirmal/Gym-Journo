@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useTransition, useEffect, useRef } from "react";
+import { Suspense, useState, useTransition, useEffect, useRef, useSyncExternalStore } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Icon from "@/components/Icon";
@@ -14,15 +14,25 @@ export default function LoginPage() {
   );
 }
 
+const noSubscribe = () => () => {};
+
 function LoginForm() {
   const router = useRouter();
+  // False in the server HTML, true once hydrated. Until then a tap on the submit button would do a
+  // plain form submit that reloads the page and clears what was typed, so it stays disabled.
+  const hydrated = useSyncExternalStore(noSubscribe, () => true, () => false);
   const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
-  // "I'm a trainer" and invite links mostly bring people who don't have an account yet.
-  const asTrainer = searchParams.get("role") === "trainer";
-  const fromInvite = searchParams.get("invite") === "1";
+  // "I'm a trainer", a gym's sign-up link and invite links mostly bring people who don't have an
+  // account yet. invite is "1" for a trainer's invite and "gym" for a gym's.
+  const role = searchParams.get("role");
+  const asTrainer = role === "trainer";
+  const asGym = role === "gym";
+  const invite = searchParams.get("invite");
+  const fromInvite = invite === "1" || invite === "gym";
+  const inviter = invite === "gym" ? "your gym" : "your trainer";
   const [mode, setMode] = useState<"password" | "magic-link" | "register">(
-    asTrainer || fromInvite ? "register" : "password"
+    asTrainer || asGym || fromInvite ? "register" : "password"
   );
   // Switching between password, magic link and sign-up keeps focus in the form (the button that
   // was clicked disappears), on the email field.
@@ -116,15 +126,22 @@ function LoginForm() {
     });
   }
 
-  const title = mode === "register" ? (asTrainer ? "Create your trainer account" : "Create your account") : "Gym Journal";
+  const title =
+    mode === "register"
+      ? asTrainer
+        ? "Create your trainer account"
+        : asGym
+          ? "Create your gym account"
+          : "Create your account"
+      : "Gym Journal";
   const subtitle =
     mode === "password"
       ? fromInvite
-        ? "Sign in to join your trainer."
+        ? `Sign in to join ${inviter}.`
         : "Sign in with your email and password."
       : mode === "register"
         ? fromInvite
-          ? "Create an account to join your trainer."
+          ? `Create an account to join ${inviter}.`
           : "Sign up with your email and a password."
         : "Sign in with your email — we'll send you a magic link, no password needed.";
 
@@ -213,7 +230,7 @@ function LoginForm() {
 
           <button
             type="submit"
-            disabled={pending}
+            disabled={pending || !hydrated}
             className="h-11 rounded-[10px] bg-accent px-4 text-[15px] font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-50"
           >
             {pending
@@ -264,7 +281,7 @@ function LoginForm() {
                 Create a new account
               </button>
             )}
-            {!asTrainer && !fromInvite && (
+            {!asTrainer && !asGym && !fromInvite && (
               // A full page load, so the proxy remembers the choice through sign-up.
               <a href="/login?role=trainer" className="text-center text-sm text-link">
                 I&apos;m a trainer

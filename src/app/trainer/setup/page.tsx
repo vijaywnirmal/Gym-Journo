@@ -8,8 +8,8 @@ import TrainerSetupForm from "./TrainerSetupForm";
 
 export const metadata: Metadata = { title: "Trainer account" };
 
-export default async function TrainerSetupPage() {
-  const [trainer, profile] = await Promise.all([getMyTrainerProfile(), getProfile()]);
+export default async function TrainerSetupPage({ searchParams }: PageProps<"/trainer/setup">) {
+  const [trainer, profile, { next }] = await Promise.all([getMyTrainerProfile(), getProfile(), searchParams]);
   const onboarded = profile?.onboarded === true;
   const { firstName, lastName } = namePartsOf(profile);
 
@@ -30,6 +30,7 @@ export default async function TrainerSetupPage() {
           }}
           askAge={!onboarded}
           editing={trainer !== null}
+          next={typeof next === "string" ? next : undefined}
         />
         {!onboarded && (
           <p className="pb-8 text-center text-sm">

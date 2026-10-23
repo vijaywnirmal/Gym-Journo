@@ -155,6 +155,8 @@ export type MyTrainer = {
   linkId: string;
   trainerId: string;
   startedAt: string;
+  // The gym that arranged this trainer (0037), or null for one the person found themselves.
+  gymId: string | null;
   trainer: Pick<TrainerProfile, "display_name" | "gym_name" | "city" | "whatsapp">;
 };
 
@@ -225,4 +227,46 @@ export type ClientLog = {
       notes: string | null;
     }[];
   }[];
+};
+
+// Gyms (migration 0037).
+export type Gym = {
+  id: string;
+  owner_id: string;
+  name: string;
+  city: string | null;
+  area: string | null;
+  phone: string | null;
+  created_at: string;
+};
+
+export type GymRole = "admin" | "trainer" | "member";
+
+// One row of a gym's members list (gym_member_overview): counts and dates only. offered_* is a
+// trainer the gym suggested that the member hasn't answered yet.
+export type GymMemberRow = {
+  member_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  joined_at: string;
+  trainer_id: string | null;
+  trainer_name: string | null;
+  offered_trainer_id: string | null;
+  offered_trainer_name: string | null;
+  has_own_trainer: boolean;
+  workouts_this_week: number;
+  days_since_last_workout: number | null;
+};
+
+// A trainer the member's gym suggested (my_gym_trainer_offer). trainer_runs_gym: they're also the
+// gym's owner or an admin.
+export type GymTrainerOffer = { offer_id: string; gym_name: string; trainer_name: string; trainer_runs_gym: boolean };
+
+export type GymTrainerRow = {
+  trainer_id: string;
+  display_name: string;
+  joined_at: string;
+  members_assigned: number;
+  plans_this_week: number;
+  members_inactive_7_days: number;
 };

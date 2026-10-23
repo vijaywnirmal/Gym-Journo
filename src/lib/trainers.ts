@@ -38,14 +38,14 @@ export const getMyTrainer = cache(async (): Promise<MyTrainer | null> => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("trainer_clients")
-    .select("id, trainer_id, started_at, trainer:trainer_profiles(display_name, gym_name, city, whatsapp)")
+    .select("id, trainer_id, started_at, gym_id, trainer:trainer_profiles(display_name, gym_name, city, whatsapp)")
     .eq("client_id", user.id)
     .eq("status", "active")
     .maybeSingle();
   // A one-to-one embed comes back as an object; typed loosely by the client library.
   const trainer = (Array.isArray(data?.trainer) ? data.trainer[0] : data?.trainer) as MyTrainer["trainer"] | undefined;
   if (!data || !trainer) return null;
-  return { linkId: data.id, trainerId: data.trainer_id, startedAt: data.started_at, trainer };
+  return { linkId: data.id, trainerId: data.trainer_id, startedAt: data.started_at, gymId: data.gym_id ?? null, trainer };
 });
 
 // The current trainer as plan labels name them ("Planned by Ravi").

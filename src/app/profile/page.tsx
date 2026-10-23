@@ -3,6 +3,7 @@ import Link from "next/link";
 import Icon from "@/components/Icon";
 import { getProfile } from "@/lib/queries";
 import { getMyTrainer, getMyTrainerProfile } from "@/lib/trainers";
+import { getAdminGym, getMyGymMembership, getMyGymTrainerOffer, getMyTrainerGyms } from "@/lib/gyms";
 import { profileFieldsFromProfile } from "@/lib/profile-fields";
 import { formatDateLong, todayIn } from "@/lib/date";
 import SignOutButton from "@/components/SignOutButton";
@@ -13,15 +14,21 @@ import DeleteAccountSection from "./DeleteAccountSection";
 import CoachConsentSection from "./CoachConsentSection";
 import RemindersSection from "./RemindersSection";
 import YourTrainerSection from "./YourTrainerSection";
+import YourGymSection from "./YourGymSection";
+import GymOfferCard from "./GymOfferCard";
 
 export const metadata: Metadata = { title: "Profile" };
 
 export default async function ProfilePage() {
-  const [profile, supabase, myTrainer, trainerProfile] = await Promise.all([
+  const [profile, supabase, myTrainer, trainerProfile, membership, offer, trainerGyms, adminGym] = await Promise.all([
     getProfile(),
     createClient(),
     getMyTrainer(),
     getMyTrainerProfile(),
+    getMyGymMembership(),
+    getMyGymTrainerOffer(),
+    getMyTrainerGyms(),
+    getAdminGym(),
   ]);
   const {
     data: { user },
@@ -33,12 +40,25 @@ export default async function ProfilePage() {
 
       <ProfileCard initial={profileFieldsFromProfile(profile)} email={user?.email ?? null} />
 
+      {offer && <GymOfferCard offer={offer} currentTrainer={myTrainer?.trainer.display_name ?? null} />}
+
       {myTrainer && (
         <YourTrainerSection
           myTrainer={myTrainer}
           since={formatDateLong(todayIn(profile?.timezone, new Date(myTrainer.startedAt)))}
         />
       )}
+
+      <YourGymSection
+        membership={
+          membership && {
+            gym: membership.gym,
+            since: formatDateLong(todayIn(profile?.timezone, new Date(membership.startedAt))),
+          }
+        }
+        trainerGyms={trainerGyms}
+        gymTrainer={myTrainer && membership && myTrainer.gymId === membership.gym.id ? myTrainer.trainer.display_name : null}
+      />
 
       <h2 className="section-title mt-8">Tracking</h2>
       <Link href="/body" className="card flex items-center gap-3 px-4 py-3 hover:bg-fill">
@@ -83,6 +103,7 @@ export default async function ProfilePage() {
         {!trainerProfile && (
           <LinkRow href="/trainer/setup" title="Set up a trainer account" text="Invite clients and plan their workouts" />
         )}
+        {!adminGym && <LinkRow href="/gym/setup" title="Set up a gym" text="Invite trainers and members" />}
         <div className="flex items-center justify-between gap-3 px-4 py-3">
           <div className="min-w-0">
             <p className="text-sm font-semibold">Sign out</p>

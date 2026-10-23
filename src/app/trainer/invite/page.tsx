@@ -7,7 +7,8 @@ import { todayIn } from "@/lib/date";
 import { getUserTimeZone } from "@/lib/userDate";
 import { getCurrentInvite, getMyTrainerProfile } from "@/lib/trainers";
 import { inviteUrl } from "@/lib/trainerInvites";
-import InviteLinkCard from "./InviteLinkCard";
+import InviteLinkCard from "@/components/InviteLinkCard";
+import { createInviteLink } from "./actions";
 
 export const metadata: Metadata = { title: "Invite a client" };
 
@@ -31,6 +32,8 @@ export default async function TrainerInvitePage() {
               expiresOn: format(parseISO(todayIn(timeZone, new Date(invite.expires_at))), "MMM d"),
             }
           }
+          makeLink={createInviteLink}
+          shareText="Join me on Gym Journal:"
         />
       </div>
     </main>
