@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hourIn, isValidTimeZone, startOfDayIn, todayIn } from "./date";
+import { formatDateTimeIn, hourIn, isValidTimeZone, startOfDayIn, todayIn } from "./date";
 
 // 2026-09-20 20:00 UTC — already 01:30 on Sep 21 in India, still Sep 20 in UTC and in New York.
 const LATE_EVENING_UTC = new Date("2026-09-20T20:00:00Z");
@@ -95,5 +95,15 @@ describe("startOfDayIn", () => {
     expect(start.getHours()).toBe(0);
     expect(start.getDate()).toBe(21);
     expect(startOfDayIn("2026-09-21", "Mars/Olympus_Mons").getTime()).toBe(start.getTime());
+  });
+});
+
+describe("formatDateTimeIn", () => {
+  it("formats an instant in the given time zone, the same on any server", () => {
+    expect(formatDateTimeIn("2026-10-22T20:30:00Z", "Asia/Kolkata")).toBe("Oct 23, 2026 at 2:00 AM");
+    expect(formatDateTimeIn("2026-10-22T20:30:00Z", "America/New_York")).toBe("Oct 22, 2026 at 4:30 PM");
+    expect(formatDateTimeIn("2026-10-23T06:45:00Z", "Asia/Kolkata")).toBe("Oct 23, 2026 at 12:15 PM");
+    // 01:30 in Kolkata on the night London's clocks go forward: no shift, whatever the server's zone.
+    expect(formatDateTimeIn("2026-03-28T20:00:00Z", "Asia/Kolkata")).toBe("Mar 29, 2026 at 1:30 AM");
   });
 });

@@ -17,13 +17,16 @@ type InviteDetails = {
 export default async function JoinPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
   const supabase = await createClient();
-  const [{ data }, current] = await Promise.all([
+  const [{ data, error }, current] = await Promise.all([
     supabase.rpc("trainer_invite_details", { p_code: code }),
     getMyTrainer(),
   ]);
   const details = (data as InviteDetails[] | null)?.[0];
   const name = details?.display_name ?? "your trainer";
 
+  if (error) {
+    return <Message title="Couldn't open this invite" text="Please try again in a moment." />;
+  }
   if (!details || details.state === "not_found" || details.state === "expired") {
     return (
       <Message

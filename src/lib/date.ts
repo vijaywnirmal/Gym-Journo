@@ -104,6 +104,26 @@ export function formatDateTime(isoString: string): string {
   return format(new Date(isoString), "MMM d, yyyy 'at' h:mm a");
 }
 
+// formatDateTime in the person's time zone. For text a server component hands to a client one:
+// formatting in the client component itself renders the server's zone, then the browser's, and the
+// two don't match (a hydration error). Without a valid zone, the server's.
+export function formatDateTimeIn(isoString: string, timeZone: string | null | undefined): string {
+  if (!timeZone || !isValidTimeZone(timeZone)) return formatDateTime(isoString);
+  // Read off the zone's own wall clock, never rebuilt as a Date in the server's zone (which could
+  // fall in that zone's skipped daylight-saving hour).
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).formatToParts(new Date(isoString));
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("month")} ${get("day")}, ${get("year")} at ${get("hour")}:${get("minute")} ${get("dayPeriod").toUpperCase()}`;
+}
+
 export function shiftDate(date: string, days: number): string {
   return format(addDays(parseISO(date), days), DATE_FMT);
 }

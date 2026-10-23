@@ -6,9 +6,9 @@ import { askCoach, type AskCoachResult } from "./actions";
 import CoachReplyView from "./CoachReplyView";
 import type { CoachReply } from "@/lib/coach/contract";
 import type { CoachSource } from "@/lib/coach/presentation";
-import { formatDateTime } from "@/lib/date";
 
 // The person's most recent verified answer, so it is still there after a reload.
+// askedAt is formatted on the server in the person's time zone (see formatDateTimeIn).
 export type LastCoachAnswer = { question: string; askedAt: string; reply: CoachReply; sources: CoachSource[] };
 
 const SUGGESTIONS = [
@@ -95,7 +95,7 @@ export default function CoachChat({ lastAnswer = null }: { lastAnswer?: LastCoac
         {result && answerFor && (
           <p className="mb-2 text-xs text-label-2">
             You asked: &ldquo;{answerFor.question}&rdquo;
-            {answerFor.askedAt ? ` · ${formatDateTime(answerFor.askedAt)}` : ""}
+            {answerFor.askedAt ? ` · ${answerFor.askedAt}` : ""}
           </p>
         )}
         {result?.status === "accepted" ? (
