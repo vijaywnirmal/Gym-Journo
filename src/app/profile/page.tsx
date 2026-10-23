@@ -74,6 +74,9 @@ export default async function ProfilePage() {
 
       <h2 className="section-title mt-8">Privacy</h2>
       <CoachConsentSection consentedAt={profile?.coach_consent_at ?? null} timeZone={profile?.timezone ?? null} />
+      <section className="card mt-3">
+        <LinkRow href="/privacy" title="Privacy policy" text="What's kept, who sees it, and how to delete it" />
+      </section>
 
       <h2 className="section-title mt-8">Account</h2>
       <section className="card divide-y divide-separator">

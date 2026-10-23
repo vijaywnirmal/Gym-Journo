@@ -273,6 +273,9 @@ function LoginForm() {
           </div>
         </form>
       )}
+      <Link href="/privacy" className="mt-8 text-center text-xs text-label-2 hover:text-label">
+        Privacy
+      </Link>
     </main>
   );
 }
