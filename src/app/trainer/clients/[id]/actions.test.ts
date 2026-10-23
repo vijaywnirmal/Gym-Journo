@@ -1,6 +1,14 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+// after() runs its callback once the response is sent; here, when the test says so.
+const afterCallbacks: (() => Promise<void>)[] = [];
+vi.mock("next/server", () => ({ after: (fn: () => Promise<void>) => afterCallbacks.push(fn) }));
+const runAfter = async () => {
+  for (const fn of afterCallbacks.splice(0)) await fn();
+};
+const notifyUser = vi.fn();
+vi.mock("@/lib/push/notifyUser", () => ({ notifyUser: (...args: unknown[]) => notifyUser(...args) }));
 
 const rpc = vi.fn();
 const libraryQuery = {
@@ -19,6 +27,7 @@ const getClientPlans = vi.fn();
 vi.mock("@/lib/trainers", () => ({
   getClient: (id: string) => getClient(id),
   getClientPlans: (...args: unknown[]) => getClientPlans(...args),
+  getMyTrainerProfile: async () => ({ display_name: "Ravi" }),
 }));
 
 const { saveClientPlan, deleteClientPlan, applyClientProgram, undoClientProgram, endCoaching } = await import("./actions");
@@ -54,6 +63,40 @@ describe("saveClientPlan", () => {
     rpc.mockClear();
     expect((await saveClientPlan("c1", { ...planInput, exercises: [{ exerciseId: "ex-1", targetSets: 0, targetReps: 8 }] })).error).toBeTruthy();
     expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("tells the client about plans from their today onwards, after responding", async () => {
+    notifyUser.mockClear();
+    afterCallbacks.length = 0;
+    getClient.mockResolvedValue({ client_today: "2026-10-23" });
+    rpc.mockResolvedValue({ data: { id: "p1" }, error: null });
+
+    await saveClientPlan("c1", planInput);
+    expect(notifyUser).not.toHaveBeenCalled();
+    await runAfter();
+    expect(notifyUser).toHaveBeenCalledWith("c1", {
+      title: "Ravi planned your workout",
+      body: "Today: Legs",
+      url: "/",
+      tag: "trainer-plan-today",
+    });
+
+    notifyUser.mockClear();
+    await saveClientPlan("c1", { ...planInput, date: "2026-10-22" });
+    await runAfter();
+    expect(notifyUser).not.toHaveBeenCalled();
+
+    rpc.mockResolvedValue({ data: null, error: { code: "42501", message: "Not this person's trainer" } });
+    await saveClientPlan("c1", planInput);
+    await runAfter();
+    expect(notifyUser).not.toHaveBeenCalled();
+
+    // The client ended coaching between the save and the notification.
+    rpc.mockResolvedValue({ data: { id: "p1" }, error: null });
+    await saveClientPlan("c1", planInput);
+    getClient.mockResolvedValue(null);
+    await runAfter();
+    expect(notifyUser).not.toHaveBeenCalled();
   });
 
   it("explains the database's refusals", async () => {
@@ -104,6 +147,34 @@ describe("applyClientProgram", () => {
     expect(result).toMatchObject({ success: true, created: 3, skipped: 1, firstDate: "2026-10-26" });
     expect("createdDates" in result && result.createdDates).not.toContain("2026-10-26");
     expect(rpc).toHaveBeenCalledWith("apply_program_for_client", expect.objectContaining({ p_client_id: "c1" }));
+  });
+
+  it("tells the client from the first day it actually added, unless coaching ended or nothing was added", async () => {
+    notifyUser.mockClear();
+    afterCallbacks.length = 0;
+    getClient.mockResolvedValue({ client_today: "2026-10-23" });
+    // Monday the 26th is the client's own plan, so the first new workout is Monday the 2nd.
+    getClientPlans.mockResolvedValue([{ date: "2026-10-26", title: "Mine" }]);
+    rpc.mockResolvedValue({ data: 3, error: null });
+    await applyClientProgram("c1", { programId: "full-body-ab", startDate: "2026-10-26", weekdays: [1], weeks: 4 });
+    await runAfter();
+    expect(notifyUser).toHaveBeenCalledWith("c1", {
+      title: "Ravi added a program to your plan",
+      body: "3 workouts, starting Mon, Nov 2",
+      url: "/calendar?week=2026-11-02",
+      tag: "trainer-plan",
+    });
+
+    notifyUser.mockClear();
+    await applyClientProgram("c1", { programId: "full-body-ab", startDate: "2026-10-26", weekdays: [1], weeks: 4 });
+    getClient.mockResolvedValue(null);
+    await runAfter();
+    expect(notifyUser).not.toHaveBeenCalled();
+
+    getClient.mockResolvedValue({ client_today: "2026-10-23" });
+    rpc.mockResolvedValue({ data: 0, error: null });
+    await applyClientProgram("c1", { programId: "full-body-ab", startDate: "2026-10-26", weekdays: [1], weeks: 4 });
+    expect(afterCallbacks).toHaveLength(0);
   });
 });
 

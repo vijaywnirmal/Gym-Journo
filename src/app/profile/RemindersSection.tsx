@@ -56,7 +56,16 @@ async function detectSupport(): Promise<{ support: Support; subscription: PushSu
 // Opt-in reminders on days with a planned workout: the setting (on/off, local time) is per account,
 // the push subscription is per device. The server sends at most one reminder a day, and none once
 // a set has been logged.
-export default function RemindersSection({ enabled, time }: { enabled: boolean; time: string }) {
+export default function RemindersSection({
+  enabled,
+  time,
+  hasTrainer = false,
+}: {
+  enabled: boolean;
+  time: string;
+  // A client also hears from their trainer here (a plan they made), with the same switch.
+  hasTrainer?: boolean;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [support, setSupport] = useState<Support>("checking");
@@ -185,7 +194,7 @@ export default function RemindersSection({ enabled, time }: { enabled: boolean; 
             </h2>
             <p className="text-sm text-label-2">
               A notification on days you&apos;ve planned a workout. Rest days are skipped, and there&apos;s no reminder
-              once you&apos;ve logged a set.
+              once you&apos;ve logged a set.{hasTrainer && " Your trainer's plans for you come here too."}
             </p>
           </div>
         </div>

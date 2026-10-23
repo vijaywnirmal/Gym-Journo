@@ -49,6 +49,9 @@ export type WorkoutPlan = {
   off_kind?: string | null;
   // The day off was marked after its date had passed (set by the database).
   off_marked_late?: boolean;
+  // Who made and who last changed the plan (migration 0034; null before it). See lib/planAuthors.ts.
+  created_by?: string | null;
+  updated_by?: string | null;
   muscle_groups?: MuscleGroup[];
   planned_exercises?: PlannedExercise[];
 };
@@ -150,6 +153,7 @@ export type TrainerInvite = {
 // The signed-in client's current trainer, as their Profile shows it.
 export type MyTrainer = {
   linkId: string;
+  trainerId: string;
   startedAt: string;
   trainer: Pick<TrainerProfile, "display_name" | "gym_name" | "city" | "whatsapp">;
 };

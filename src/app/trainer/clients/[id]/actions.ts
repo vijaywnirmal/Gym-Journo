@@ -1,13 +1,16 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isValidIsoDate } from "@/lib/date";
 import { isDayType, offKindOf } from "@/lib/dayType";
 import { validatePlannedExercises } from "@/lib/planInput";
 import { findProgram } from "@/lib/programs";
 import { programPlans, type ApplyProgramInput } from "@/lib/programPlans";
-import { getClient, getClientPlans } from "@/lib/trainers";
+import { getClient, getClientPlans, getMyTrainerProfile } from "@/lib/trainers";
+import { notifyUser } from "@/lib/push/notifyUser";
+import { trainerPlanMessage, trainerProgramMessage } from "@/lib/push/trainerMessage";
 import type { SavePlanInput } from "@/app/schedule/[date]/actions";
 import type { ApplyProgramResult } from "@/app/programs/actions";
 
@@ -56,6 +59,22 @@ export async function saveClientPlan(clientId: string, input: SavePlanInput) {
   if (error || !data) return { error: error ? refusal(error, "Couldn't save the plan. Please try again.") : "Couldn't save the plan. Please try again." };
 
   revalidateClient(clientId);
+  // Tell the client, after the response so saving isn't slowed down. Only for today onwards, in
+  // the client's time zone: a change to a past day isn't news.
+  after(async () => {
+    const [trainer, client] = await Promise.all([getMyTrainerProfile(), getClient(clientId)]);
+    if (!trainer || !client || input.date < client.client_today) return;
+    await notifyUser(
+      clientId,
+      trainerPlanMessage({
+        trainerName: trainer.display_name,
+        date: input.date,
+        today: client.client_today,
+        title: input.title,
+        dayType: input.dayType,
+      })
+    );
+  });
   return { success: true };
 }
 
@@ -89,12 +108,29 @@ export async function applyClientProgram(clientId: string, input: ApplyProgramIn
   }
 
   revalidateClient(clientId);
+  const createdDates = dates.filter((date) => !alreadyPlanned.has(date));
+  if (created > 0 && createdDates.length > 0) {
+    after(async () => {
+      // Checked again: the client may have ended coaching since.
+      const [trainer, stillClient] = await Promise.all([getMyTrainerProfile(), getClient(clientId)]);
+      if (!trainer || !stillClient) return;
+      await notifyUser(
+        clientId,
+        trainerProgramMessage({
+          trainerName: trainer.display_name,
+          created,
+          firstDate: createdDates[0],
+          today: stillClient.client_today,
+        })
+      );
+    });
+  }
   return {
     success: true,
     created,
     skipped: plans.length - created,
     firstDate: built.firstDate,
-    createdDates: dates.filter((date) => !alreadyPlanned.has(date)),
+    createdDates,
   };
 }
 

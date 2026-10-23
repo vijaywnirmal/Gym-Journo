@@ -1,5 +1,7 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/currentUser";
+import type { KnownTrainer } from "@/lib/planAuthors";
 import type { ClientLog, ClientOverview, ClientPlan, MyTrainer, TrainerInvite, TrainerProfile } from "@/lib/types";
 
 // The signed-in person's trainer profile, or null when they aren't a trainer.
@@ -28,21 +30,28 @@ export async function getCurrentInvite(): Promise<TrainerInvite | null> {
   return data;
 }
 
-// The signed-in person's current trainer, or null.
-export async function getMyTrainer(): Promise<MyTrainer | null> {
+// The signed-in person's current trainer, or null. Cached per request (Profile, Today and the
+// plan labels all ask).
+export const getMyTrainer = cache(async (): Promise<MyTrainer | null> => {
   const user = await getCurrentUser();
   if (!user) return null;
   const supabase = await createClient();
   const { data } = await supabase
     .from("trainer_clients")
-    .select("id, started_at, trainer:trainer_profiles(display_name, gym_name, city, whatsapp)")
+    .select("id, trainer_id, started_at, trainer:trainer_profiles(display_name, gym_name, city, whatsapp)")
     .eq("client_id", user.id)
     .eq("status", "active")
     .maybeSingle();
   // A one-to-one embed comes back as an object; typed loosely by the client library.
   const trainer = (Array.isArray(data?.trainer) ? data.trainer[0] : data?.trainer) as MyTrainer["trainer"] | undefined;
   if (!data || !trainer) return null;
-  return { linkId: data.id, startedAt: data.started_at, trainer };
+  return { linkId: data.id, trainerId: data.trainer_id, startedAt: data.started_at, trainer };
+});
+
+// The current trainer as plan labels name them ("Planned by Ravi").
+export async function getKnownTrainer(): Promise<KnownTrainer> {
+  const myTrainer = await getMyTrainer();
+  return myTrainer ? { id: myTrainer.trainerId, name: myTrainer.trainer.display_name } : null;
 }
 
 // The trainer's dashboard: one row per current client.
