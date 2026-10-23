@@ -3,8 +3,9 @@ import { deliver, pushConfigFromEnv, webPushTransport, type StoredSubscription }
 import type { PushPayload } from "./reminderMessage";
 
 // Sends a notification to every device someone turned notifications on for, and forgets devices
-// the push service says are gone. For one person to notify another (a trainer's plan reaching their
-// client), so it reads the subscriptions with the service role: call it only after the database has
+// the push service says are gone. Only while their notifications setting is on: turning it off on
+// one device leaves other devices subscribed. For one person to notify another (a trainer's plan
+// reaching their client), so it reads with the service role: call it only after the database has
 // confirmed the right to (e.g. save_client_plan succeeded). Never throws; a failed notification
 // mustn't fail what triggered it.
 export async function notifyUser(userId: string, payload: PushPayload): Promise<void> {
@@ -12,6 +13,8 @@ export async function notifyUser(userId: string, payload: PushPayload): Promise<
   const admin = createAdminClient();
   if (!config || !admin) return;
   try {
+    const { data: profile } = await admin.from("profiles").select("workout_reminders").eq("id", userId).maybeSingle();
+    if (profile?.workout_reminders !== true) return;
     const { data, error } = await admin
       .from("push_subscriptions")
       .select("endpoint, p256dh, auth")

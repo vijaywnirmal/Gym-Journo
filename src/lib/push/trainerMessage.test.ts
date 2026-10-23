@@ -9,9 +9,13 @@ describe("trainerPlanMessage", () => {
       title: "Ravi planned your workout",
       body: "Today: Legs",
       url: "/",
+      tag: "trainer-plan-today",
+    });
+    expect(trainerPlanMessage({ ...base, date: "2026-10-24" })).toMatchObject({
+      body: "Tomorrow: Legs",
+      url: "/schedule/2026-10-24",
       tag: "trainer-plan",
     });
-    expect(trainerPlanMessage({ ...base, date: "2026-10-24" })).toMatchObject({ body: "Tomorrow: Legs", url: "/schedule/2026-10-24" });
     expect(trainerPlanMessage({ ...base, date: "2026-10-27", title: " " })).toMatchObject({ body: "Tue, Oct 27: Workout" });
   });
 

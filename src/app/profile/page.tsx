@@ -69,6 +69,7 @@ export default async function ProfilePage() {
       <RemindersSection
         enabled={profile?.workout_reminders ?? false}
         time={(profile?.reminder_time ?? "18:00").slice(0, 5)}
+        hasTrainer={myTrainer !== null}
       />
 
       <h2 className="section-title mt-8">Privacy</h2>

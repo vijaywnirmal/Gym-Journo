@@ -59,7 +59,7 @@ test("a trainer plans a client's day, the client sees who planned it, and the tr
     await page.goto(`/calendar?week=${DATE}`);
     await expect(page.getByRole("listitem").filter({ hasText: "Legs from Ravi" })).toContainText("Planned by Ravi");
     await page.goto(`/schedule/${DATE}`);
-    await expect(page.getByText("Ravi planned this. Your changes will show on Ravi's screen.")).toBeVisible();
+    await expect(page.getByText("Ravi planned this and can see your changes.")).toBeVisible();
     await page.getByLabel("Name").fill("Legs, lighter");
     await page.getByRole("button", { name: "Save plan" }).click();
     await expect(page.getByRole("status").filter({ hasText: "Saved" })).toBeVisible();

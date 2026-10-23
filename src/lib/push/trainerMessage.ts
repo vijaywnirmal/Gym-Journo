@@ -2,9 +2,11 @@ import { formatDate, shiftDate } from "@/lib/date";
 import type { DayType } from "@/lib/dayType";
 import type { PushPayload } from "./reminderMessage";
 
-// One tag for every plan update from a trainer, so planning a whole week replaces the notification
-// on the client's phone instead of stacking seven.
+// Plan updates from a trainer share a tag, so planning a whole week replaces the notification on the
+// client's phone instead of stacking seven. Today's change has its own, so a later day's doesn't
+// hide it.
 export const TRAINER_PLAN_TAG = "trainer-plan";
+export const TRAINER_TODAY_TAG = "trainer-plan-today";
 
 function dayLabel(date: string, today: string): string {
   if (date === today) return "Today";
@@ -37,7 +39,7 @@ export function trainerPlanMessage({
           : `${trainerName} marked a day off`,
     body: dayType === "workout" ? `${when}: ${name || "Workout"}` : name ? `${when}: ${name}` : when,
     url: date === today ? "/" : `/schedule/${date}`,
-    tag: TRAINER_PLAN_TAG,
+    tag: date === today ? TRAINER_TODAY_TAG : TRAINER_PLAN_TAG,
   };
 }
 

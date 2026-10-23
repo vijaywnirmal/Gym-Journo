@@ -108,13 +108,20 @@ export async function applyClientProgram(clientId: string, input: ApplyProgramIn
   }
 
   revalidateClient(clientId);
-  if (created > 0) {
+  const createdDates = dates.filter((date) => !alreadyPlanned.has(date));
+  if (created > 0 && createdDates.length > 0) {
     after(async () => {
-      const trainer = await getMyTrainerProfile();
-      if (!trainer) return;
+      // Checked again: the client may have ended coaching since.
+      const [trainer, stillClient] = await Promise.all([getMyTrainerProfile(), getClient(clientId)]);
+      if (!trainer || !stillClient) return;
       await notifyUser(
         clientId,
-        trainerProgramMessage({ trainerName: trainer.display_name, created, firstDate: built.firstDate, today: client.client_today })
+        trainerProgramMessage({
+          trainerName: trainer.display_name,
+          created,
+          firstDate: createdDates[0],
+          today: stillClient.client_today,
+        })
       );
     });
   }
@@ -123,7 +130,7 @@ export async function applyClientProgram(clientId: string, input: ApplyProgramIn
     created,
     skipped: plans.length - created,
     firstDate: built.firstDate,
-    createdDates: dates.filter((date) => !alreadyPlanned.has(date)),
+    createdDates,
   };
 }
 

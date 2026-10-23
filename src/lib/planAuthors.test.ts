@@ -17,21 +17,18 @@ describe("planAuthorLabel", () => {
     expect(planAuthorLabel({}, ME, null)).toBeNull();
   });
 
-  it("falls back to 'your trainer' for a trainer whose name isn't known (a past one)", () => {
-    expect(planAuthorLabel({ created_by: "trainer-0", updated_by: "trainer-0" }, ME, RAVI)).toBe("Planned by your trainer");
-    expect(planAuthorLabel({ created_by: "trainer-0", updated_by: "trainer-0" }, ME, null)).toBe("Planned by your trainer");
+  it("credits a past trainer as one, never as the current trainer", () => {
+    expect(planAuthorLabel({ created_by: "trainer-0", updated_by: "trainer-0" }, ME, RAVI)).toBe("Planned by a past trainer");
+    expect(planAuthorLabel({ created_by: "trainer-0", updated_by: ME }, ME, null)).toBe("Planned by a past trainer · edited by you");
   });
 });
 
 describe("planAuthorNote", () => {
-  it("tells the client their changes show on the trainer's screen", () => {
-    expect(planAuthorNote({ created_by: "trainer-1", updated_by: ME }, ME, RAVI)).toBe(
-      "Ravi planned this. Your changes will show on Ravi's screen."
-    );
-    expect(planAuthorNote({ created_by: ME, updated_by: "trainer-1" }, ME, RAVI)).toBe(
-      "Ravi changed this. Your changes will show on Ravi's screen."
-    );
-    expect(planAuthorNote({ created_by: "trainer-0", updated_by: "trainer-0" }, ME, RAVI)).toBe("Your trainer planned this.");
+  it("tells the client their current trainer can see their changes", () => {
+    expect(planAuthorNote({ created_by: "trainer-1", updated_by: ME }, ME, RAVI)).toBe("Ravi planned this and can see your changes.");
+    expect(planAuthorNote({ created_by: ME, updated_by: "trainer-1" }, ME, RAVI)).toBe("Ravi changed this and can see your changes.");
+    expect(planAuthorNote({ created_by: "trainer-0", updated_by: "trainer-0" }, ME, RAVI)).toBe("A past trainer planned this.");
+    expect(planAuthorNote({ created_by: "trainer-0", updated_by: "trainer-0" }, ME, null)).toBe("A past trainer planned this.");
     expect(planAuthorNote({ created_by: ME, updated_by: ME }, ME, RAVI)).toBeNull();
     expect(planAuthorNote({ created_by: null, updated_by: null }, ME, null)).toBeNull();
   });
