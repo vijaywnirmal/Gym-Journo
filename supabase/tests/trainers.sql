@@ -8,6 +8,9 @@
 
 begin;
 
+-- A check that a step fails raises with its own code (P0099) when the step doesn't, so the
+-- "expected error" handlers around it can never mistake that for the error they expect.
+
 -- T and T2 are trainers; C is T's client-to-be, C2 is T2's; X is anyone else; N hasn't finished
 -- onboarding.
 insert into auth.users (id, email) values
@@ -149,7 +152,7 @@ begin
   end if;
   begin
     perform accept_trainer_invite(v_second);
-    raise exception 'T must not accept their own invite';
+    raise exception 'T must not accept their own invite' using errcode = 'P0099';
   exception when raise_exception then
     if sqlerrm not like '%own invite%' then raise; end if;
   end;
@@ -161,7 +164,7 @@ do $$
 begin
   begin
     perform accept_trainer_invite(current_setting('test.code'));
-    raise exception 'N must finish onboarding before accepting';
+    raise exception 'N must finish onboarding before accepting' using errcode = 'P0099';
   exception when raise_exception then
     if sqlerrm not like '%Finish setting up%' then raise; end if;
   end;
@@ -186,7 +189,7 @@ begin
   end if;
   begin
     perform accept_trainer_invite(current_setting('test.old_code'));
-    raise exception 'C must not accept a replaced link';
+    raise exception 'C must not accept a replaced link' using errcode = 'P0099';
   exception when raise_exception then
     if sqlerrm not like '%expired%' then raise; end if;
   end;
@@ -292,7 +295,7 @@ begin
   begin
     perform save_client_plan('00000000-0000-0000-0000-00000000c001', v_today + 2, 'Press', null, '{}',
       '[{"exercise_id":"00000000-0000-0000-0000-0000000000d3","position":0}]');
-    raise exception 'T must not put T''s own custom exercise in C''s plan';
+    raise exception 'T must not put T''s own custom exercise in C''s plan' using errcode = 'P0099';
   exception when raise_exception then
     if sqlerrm not like '%Unknown exercise%' then raise; end if;
   end;
@@ -327,7 +330,7 @@ begin
   end if;
   begin
     perform client_logs('00000000-0000-0000-0000-00000000c001', v_today - 365, v_today);
-    raise exception 'a range over 120 days should be refused';
+    raise exception 'a range over 120 days should be refused' using errcode = 'P0099';
   exception when raise_exception then
     if sqlerrm not like '%120 days%' then raise; end if;
   end;
@@ -456,7 +459,7 @@ begin
   end if;
   begin
     perform accept_trainer_invite(current_setting('test.t2_code'));
-    raise exception 'X must not accept an expired link';
+    raise exception 'X must not accept an expired link' using errcode = 'P0099';
   exception when raise_exception then
     if sqlerrm not like '%expired%' then raise; end if;
   end;

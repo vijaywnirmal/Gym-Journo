@@ -2,7 +2,10 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 const deleteCookie = vi.fn();
-vi.mock("next/headers", () => ({ cookies: async () => ({ delete: deleteCookie }) }));
+let gymJoinCookie: string | undefined;
+vi.mock("next/headers", () => ({
+  cookies: async () => ({ delete: deleteCookie, get: (name: string) => (name === "gj-gym-join" && gymJoinCookie ? { value: gymJoinCookie } : undefined) }),
+}));
 
 const getUser = vi.fn().mockResolvedValue({ data: { user: { id: "user-1" } } });
 let onboarded = true;
@@ -30,6 +33,7 @@ const input = { displayName: "  Ravi   Kumar ", gymName: " Iron Gym ", city: "",
 describe("saveTrainerProfile", () => {
   beforeEach(() => {
     onboarded = true;
+    gymJoinCookie = undefined;
     trainerError = null;
     trainerUpsert.mockClear();
     profileUpsert.mockClear();
@@ -37,7 +41,7 @@ describe("saveTrainerProfile", () => {
   });
 
   it("saves tidied details with the number in +91 form", async () => {
-    expect(await saveTrainerProfile(input)).toEqual({ success: true });
+    expect(await saveTrainerProfile(input)).toEqual({ success: true, next: null });
     expect(trainerUpsert).toHaveBeenCalledWith({
       user_id: "user-1",
       display_name: "Ravi Kumar",
@@ -60,10 +64,21 @@ describe("saveTrainerProfile", () => {
     expect((await saveTrainerProfile(input)).error).toMatch(/18 or older/);
     expect(trainerUpsert).not.toHaveBeenCalled();
 
-    expect(await saveTrainerProfile({ ...input, confirmedAdult: true })).toEqual({ success: true });
+    expect(await saveTrainerProfile({ ...input, confirmedAdult: true })).toEqual({ success: true, next: null });
     expect(profileUpsert).toHaveBeenCalledWith(
       expect.objectContaining({ id: "user-1", first_name: "Ravi", last_name: "Kumar", full_name: "Ravi Kumar", onboarded: true })
     );
+  });
+
+  it("goes back to the gym trainer link that sent them, and only a gym link", async () => {
+    expect(await saveTrainerProfile({ ...input, next: "/g/abcdefgh23" })).toEqual({ success: true, next: "/g/abcdefgh23" });
+    expect(await saveTrainerProfile({ ...input, next: "https://evil.example/g/abcdefgh23" })).toEqual({ success: true, next: null });
+    gymJoinCookie = "pqrstuvw45";
+    // An account that was already set up ignores a leftover link.
+    expect(await saveTrainerProfile(input)).toEqual({ success: true, next: null });
+    onboarded = false;
+    expect(await saveTrainerProfile({ ...input, confirmedAdult: true })).toEqual({ success: true, next: "/g/pqrstuvw45" });
+    expect(deleteCookie).toHaveBeenCalledWith("gj-gym-join");
   });
 
   it("returns a safe error when saving fails", async () => {

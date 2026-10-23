@@ -16,7 +16,8 @@ export function getTargetWeightKg(
 export function getGreeting(fullName: string | null, hour: number): string {
   const firstName = fullName?.trim().split(/\s+/)[0];
   if (!firstName) return "Welcome back";
-  const timeOfDay = hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
+  // Past midnight is still the evening, not the morning.
+  const timeOfDay = hour < 4 ? "evening" : hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
   return `Good ${timeOfDay}, ${firstName}`;
 }
 

@@ -1,6 +1,16 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { INTENT_COOKIE_MAX_AGE, JOIN_COOKIE, SIGNUP_COOKIE, joinCodeOf, pendingRedirect } from "@/lib/trainerInvites";
+import {
+  GYM_JOIN_COOKIE,
+  INTENT_COOKIE_MAX_AGE,
+  JOIN_COOKIE,
+  SIGNUP_COOKIE,
+  gymJoinCodeOf,
+  isSignupRole,
+  joinCodeOf,
+  pendingRedirect,
+  setupPathFor,
+} from "@/lib/trainerInvites";
 
 // Set once this browser's signed-in person is known to be onboarded, holding their user id, so the
 // proxy doesn't query the profile on every request (each query was a round trip to the database,
@@ -44,8 +54,8 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/reset-password") ||
     // Readable before signing up.
     pathname === "/privacy";
-  // Trainer setup is a trainer's onboarding, so it's open before regular onboarding is done.
-  const isOnboardingRoute = pathname.startsWith("/onboarding") || pathname === "/trainer/setup";
+  // Trainer and gym setup are those accounts' onboarding, so they're open before regular onboarding.
+  const isOnboardingRoute = pathname.startsWith("/onboarding") || pathname === "/trainer/setup" || pathname === "/gym/setup";
   // JSON endpoints answer for themselves: a signed-out fetch gets a 401 rather than the login page's
   // HTML, and onboarding (a page flow) doesn't apply.
   const isApiRoute = pathname.startsWith("/api/");
@@ -59,6 +69,7 @@ export async function updateSession(request: NextRequest) {
   // An invite opened before signing in, or "I'm a trainer" on the login page, is remembered through
   // sign-up, email confirmation and onboarding (see pendingRedirect).
   const joinCode = joinCodeOf(pathname);
+  const gymJoinCode = gymJoinCodeOf(pathname);
   const intentCookie = {
     path: "/",
     httpOnly: true,
@@ -66,16 +77,20 @@ export async function updateSession(request: NextRequest) {
     secure: request.nextUrl.protocol === "https:",
     maxAge: INTENT_COOKIE_MAX_AGE,
   };
-  if (pathname.startsWith("/login") && request.nextUrl.searchParams.get("role") === "trainer") {
-    supabaseResponse.cookies.set(SIGNUP_COOKIE, "trainer", intentCookie);
+  const signupRole = request.nextUrl.searchParams.get("role");
+  if (pathname.startsWith("/login") && isSignupRole(signupRole)) {
+    supabaseResponse.cookies.set(SIGNUP_COOKIE, signupRole, intentCookie);
   }
 
   if (!userId && !isAuthRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
+    // A gym's trainer link carries ?role=trainer through to sign-up.
     if (joinCode) url.search = "?invite=1";
+    if (gymJoinCode) url.search = signupRole === "trainer" ? "?invite=gym&role=trainer" : "?invite=gym";
     const response = NextResponse.redirect(url);
     if (joinCode) response.cookies.set(JOIN_COOKIE, joinCode, intentCookie);
+    if (gymJoinCode) response.cookies.set(GYM_JOIN_COOKIE, gymJoinCode, intentCookie);
     return response;
   }
 
@@ -88,9 +103,11 @@ export async function updateSession(request: NextRequest) {
 
     if (!profile?.onboarded) {
       const url = request.nextUrl.clone();
-      url.pathname = request.cookies.get(SIGNUP_COOKIE)?.value === "trainer" ? "/trainer/setup" : "/onboarding";
+      const role = request.cookies.get(SIGNUP_COOKIE)?.value;
+      url.pathname = isSignupRole(role) ? setupPathFor(role) : "/onboarding";
       const response = NextResponse.redirect(url);
       if (joinCode) response.cookies.set(JOIN_COOKIE, joinCode, intentCookie);
+      if (gymJoinCode) response.cookies.set(GYM_JOIN_COOKIE, gymJoinCode, intentCookie);
       return response;
     }
     supabaseResponse.cookies.set(ONBOARDED_COOKIE, userId, {
@@ -103,15 +120,23 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (userId && !isApiRoute) {
-    const joinCookie = request.cookies.get(JOIN_COOKIE)?.value;
-    const target = pendingRedirect({ pathname, joinCookie, signupCookie: request.cookies.get(SIGNUP_COOKIE)?.value });
+    const target = pendingRedirect({
+      pathname,
+      joinCookie: request.cookies.get(JOIN_COOKIE)?.value,
+      gymJoinCookie: request.cookies.get(GYM_JOIN_COOKIE)?.value,
+      signupCookie: request.cookies.get(SIGNUP_COOKIE)?.value,
+    });
     if (target) {
       const url = request.nextUrl.clone();
       url.pathname = target;
       url.search = "";
       const response = NextResponse.redirect(url);
       supabaseResponse.cookies.getAll().forEach((cookie) => response.cookies.set(cookie));
-      response.cookies.delete(target.startsWith("/join/") ? JOIN_COOKIE : SIGNUP_COOKIE);
+      // They're onboarded by now, so a sign-up role has done its job too (trainer setup, for a
+      // trainer link, is offered on the join page when they need it).
+      if (target.startsWith("/join/")) response.cookies.delete(JOIN_COOKIE);
+      if (target.startsWith("/g/")) response.cookies.delete(GYM_JOIN_COOKIE);
+      response.cookies.delete(SIGNUP_COOKIE);
       return response;
     }
   }

@@ -9,11 +9,14 @@ export default function TrainerSetupForm({
   initial,
   askAge,
   editing,
+  next,
 }: {
   initial: { displayName: string; gymName: string; city: string; whatsapp: string };
   // A new account confirms it's 18 or older here instead of in regular onboarding.
   askAge: boolean;
   editing: boolean;
+  // The gym join page that sent them here.
+  next?: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -28,14 +31,14 @@ export default function TrainerSetupForm({
   function handleSubmit() {
     setError(null);
     startTransition(async () => {
-      const result = await saveTrainerProfile({ ...fields, confirmedAdult });
+      const result = await saveTrainerProfile({ ...fields, confirmedAdult, next });
       if (result.error) {
         setError(result.error);
         return;
       }
       // The action revalidates the layout, so no refresh: one racing the next page's first render
       // could paint it with data from before this save.
-      router.push(editing ? "/profile" : "/trainer/invite");
+      router.push(result.next ?? (editing ? "/profile" : "/trainer/invite"));
     });
   }
 

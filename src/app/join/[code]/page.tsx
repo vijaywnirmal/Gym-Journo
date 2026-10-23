@@ -3,6 +3,7 @@ import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { createClient } from "@/lib/supabase/server";
 import { getMyTrainer } from "@/lib/trainers";
+import TrainerSeesList from "@/components/TrainerSeesList";
 import JoinActions from "./JoinActions";
 
 export const metadata: Metadata = { title: "Join your trainer" };
@@ -49,29 +50,18 @@ export default async function JoinPage({ params }: { params: Promise<{ code: str
         subtitle={[details.gym_name, details.city].filter(Boolean).join(" · ") || undefined}
       />
       <div className="flex max-w-md flex-col gap-4">
-        <section className="card p-4 text-sm">
-          <h2 className="font-semibold">{name} will see</h2>
-          <ul className="mt-1.5 list-disc space-y-1 pl-5 text-label-2">
-            <li>Your workout plans, and can plan workouts for you</li>
-            <li>Your logged workouts, including notes</li>
-            <li>Your body weight</li>
-            <li>Your name, goal, experience and training days</li>
-          </ul>
-          <h2 className="mt-4 font-semibold">{name} won&apos;t see</h2>
-          <ul className="mt-1.5 list-disc space-y-1 pl-5 text-label-2">
-            <li>Your email, date of birth, height or gender</li>
-            <li>Coach, AI plans or meals</li>
-          </ul>
+        <section className="card p-4">
+          <TrainerSeesList name={name} />
         </section>
 
+        {current && <p className="text-sm font-medium">You&apos;ll stop training with {current.trainer.display_name}.</p>}
         <p className="text-sm text-label-2">
-          {current && `You'll stop training with ${current.trainer.display_name}. `}
           You can remove {name} anytime from Profile.{" "}
           <Link href="/privacy" className="text-link">
             Privacy policy
           </Link>
         </p>
-        <JoinActions code={code} />
+        <JoinActions code={code} name={name} switchingFrom={current?.trainer.display_name ?? null} />
       </div>
     </main>
   );

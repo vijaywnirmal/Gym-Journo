@@ -7,6 +7,7 @@ import OfflineBanner from "@/components/OfflineBanner";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import { getUserTimeZone } from "@/lib/userDate";
 import { getMyTrainerProfile } from "@/lib/trainers";
+import { getAdminGym } from "@/lib/gyms";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -30,7 +31,7 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const [{ signedIn, timeZone }, trainer] = await Promise.all([getUserTimeZone(), getMyTrainerProfile()]);
+  const [{ signedIn, timeZone }, trainer, gym] = await Promise.all([getUserTimeZone(), getMyTrainerProfile(), getAdminGym()]);
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full bg-background text-label">
@@ -42,7 +43,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           Skip to content
         </a>
         <OfflineBanner />
-        <AppNav isTrainer={trainer !== null} />
+        <AppNav isTrainer={trainer !== null} isGymAdmin={gym !== null} />
         {/* Phones: content above the bottom bar. Wider screens: content beside the sidebar. */}
         <div className="pt-[env(safe-area-inset-top)] pb-24 md:pb-10 md:pl-60">
           <div id="content" tabIndex={-1} className="mx-auto w-full max-w-2xl outline-none">

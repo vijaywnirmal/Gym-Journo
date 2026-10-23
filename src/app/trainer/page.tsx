@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import Icon from "@/components/Icon";
 import PageHeader from "@/components/PageHeader";
 import { daysSince } from "@/lib/date";
+import { QUIET_AFTER_DAYS } from "@/lib/gymStatus";
 import { clientName, todayStatus } from "@/lib/clientStatus";
 import { getClientOverview, getMyTrainerProfile } from "@/lib/trainers";
 import type { ClientOverview } from "@/lib/types";
@@ -14,6 +15,11 @@ export const metadata: Metadata = { title: "Clients" };
 function weekLine(row: ClientOverview): string {
   const done = `${row.done_this_week} workout${row.done_this_week === 1 ? "" : "s"}`;
   return row.planned_this_week > 0 ? `${row.done_this_week} of ${row.planned_this_week} this week` : `${done} this week`;
+}
+
+// No workout in a week (or ever): shown in orange so a client going quiet stands out.
+function isQuiet(row: ClientOverview): boolean {
+  return !row.last_workout_on || daysSince(row.last_workout_on, row.client_today) >= QUIET_AFTER_DAYS;
 }
 
 function lastWorkout(row: ClientOverview): string {
@@ -59,7 +65,7 @@ export default async function ClientsPage() {
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold">{clientName(row)}</span>
                   <span className="block text-sm text-label-2">{weekLine(row)}</span>
-                  <span className="block text-xs text-label-3">{lastWorkout(row)}</span>
+                  <span className={`block text-xs ${isQuiet(row) ? "font-medium text-orange" : "text-label-2"}`}>{lastWorkout(row)}</span>
                 </span>
                 <DayStatusPill status={todayStatus(row)} />
                 <Icon name="chevronRight" className="size-4 shrink-0 text-label-3" strokeWidth={2} />

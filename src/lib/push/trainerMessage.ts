@@ -62,3 +62,14 @@ export function trainerProgramMessage({
     tag: TRAINER_PLAN_TAG,
   };
 }
+
+// What a member sees when their gym suggests a trainer. One at a time, so a new suggestion
+// replaces the last.
+export function gymOfferMessage({ gymName, trainerName }: { gymName: string; trainerName: string }): PushPayload {
+  return {
+    title: `${gymName} suggests ${trainerName} as your trainer`,
+    body: "Open Profile to accept or decline.",
+    url: "/profile",
+    tag: "gym-trainer-offer",
+  };
+}

@@ -8,7 +8,21 @@
 const INVITE_CODE = /^[a-z0-9]{10}$/;
 
 export const JOIN_COOKIE = "gj-join";
+// The same for a gym's join link (gymjourno.fit/g/<code>).
+export const GYM_JOIN_COOKIE = "gj-gym-join";
+// "trainer" or "gym": which setup a new account goes to instead of regular onboarding.
 export const SIGNUP_COOKIE = "gj-signup";
+export const SIGNUP_ROLES = ["trainer", "gym"] as const;
+export type SignupRole = (typeof SIGNUP_ROLES)[number];
+
+export function isSignupRole(value: string | null | undefined): value is SignupRole {
+  return (SIGNUP_ROLES as readonly string[]).includes(value ?? "");
+}
+
+// The setup page for a sign-up role.
+export function setupPathFor(role: SignupRole): string {
+  return role === "gym" ? "/gym/setup" : "/trainer/setup";
+}
 export const INTENT_COOKIE_MAX_AGE = 60 * 60 * 24; // a day: long enough to confirm an email
 
 export function isInviteCode(value: string | null | undefined): value is string {
@@ -20,6 +34,18 @@ export function joinCodeOf(pathname: string): string | null {
   const match = /^\/join\/([A-Za-z0-9]+)\/?$/.exec(pathname);
   const code = match?.[1].toLowerCase() ?? null;
   return isInviteCode(code) ? code : null;
+}
+
+// The invite code in a gym's /g/<code> path, else null.
+export function gymJoinCodeOf(pathname: string): string | null {
+  const match = /^\/g\/([A-Za-z0-9]+)\/?$/.exec(pathname);
+  const code = match?.[1].toLowerCase() ?? null;
+  return isInviteCode(code) ? code : null;
+}
+
+// A trainer's link says so, so someone new is sent to trainer setup after signing up.
+export function gymInviteUrl(siteUrl: string, code: string, role?: "admin" | "trainer" | "member"): string {
+  return `${siteUrl.replace(/\/+$/, "")}/g/${code}${role === "trainer" ? "?role=trainer" : ""}`;
 }
 
 export function inviteUrl(siteUrl: string, code: string): string {
@@ -48,19 +74,22 @@ export function normalizeWhatsapp(value: string): string | null | "invalid" {
   return `+${digits}`;
 }
 
-// What the proxy should do with someone's pending invite or trainer sign-up, given where they are.
+// What the proxy should do with someone's pending invite or sign-up role, given where they are.
 export function pendingRedirect({
   pathname,
   joinCookie,
+  gymJoinCookie,
   signupCookie,
 }: {
   pathname: string;
   joinCookie: string | undefined;
+  gymJoinCookie?: string | undefined;
   signupCookie: string | undefined;
 }): string | null {
   // Only from the home page, where every sign-in and onboarding flow lands.
   if (pathname !== "/") return null;
   if (isInviteCode(joinCookie)) return `/join/${joinCookie}`;
-  if (signupCookie === "trainer") return "/trainer/setup";
+  if (isInviteCode(gymJoinCookie)) return `/g/${gymJoinCookie}`;
+  if (isSignupRole(signupCookie)) return setupPathFor(signupCookie);
   return null;
 }

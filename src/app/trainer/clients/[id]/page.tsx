@@ -86,8 +86,8 @@ export default async function ClientPage({
         <p className="text-sm font-semibold">
           {format(parseISO(days[0]), "MMM d")} – {format(parseISO(days[6]), "MMM d")}
           {monday !== thisMonday && (
-            <Link href={base} className="ml-2 font-medium text-link">
-              This week
+            <Link href={base} className="ml-1 inline-flex h-9 items-center rounded-lg px-2 font-medium text-link hover:bg-fill">
+              Back to this week
             </Link>
           )}
         </p>

@@ -16,13 +16,17 @@ const TABS: Tab[] = [
 ];
 
 const CLIENTS_TAB: Tab = { href: "/trainer", label: "Clients", icon: "people" };
+const GYM_TAB: Tab = { href: "/gym", label: "Gym", icon: "gym" };
 
-// Trainers get a Clients tab after Calendar. The phone bar has room for six, so there it takes
-// Exercises' place (the library is still a tap away when planning, and in the sidebar).
-function tabsFor(isTrainer: boolean, phone: boolean): Tab[] {
-  if (!isTrainer) return TABS;
-  const tabs = phone ? TABS.filter((t) => t.href !== "/exercises") : TABS;
-  return [...tabs.slice(0, 2), CLIENTS_TAB, ...tabs.slice(2)];
+// Gym admins get a Gym tab and trainers a Clients tab, after Calendar. The phone bar has room for
+// six, so there they take Exercises' place (the library is still a tap away when planning, and in
+// the sidebar), then History's (also reachable from Calendar).
+export function tabsFor(isTrainer: boolean, isGymAdmin: boolean, phone: boolean): Tab[] {
+  const extra = [...(isGymAdmin ? [GYM_TAB] : []), ...(isTrainer ? [CLIENTS_TAB] : [])];
+  if (extra.length === 0) return TABS;
+  const dropped = phone ? ["/exercises", "/history"].slice(0, extra.length) : [];
+  const tabs = TABS.filter((t) => !dropped.includes(t.href));
+  return [...tabs.slice(0, 2), ...extra, ...tabs.slice(2)];
 }
 
 // Sub-pages highlight the tab they belong to.
@@ -32,23 +36,34 @@ const SECTION_OF: [string, string][] = [
   ["/programs", "/calendar"],
   ["/body", "/profile"],
   ["/join", "/profile"],
+  ["/g/", "/profile"],
   ["/coach", "/"],
   ["/ai-plan", "/"],
   ["/suggestions", "/"],
 ];
 
-const HIDDEN_ON = ["/login", "/auth", "/onboarding", "/trainer/setup", "/forgot-password", "/reset-password", "/privacy"];
+const HIDDEN_ON = [
+  "/login",
+  "/auth",
+  "/onboarding",
+  "/trainer/setup",
+  "/gym/setup",
+  "/gym/poster",
+  "/forgot-password",
+  "/reset-password",
+  "/privacy",
+];
 
 function activeTab(pathname: string): string {
   const section = SECTION_OF.find(([prefix]) => pathname.startsWith(prefix));
   if (section) return section[1];
   return (
-    [...TABS, CLIENTS_TAB].find((t) => t.href !== "/" && pathname.startsWith(t.href))?.href ?? (pathname === "/" ? "/" : "")
+    [...TABS, CLIENTS_TAB, GYM_TAB].find((t) => t.href !== "/" && pathname.startsWith(t.href))?.href ?? (pathname === "/" ? "/" : "")
   );
 }
 
 // Primary navigation: a bottom bar on phones, a sidebar from tablet width up.
-export default function AppNav({ isTrainer = false }: { isTrainer?: boolean }) {
+export default function AppNav({ isTrainer = false, isGymAdmin = false }: { isTrainer?: boolean; isGymAdmin?: boolean }) {
   const pathname = usePathname();
   if (HIDDEN_ON.some((p) => pathname.startsWith(p))) return null;
   const current = activeTab(pathname);
@@ -60,7 +75,7 @@ export default function AppNav({ isTrainer = false }: { isTrainer?: boolean }) {
         className="material fixed inset-x-0 bottom-0 z-30 border-t border-separator pb-[env(safe-area-inset-bottom)] md:hidden"
       >
         <ul className="mx-auto flex max-w-lg">
-          {tabsFor(isTrainer, true).map((tab) => {
+          {tabsFor(isTrainer, isGymAdmin, true).map((tab) => {
             const active = current === tab.href;
             return (
               <li key={tab.href} className="flex-1">
@@ -91,7 +106,7 @@ export default function AppNav({ isTrainer = false }: { isTrainer?: boolean }) {
           <span className="text-[15px] font-semibold tracking-tight">Gym Journal</span>
         </Link>
         <ul className="flex flex-col gap-0.5">
-          {tabsFor(isTrainer, false).map((tab) => {
+          {tabsFor(isTrainer, isGymAdmin, false).map((tab) => {
             const active = current === tab.href;
             return (
               <li key={tab.href}>

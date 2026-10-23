@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { cleanName, splitFullName, validateName } from "@/lib/names";
-import { normalizeWhatsapp, SIGNUP_COOKIE } from "@/lib/trainerInvites";
+import { GYM_JOIN_COOKIE, gymJoinCodeOf, isInviteCode, normalizeWhatsapp, SIGNUP_COOKIE } from "@/lib/trainerInvites";
 
 export type TrainerProfileInput = {
   displayName: string;
@@ -13,6 +13,8 @@ export type TrainerProfileInput = {
   whatsapp: string;
   // Only asked when the account hasn't been through onboarding (where everyone confirms it).
   confirmedAdult: boolean;
+  // The gym join page that sent them here (/g/<code>), to go back to.
+  next?: string;
 };
 
 const MAX_GYM_LENGTH = 80;
@@ -20,7 +22,8 @@ const MAX_CITY_LENGTH = 60;
 
 // Creates or updates the signed-in person's trainer profile. For a new account this is their
 // onboarding: it also sets their name and marks them onboarded, skipping the body and goal
-// questions (they can fill those in later to use the journal themselves).
+// questions (they can fill those in later to use the journal themselves). next is the gym trainer
+// link they came from, if any: given by the join page, or remembered from before signing up.
 export async function saveTrainerProfile(input: TrainerProfileInput) {
   const supabase = await createClient();
   const {
@@ -62,7 +65,13 @@ export async function saveTrainerProfile(input: TrainerProfileInput) {
     if (profileError) return { error: "Couldn't finish setting up your account. Please try again." };
   }
 
-  (await cookies()).delete(SIGNUP_COOKIE);
+  const store = await cookies();
+  // The gym link remembered from before signing up only matters for a new account: someone already
+  // set up who edits their details stays out of an old link.
+  const remembered = onboarded ? undefined : store.get(GYM_JOIN_COOKIE)?.value;
+  const gymCode = gymJoinCodeOf(input.next ?? "") ?? (isInviteCode(remembered) ? remembered : null);
+  store.delete(SIGNUP_COOKIE);
+  if (gymCode) store.delete(GYM_JOIN_COOKIE);
   revalidatePath("/", "layout");
-  return { success: true };
+  return { success: true, next: gymCode ? `/g/${gymCode}` : null };
 }

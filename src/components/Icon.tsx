@@ -37,6 +37,12 @@ const PATHS = {
       <path d="M15.5 5.2a3.5 3.5 0 0 1 0 6.6M17.5 15.3c2 .6 3.4 2.1 4 4.7" />
     </>
   ),
+  gym: (
+    <>
+      <rect x="4.5" y="3.5" width="15" height="17" rx="2" />
+      <path d="M8.5 8h2M13.5 8h2M8.5 12h2M13.5 12h2M10 20.5v-4h4v4" />
+    </>
+  ),
   chevronRight: <path d="m9.5 5.5 6.5 6.5-6.5 6.5" />,
   chevronLeft: <path d="M14.5 5.5 8 12l6.5 6.5" />,
   chevronDown: <path d="m6 9.5 6 6 6-6" />,

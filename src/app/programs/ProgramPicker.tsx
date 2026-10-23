@@ -238,7 +238,7 @@ function ProgramForm({ program, today, target }: { program: Program; today: stri
           <p>
             Scheduled {result.created} workout{result.created === 1 ? "" : "s"}
             {result.skipped > 0 &&
-              ` · skipped ${result.skipped} day${result.skipped === 1 ? "" : "s"} you'd already planned`}
+              ` · skipped ${result.skipped} day${result.skipped === 1 ? "" : "s"} already planned`}
             .{" "}
             <Link href={`${target.seeHrefPrefix}${result.firstDate}`} className="font-medium text-link">
               {target.seeLabel}
