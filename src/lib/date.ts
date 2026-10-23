@@ -109,8 +109,19 @@ export function formatDateTime(isoString: string): string {
 // two don't match (a hydration error). Without a valid zone, the server's.
 export function formatDateTimeIn(isoString: string, timeZone: string | null | undefined): string {
   if (!timeZone || !isValidTimeZone(timeZone)) return formatDateTime(isoString);
-  const p = zonedParts(new Date(isoString), timeZone);
-  return format(new Date(p.year, p.month - 1, p.day, p.hour, p.minute), "MMM d, yyyy 'at' h:mm a");
+  // Read off the zone's own wall clock, never rebuilt as a Date in the server's zone (which could
+  // fall in that zone's skipped daylight-saving hour).
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).formatToParts(new Date(isoString));
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("month")} ${get("day")}, ${get("year")} at ${get("hour")}:${get("minute")} ${get("dayPeriod").toUpperCase()}`;
 }
 
 export function shiftDate(date: string, days: number): string {

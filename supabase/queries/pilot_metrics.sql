@@ -13,7 +13,9 @@
 --                       performed_workout_dates (0026) and the trainer's Clients screen
 --   days planned        workout days on the client's plan, whoever made them. Days off (rest or
 --                       away) don't count, as in "x of y this week" on the Clients screen
---   planned by trainer  of those, the ones the trainer made (workout_plans.created_by)
+--   planned by trainer  of those, the ones the trainer made or last changed (created_by or
+--                       updated_by): the trainer rewriting a day the client had already planned
+--                       is planning too, and saves over it in place
 --   client edited       of the trainer's, the ones the client changed last (updated_by). A deleted
 --                       plan, or one turned into a day off, no longer counts
 --   linked              the client had an active link with the trainer at some point that week. A
@@ -99,7 +101,7 @@ planned_days as (
   select
     wp.user_id,
     wp.date,
-    coalesce(wp.created_by = pilot.trainer_id, false) as by_trainer,
+    coalesce(wp.created_by = pilot.trainer_id or wp.updated_by = pilot.trainer_id, false) as by_trainer,
     coalesce(wp.created_by = pilot.trainer_id and wp.updated_by = wp.user_id, false) as client_edited
   from workout_plans wp
   join clients c on c.client_id = wp.user_id
@@ -187,8 +189,8 @@ summary (sort, item, result) as (
   from week_totals t
 
   union all
-  select 21, 'Weeks the trainer planned for half the clients or more',
-    count(*) filter (where t.linked > 0 and 2 * t.planned_for >= t.linked) || ' of 4 · good sign: all 4'
+  select 21, 'Weeks the trainer planned for most clients',
+    count(*) filter (where t.linked > 0 and 2 * t.planned_for > t.linked) || ' of 4 · good sign: all 4'
   from week_totals t
 
   union all
