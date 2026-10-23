@@ -1,16 +1,19 @@
--- Gyms (phase 2 of the trainer pilot): a gym signs up, invites its trainers and members, assigns
--- members to trainers, and sees who is training and who has gone quiet.
+-- Gyms (phase 2 of the trainer pilot): a gym signs up, invites its trainers and members, suggests
+-- trainers to members, and sees who is training and who has gone quiet.
 --
 --   gyms          the gym; owner_id is the person who signed it up (deleting them deletes the gym)
 --   gym_staff     admins (front desk, managers) and trainers, with history
 --   gym_members   members, one active gym each, with history
---   gym_invites   join links: trainer and admin links last 14 days; member links (the front-desk QR
---                 poster) last until the gym makes a new one
---   trainer_clients.gym_id   set when the gym assigned that trainer; null for a private client
+--   gym_invites   join links: member links (the front-desk QR poster) last until the gym makes a new
+--                 one; trainer links last 14 days; admin links work once, within 14 days
+--   gym_trainer_offers   the gym suggesting a trainer to a member, who accepts or declines it
+--   trainer_clients.gym_id   set when the member accepted a trainer the gym suggested; null for a
+--                 private client
 --
 -- What a gym sees about a member is counts and dates only: name, trainer, joined, workouts this
--- week, last workout. Never their plans, sets, notes, body weight or profile details. A trainer the
--- gym assigns sees what any trainer sees (0034), because the member agreed to that when joining.
+-- week, days since the last one. Never their plans, sets, notes, body weight or profile details. A
+-- trainer the gym suggests sees nothing until the member accepts them by name; then they see what
+-- any trainer sees (0034).
 -- Like 0034, nothing here widens the existing row-level security on people's own data: gym reads
 -- and writes go through SECURITY DEFINER functions that check the caller's role first.
 
@@ -66,13 +69,38 @@ create table gym_invites (
   created_at timestamptz not null default now(),
   -- null: works until the gym makes a new link (member posters)
   expires_at timestamptz,
-  revoked_at timestamptz
+  -- Set when the link is replaced, or used (admin links work once).
+  revoked_at timestamptz,
+  used_by uuid references auth.users(id) on delete set null,
+  used_at timestamptz
 );
 
-create index gym_invites_gym_id_idx on gym_invites (gym_id, role);
+-- One live link per kind; making a new one revokes the old.
+create unique index gym_invites_one_live on gym_invites (gym_id, role) where revoked_at is null;
 create index gym_invites_created_by_idx on gym_invites (created_by) where created_by is not null;
+create index gym_invites_used_by_idx on gym_invites (used_by) where used_by is not null;
 
--- A gym being deleted turns its assigned trainer links into private ones rather than ending them:
+create table gym_trainer_offers (
+  id uuid primary key default gen_random_uuid(),
+  gym_id uuid not null references gyms(id) on delete cascade,
+  member_id uuid not null references auth.users(id) on delete cascade,
+  trainer_id uuid not null references trainer_profiles(user_id) on delete cascade,
+  created_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  -- withdrawn: the gym changed its mind, or the member or trainer left the gym first
+  status text not null default 'pending' check (status in ('pending', 'accepted', 'declined', 'withdrawn')),
+  decided_at timestamptz,
+  constraint gym_trainer_offers_not_self check (trainer_id <> member_id),
+  constraint gym_trainer_offers_decided_at check ((status = 'pending') = (decided_at is null))
+);
+
+-- One open offer per member (they're in one gym at a time).
+create unique index gym_trainer_offers_one_pending on gym_trainer_offers (member_id) where status = 'pending';
+create index gym_trainer_offers_gym_id_idx on gym_trainer_offers (gym_id, status);
+create index gym_trainer_offers_trainer_id_idx on gym_trainer_offers (trainer_id);
+create index gym_trainer_offers_created_by_idx on gym_trainer_offers (created_by) where created_by is not null;
+
+-- A gym being deleted turns the trainer links it arranged into private ones rather than ending them:
 -- the trainer and client agreed to work together, and either can still end it.
 alter table trainer_clients add column gym_id uuid references gyms(id) on delete set null;
 create index trainer_clients_gym_id_idx on trainer_clients (gym_id) where gym_id is not null;
@@ -81,6 +109,7 @@ alter table gyms enable row level security;
 alter table gym_staff enable row level security;
 alter table gym_members enable row level security;
 alter table gym_invites enable row level security;
+alter table gym_trainer_offers enable row level security;
 
 -- True when the signed-in person runs this gym: its owner, or one of its admins.
 create function is_gym_admin(p_gym_id uuid)
@@ -116,7 +145,7 @@ $$;
 
 -- The gym is readable by the people in it; its staff and member rows by the person themselves and
 -- by the gym's admins. Everything is written through the functions below, except that admins can
--- edit the gym's details directly.
+-- edit the gym's details (not its owner) directly.
 create policy "gyms read by its people" on gyms
   for select to authenticated using (
     owner_id = auth.uid()
@@ -129,20 +158,36 @@ create policy "gym_staff read own or as admin" on gym_staff
   for select to authenticated using (user_id = auth.uid() or is_gym_admin(gym_id));
 create policy "gym_members read own or as admin" on gym_members
   for select to authenticated using (user_id = auth.uid() or is_gym_admin(gym_id));
+-- Admin links only by the owner, who alone makes them.
 create policy "gym_invites read as admin" on gym_invites
-  for select to authenticated using (is_gym_admin(gym_id));
+  for select to authenticated using (
+    is_gym_admin(gym_id)
+    and (role <> 'admin' or exists (select 1 from gyms where gyms.id = gym_invites.gym_id and gyms.owner_id = auth.uid()))
+  );
+create policy "gym_trainer_offers read own or as admin" on gym_trainer_offers
+  for select to authenticated using (member_id = auth.uid() or is_gym_admin(gym_id));
 
-revoke all on gyms, gym_staff, gym_members, gym_invites from anon;
+revoke all on gyms, gym_staff, gym_members, gym_invites, gym_trainer_offers from anon, authenticated;
+grant select on gyms, gym_staff, gym_members, gym_invites, gym_trainer_offers to authenticated;
+grant update (name, city, area, phone) on gyms to authenticated;
 
--- Ends a member's link with the trainer this gym assigned them, if any.
+-- Ends what this gym arranged for a member: the trainer link, and any offer still open.
 create function end_gym_trainer_link(p_gym_id uuid, p_member_id uuid)
-returns void
-language sql
+returns boolean
+language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_ended boolean;
+begin
   update trainer_clients set status = 'ended', ended_at = now(), ended_by = auth.uid()
   where client_id = p_member_id and gym_id = p_gym_id and status = 'active';
+  v_ended := found;
+  update gym_trainer_offers set status = 'withdrawn', decided_at = now()
+  where member_id = p_member_id and gym_id = p_gym_id and status = 'pending';
+  return v_ended or found;
+end;
 $$;
 
 -- A new gym, run by the signed-in person.
@@ -174,8 +219,11 @@ set search_path = public
 as $$
 declare
   v_alphabet constant text := 'abcdefghjkmnpqrstuvwxyz23456789';
+  -- Bytes of a v4 UUID that are wholly random (6 and 8 carry its version and variant bits).
+  v_random_bytes constant int[] := array[0, 1, 2, 3, 4, 5, 7, 9, 10, 11];
   v_code text;
   v_bytes bytea;
+  v_i int;
   v_invite gym_invites;
 begin
   perform require_gym_admin(p_gym_id);
@@ -187,14 +235,16 @@ begin
     raise exception 'Only the gym''s owner can add admins' using errcode = 'insufficient_privilege';
   end if;
 
+  -- One at a time per gym, so two made at once still leave one live link.
+  perform 1 from gyms where id = p_gym_id for no key update;
   update gym_invites set revoked_at = now()
   where gym_id = p_gym_id and role = p_role and revoked_at is null;
 
   loop
     v_bytes := uuid_send(gen_random_uuid());
     v_code := '';
-    for i in 0..9 loop
-      v_code := v_code || substr(v_alphabet, get_byte(v_bytes, i) % length(v_alphabet) + 1, 1);
+    foreach v_i in array v_random_bytes loop
+      v_code := v_code || substr(v_alphabet, get_byte(v_bytes, v_i) % length(v_alphabet) + 1, 1);
     end loop;
     begin
       insert into gym_invites (code, gym_id, role, created_by, expires_at)
@@ -208,7 +258,8 @@ begin
 end;
 $$;
 
--- What a gym join page shows before accepting. state: valid, expired (or replaced), not_found,
+-- What a gym join page shows before accepting. state: valid, expired (or replaced, or used),
+-- not_found,
 -- current (already in the gym in that role), or needs_trainer_profile (a trainer link opened by
 -- someone who hasn't set up a trainer account yet).
 create function gym_invite_details(p_code text)
@@ -245,8 +296,8 @@ begin
 end;
 $$;
 
--- The signed-in person joins a gym by its link. A member's earlier gym membership ends (with the
--- trainer that gym assigned them). Joining again in the same role changes nothing.
+-- The signed-in person joins a gym by its link. A member's earlier gym membership ends (with what
+-- that gym arranged). Joining again in the same role changes nothing.
 create function accept_gym_invite(p_code text)
 returns text
 language plpgsql
@@ -263,7 +314,8 @@ begin
   if not exists (select 1 from profiles where id = auth.uid() and onboarded) then
     raise exception 'Finish setting up your account first';
   end if;
-  select * into v_invite from gym_invites where code = lower(btrim(p_code));
+  -- Locked: an admin link works once, even when two people open it at the same moment.
+  select * into v_invite from gym_invites where code = lower(btrim(p_code)) for update;
   if not found or v_invite.revoked_at is not null or v_invite.expires_at <= now() then
     raise exception 'This invite link has expired or doesn''t exist';
   end if;
@@ -277,26 +329,38 @@ begin
       update gym_members set status = 'ended', ended_at = now(), ended_by = auth.uid() where id = v_old.id;
       perform end_gym_trainer_link(v_old.gym_id, auth.uid());
     end if;
-    insert into gym_members (gym_id, user_id) values (v_invite.gym_id, auth.uid());
+    begin
+      insert into gym_members (gym_id, user_id) values (v_invite.gym_id, auth.uid());
+    exception when unique_violation then
+      -- The same person joining twice at once: the other call already did it.
+      if not exists (select 1 from gym_members where gym_id = v_invite.gym_id and user_id = auth.uid() and status = 'active') then
+        raise;
+      end if;
+    end;
     return 'member';
   end if;
 
   if v_invite.role = 'trainer' and not exists (select 1 from trainer_profiles where user_id = auth.uid()) then
     raise exception 'Set up your trainer account first';
   end if;
-  if not exists (
+  if exists (
     select 1 from gym_staff
     where gym_id = v_invite.gym_id and user_id = auth.uid() and role = v_invite.role and status = 'active'
   ) then
-    insert into gym_staff (gym_id, user_id, role) values (v_invite.gym_id, auth.uid(), v_invite.role);
+    return v_invite.role;
+  end if;
+  insert into gym_staff (gym_id, user_id, role) values (v_invite.gym_id, auth.uid(), v_invite.role);
+  if v_invite.role = 'admin' then
+    update gym_invites set revoked_at = now(), used_by = auth.uid(), used_at = now() where code = v_invite.code;
   end if;
   return v_invite.role;
 end;
 $$;
 
 -- Leaving a gym, by the person themselves or by its admins. A member who leaves also loses the
--- trainer the gym assigned them; a trainer who leaves stops training the gym's members (their
--- private clients stay). The owner can't be removed this way.
+-- trainer the gym arranged; a trainer who leaves stops training the gym's members (their private
+-- clients stay). The owner isn't staff, so can't be removed this way. Someone removed by the gym
+-- can't come back on the same staff link: removing them replaces it.
 create function end_gym_membership(p_gym_id uuid, p_user_id uuid)
 returns boolean
 language plpgsql
@@ -307,7 +371,7 @@ begin
   if auth.uid() is null then
     raise exception 'Not authenticated';
   end if;
-  if p_user_id <> auth.uid() then
+  if p_user_id is distinct from auth.uid() then
     perform require_gym_admin(p_gym_id);
   end if;
   update gym_members set status = 'ended', ended_at = now(), ended_by = auth.uid()
@@ -330,7 +394,7 @@ begin
   if auth.uid() is null then
     raise exception 'Not authenticated';
   end if;
-  if p_user_id <> auth.uid() then
+  if p_user_id is distinct from auth.uid() then
     perform require_gym_admin(p_gym_id);
     -- Admins come and go by the owner's hand only.
     if p_role = 'admin' and not exists (select 1 from gyms where id = p_gym_id and owner_id = auth.uid()) then
@@ -345,53 +409,68 @@ begin
   if p_role = 'trainer' then
     update trainer_clients set status = 'ended', ended_at = now(), ended_by = auth.uid()
     where trainer_id = p_user_id and gym_id = p_gym_id and status = 'active';
+    update gym_trainer_offers set status = 'withdrawn', decided_at = now()
+    where trainer_id = p_user_id and gym_id = p_gym_id and status = 'pending';
+  end if;
+  if p_user_id is distinct from auth.uid() then
+    update gym_invites set revoked_at = now()
+    where gym_id = p_gym_id and role = p_role and revoked_at is null;
   end if;
   return true;
 end;
 $$;
 
--- The gym gives a member a trainer (or a different one). A member who found their own trainer
--- keeps them: the gym can only change trainers it assigned.
-create function assign_gym_trainer(p_gym_id uuid, p_member_id uuid, p_trainer_id uuid)
-returns trainer_clients
+-- The gym suggests one of its trainers to a member (or a different one). Nothing is shared until the
+-- member accepts that trainer by name. A member who found their own trainer keeps them: the gym can
+-- only suggest when it has no one or the trainer is one it arranged. Returns null when the member
+-- already trains with that trainer through the gym.
+create function offer_gym_trainer(p_gym_id uuid, p_member_id uuid, p_trainer_id uuid)
+returns gym_trainer_offers
 language plpgsql
 security definer
 set search_path = public
 as $$
 declare
   v_current trainer_clients;
-  v_link trainer_clients;
+  v_offer gym_trainer_offers;
 begin
   perform require_gym_admin(p_gym_id);
-  if not exists (select 1 from gym_members where gym_id = p_gym_id and user_id = p_member_id and status = 'active') then
+  -- Locked so a member leaving, or a trainer being removed, waits for this to finish (and then
+  -- withdraws the offer) rather than slipping in between the checks and the insert.
+  perform 1 from gym_members where gym_id = p_gym_id and user_id = p_member_id and status = 'active' for share;
+  if not found then
     raise exception 'Not a member of this gym';
   end if;
-  if not exists (
-    select 1 from gym_staff s join trainer_profiles tp on tp.user_id = s.user_id
-    where s.gym_id = p_gym_id and s.user_id = p_trainer_id and s.role = 'trainer' and s.status = 'active'
-  ) then
+  perform 1 from gym_staff s join trainer_profiles tp on tp.user_id = s.user_id
+  where s.gym_id = p_gym_id and s.user_id = p_trainer_id and s.role = 'trainer' and s.status = 'active'
+  for share of s;
+  if not found then
     raise exception 'Not a trainer at this gym';
   end if;
   if p_member_id = p_trainer_id then
     raise exception 'A trainer can''t be their own client';
   end if;
 
-  select * into v_current from trainer_clients where client_id = p_member_id and status = 'active' for update;
-  if found and (v_current.gym_id is distinct from p_gym_id) then
+  select * into v_current from trainer_clients where client_id = p_member_id and status = 'active';
+  if found and v_current.gym_id is distinct from p_gym_id then
     raise exception 'This member has their own trainer';
   end if;
   if found and v_current.trainer_id = p_trainer_id then
-    return v_current;
+    update gym_trainer_offers set status = 'withdrawn', decided_at = now()
+    where member_id = p_member_id and gym_id = p_gym_id and status = 'pending';
+    return null;
   end if;
-  if found then
-    update trainer_clients set status = 'ended', ended_at = now(), ended_by = auth.uid() where id = v_current.id;
-  end if;
-  insert into trainer_clients (trainer_id, client_id, gym_id) values (p_trainer_id, p_member_id, p_gym_id)
-  returning * into v_link;
-  return v_link;
+
+  update gym_trainer_offers set status = 'withdrawn', decided_at = now()
+  where member_id = p_member_id and gym_id = p_gym_id and status = 'pending';
+  insert into gym_trainer_offers (gym_id, member_id, trainer_id, created_by)
+  values (p_gym_id, p_member_id, p_trainer_id, auth.uid())
+  returning * into v_offer;
+  return v_offer;
 end;
 $$;
 
+-- The gym takes back what it arranged for a member: the trainer link, or an offer not yet answered.
 create function unassign_gym_trainer(p_gym_id uuid, p_member_id uuid)
 returns boolean
 language plpgsql
@@ -400,16 +479,81 @@ set search_path = public
 as $$
 begin
   perform require_gym_admin(p_gym_id);
-  update trainer_clients set status = 'ended', ended_at = now(), ended_by = auth.uid()
-  where client_id = p_member_id and gym_id = p_gym_id and status = 'active';
-  return found;
+  return end_gym_trainer_link(p_gym_id, p_member_id);
+end;
+$$;
+
+-- The signed-in member's open trainer offer, if any, with the names they decide on.
+create function my_gym_trainer_offer()
+returns table (offer_id uuid, gym_name text, trainer_name text)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select o.id, g.name, tp.display_name
+  from gym_trainer_offers o
+  join gyms g on g.id = o.gym_id
+  join trainer_profiles tp on tp.user_id = o.trainer_id
+  where o.member_id = auth.uid() and o.status = 'pending';
+$$;
+
+-- The member accepts or declines the trainer the gym suggested. Accepting ends any other trainer
+-- link they have, as accepting a trainer's own invite does (0034).
+create function respond_gym_trainer_offer(p_offer_id uuid, p_accept boolean)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_offer gym_trainer_offers;
+  v_current trainer_clients;
+begin
+  if auth.uid() is null then
+    raise exception 'Not authenticated';
+  end if;
+  select * into v_offer from gym_trainer_offers
+  where id = p_offer_id and member_id = auth.uid() and status = 'pending'
+  for update;
+  if not found then
+    raise exception 'This offer is no longer open';
+  end if;
+  if not p_accept then
+    update gym_trainer_offers set status = 'declined', decided_at = now() where id = v_offer.id;
+    return true;
+  end if;
+
+  -- Both still in the gym, locked as in offer_gym_trainer.
+  perform 1 from gym_members where gym_id = v_offer.gym_id and user_id = auth.uid() and status = 'active' for share;
+  if not found then
+    raise exception 'This offer is no longer open';
+  end if;
+  perform 1 from gym_staff
+  where gym_id = v_offer.gym_id and user_id = v_offer.trainer_id and role = 'trainer' and status = 'active'
+  for share;
+  if not found then
+    raise exception 'This offer is no longer open';
+  end if;
+
+  update gym_trainer_offers set status = 'accepted', decided_at = now() where id = v_offer.id;
+  select * into v_current from trainer_clients where client_id = auth.uid() and status = 'active' for update;
+  if found and v_current.trainer_id = v_offer.trainer_id then
+    update trainer_clients set gym_id = v_offer.gym_id where id = v_current.id;
+    return true;
+  end if;
+  if found then
+    update trainer_clients set status = 'ended', ended_at = now(), ended_by = auth.uid() where id = v_current.id;
+  end if;
+  insert into trainer_clients (trainer_id, client_id, gym_id) values (v_offer.trainer_id, auth.uid(), v_offer.gym_id);
+  return true;
 end;
 $$;
 
 -- The gym's members list: counts and dates only. "This week" is Monday to Sunday and a workout is
 -- a log with a performed set, both as in trainer_client_overview (0034), in the member's time zone.
--- trainer_name is only for a trainer the gym assigned; has_own_trainer says a member found their
--- own (who stays private to them).
+-- trainer_name is only for a trainer the gym arranged (offered_trainer_name while the member hasn't
+-- answered); has_own_trainer says a member found their own (who stays private to them).
 create function gym_member_overview(p_gym_id uuid)
 returns table (
   member_id uuid,
@@ -418,10 +562,11 @@ returns table (
   joined_at timestamptz,
   trainer_id uuid,
   trainer_name text,
+  offered_trainer_id uuid,
+  offered_trainer_name text,
   has_own_trainer boolean,
   workouts_this_week int,
-  last_workout_on date,
-  member_today date
+  days_since_last_workout int
 )
 language plpgsql
 stable
@@ -456,22 +601,25 @@ begin
     members.started_at,
     case when tc.gym_id = p_gym_id then tc.trainer_id end,
     case when tc.gym_id = p_gym_id then tp.display_name end,
+    o.trainer_id,
+    otp.display_name,
     tc.id is not null and tc.gym_id is distinct from p_gym_id,
     (select count(*)::int from performed
       where performed.user_id = members.user_id
         and performed.date >= members.today - (extract(isodow from members.today)::int - 1)),
-    (select max(performed.date) from performed where performed.user_id = members.user_id),
-    members.today
+    members.today - (select max(performed.date) from performed where performed.user_id = members.user_id)
   from members
   left join trainer_clients tc on tc.client_id = members.user_id and tc.status = 'active'
   left join trainer_profiles tp on tp.user_id = tc.trainer_id
+  left join gym_trainer_offers o on o.member_id = members.user_id and o.gym_id = p_gym_id and o.status = 'pending'
+  left join trainer_profiles otp on otp.user_id = o.trainer_id
   order by members.first_name nulls last, members.started_at;
 end;
 $$;
 
--- The gym's trainers: how many members each trains here, the plans they made or changed for them
--- this week (Monday to Sunday, in the trainer's time zone), and how many of those members haven't
--- worked out in 7 days or more.
+-- The gym's trainers: how many members each trains here, how many of those members' plans dated
+-- this week (Monday to Sunday, in the trainer's time zone) they made or last changed, and how many
+-- of those members haven't worked out in 7 days or more.
 create function gym_trainer_overview(p_gym_id uuid)
 returns table (
   trainer_id uuid,
@@ -538,8 +686,10 @@ begin
     'accept_gym_invite(text)',
     'end_gym_membership(uuid, uuid)',
     'end_gym_staff(uuid, uuid, text)',
-    'assign_gym_trainer(uuid, uuid, uuid)',
+    'offer_gym_trainer(uuid, uuid, uuid)',
     'unassign_gym_trainer(uuid, uuid)',
+    'my_gym_trainer_offer()',
+    'respond_gym_trainer_offer(uuid, boolean)',
     'gym_member_overview(uuid)',
     'gym_trainer_overview(uuid)'
   ] loop
