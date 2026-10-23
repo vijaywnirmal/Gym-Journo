@@ -37,7 +37,7 @@ const SECTION_OF: [string, string][] = [
   ["/suggestions", "/"],
 ];
 
-const HIDDEN_ON = ["/login", "/auth", "/onboarding", "/trainer/setup", "/forgot-password", "/reset-password"];
+const HIDDEN_ON = ["/login", "/auth", "/onboarding", "/trainer/setup", "/forgot-password", "/reset-password", "/privacy"];
 
 function activeTab(pathname: string): string {
   const section = SECTION_OF.find(([prefix]) => pathname.startsWith(prefix));

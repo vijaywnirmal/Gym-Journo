@@ -24,4 +24,12 @@ test.describe("signed out", () => {
     expect(response.status()).toBe(401);
     expect(await response.json()).toEqual({ error: "Not signed in" });
   });
+
+  test("the privacy page opens without signing in, linked from the login page", { tag: PROD_SAFE }, async ({ page }) => {
+    await page.goto("/login");
+    await page.getByRole("link", { name: "Privacy" }).click();
+    await expect(page).toHaveURL(/\/privacy$/);
+    await expect(page.getByRole("heading", { level: 1, name: "Privacy" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "privacy@gymjourno.fit" }).first()).toBeVisible();
+  });
 });

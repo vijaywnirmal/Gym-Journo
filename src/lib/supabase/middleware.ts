@@ -41,7 +41,9 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/login") ||
     pathname.startsWith("/auth") ||
     pathname.startsWith("/forgot-password") ||
-    pathname.startsWith("/reset-password");
+    pathname.startsWith("/reset-password") ||
+    // Readable before signing up.
+    pathname === "/privacy";
   // Trainer setup is a trainer's onboarding, so it's open before regular onboarding is done.
   const isOnboardingRoute = pathname.startsWith("/onboarding") || pathname === "/trainer/setup";
   // JSON endpoints answer for themselves: a signed-out fetch gets a 401 rather than the login page's

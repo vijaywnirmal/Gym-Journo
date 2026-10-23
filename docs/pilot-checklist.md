@@ -9,6 +9,7 @@
 - [ ] Migrations are applied: the latest **Migrate production database** run passed, and in
       Supabase → SQL Editor `select max(version) from supabase_migrations.schema_migrations;`
       returns `0036` or later.
+- [ ] privacy@gymjourno.fit (on the privacy page) forwards to your inbox: send it a test email.
 - [ ] Sign-up emails go out: Supabase → Authentication → SMTP has a custom sender (set: "Gym
       Journal", 30 emails an hour, enough for a session of 10). Supabase's built-in sender only
       mails the project's own team.

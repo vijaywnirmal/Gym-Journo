@@ -66,7 +66,10 @@ export default async function JoinPage({ params }: { params: Promise<{ code: str
 
         <p className="text-sm text-label-2">
           {current && `You'll stop training with ${current.trainer.display_name}. `}
-          You can remove {name} anytime from Profile.
+          You can remove {name} anytime from Profile.{" "}
+          <Link href="/privacy" className="text-link">
+            Privacy policy
+          </Link>
         </p>
         <JoinActions code={code} />
       </div>
