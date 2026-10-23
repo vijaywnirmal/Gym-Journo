@@ -13,7 +13,7 @@ begin;
 -- "expected error" handlers around it can never mistake that for the error they expect.
 
 -- O owns the gym; A and A2 are its admins; T and T2 train there; P trains privately; M1, M2 and M3
--- are members (M3 found P themselves); X runs another gym; N hasn't finished onboarding.
+-- are members (M3 found P themselves), and so is M4; X runs another gym; N hasn't finished onboarding.
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-0000000090a0', 'gym-owner@example.test'),
   ('00000000-0000-0000-0000-0000000090ad', 'gym-admin@example.test'),
@@ -24,6 +24,7 @@ insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-0000000090c1', 'member-1@example.test'),
   ('00000000-0000-0000-0000-0000000090c2', 'member-2@example.test'),
   ('00000000-0000-0000-0000-0000000090c3', 'member-3@example.test'),
+  ('00000000-0000-0000-0000-0000000090c4', 'member-4@example.test'),
   ('00000000-0000-0000-0000-0000000090ee', 'anyone@example.test'),
   ('00000000-0000-0000-0000-0000000090ef', 'new@example.test');
 
@@ -37,6 +38,7 @@ insert into profiles (id, onboarded, first_name, timezone, date_of_birth, height
   ('00000000-0000-0000-0000-0000000090c1', true, 'Mina', 'Asia/Kolkata', '1990-01-01', 170, 'female'),
   ('00000000-0000-0000-0000-0000000090c2', true, 'Manu', 'Asia/Kolkata', null, null, null),
   ('00000000-0000-0000-0000-0000000090c3', true, 'Mo', 'Asia/Kolkata', null, null, null),
+  ('00000000-0000-0000-0000-0000000090c4', true, 'Mia', 'Asia/Kolkata', null, null, null),
   ('00000000-0000-0000-0000-0000000090ee', true, 'Xia', 'Asia/Kolkata', null, null, null),
   ('00000000-0000-0000-0000-0000000090ef', false, null, null, null, null, null);
 insert into trainer_profiles (user_id, display_name) values
@@ -416,6 +418,56 @@ begin
   end if;
 end $$;
 
+-- An old suggestion can't replace a trainer the member chose: accepting a trainer's own invite
+-- withdraws it, and one left over from before is withdrawn rather than accepted.
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000090a0","role":"authenticated"}', true);
+select set_config('test.m2_offer', (offer_gym_trainer(current_setting('test.gym')::uuid, '00000000-0000-0000-0000-0000000090c2', '00000000-0000-0000-0000-0000000090b1')).id::text, true);
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000090bf","role":"authenticated"}', true);
+select set_config('test.pat_code', (create_trainer_invite()).code, true);
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000090c2","role":"authenticated"}', true);
+select accept_trainer_invite(current_setting('test.pat_code'));
+do $$
+begin
+  if exists (select 1 from my_gym_trainer_offer()) then
+    raise exception 'accepting a trainer''s own invite should withdraw the gym''s open offer';
+  end if;
+  begin
+    perform respond_gym_trainer_offer(current_setting('test.m2_offer')::uuid, true);
+    raise exception 'a withdrawn offer must not be accepted' using errcode = 'P0099';
+  exception when raise_exception then
+    if sqlerrm not like '%no longer open%' then raise; end if;
+  end;
+  perform end_trainer_link((select id from trainer_clients where client_id = auth.uid() and status = 'active'));
+end $$;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000090a0","role":"authenticated"}', true);
+select offer_gym_trainer(current_setting('test.gym')::uuid, '00000000-0000-0000-0000-0000000090c2', '00000000-0000-0000-0000-0000000090b1');
+-- (As if M2 had found Pat while the offer was open, before offers were withdrawn on accepting.)
+reset role;
+insert into trainer_clients (trainer_id, client_id) values ('00000000-0000-0000-0000-0000000090bf', '00000000-0000-0000-0000-0000000090c2');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000090c2","role":"authenticated"}', true);
+do $$
+begin
+  begin
+    perform respond_gym_trainer_offer((select offer_id from my_gym_trainer_offer()), null);
+    raise exception 'an answer must be yes or no' using errcode = 'P0099';
+  exception when raise_exception then
+    if sqlerrm not like '%yes or no%' then raise; end if;
+  end;
+  if respond_gym_trainer_offer((select offer_id from my_gym_trainer_offer()), true) then
+    raise exception 'accepting while the member has their own trainer should be refused';
+  end if;
+end $$;
+do $$
+begin
+  if exists (select 1 from my_gym_trainer_offer())
+     or (select gym_id from trainer_clients where status = 'active') is not null
+     or (select trainer_id from trainer_clients where status = 'active') <> '00000000-0000-0000-0000-0000000090bf' then
+    raise exception 'the member''s own trainer should stay private and the offer be withdrawn';
+  end if;
+  perform end_trainer_link((select id from trainer_clients where client_id = auth.uid() and status = 'active'));
+end $$;
+
 -- O moves M1 to Tomas: Tara keeps M1 until M1 accepts Tomas. M2 is offered Tara again and accepts.
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000090a0","role":"authenticated"}', true);
 select offer_gym_trainer(current_setting('test.gym')::uuid, '00000000-0000-0000-0000-0000000090c1', '00000000-0000-0000-0000-0000000090b2');
@@ -496,6 +548,12 @@ begin
     raise exception 'the owner should be able to remove an admin';
   end if;
 end $$;
+do $$
+begin
+  if (select array_agg(first_name) from gym_admin_list(current_setting('test.gym')::uuid)) <> array['Admin'] then
+    raise exception 'a removed admin should leave the admin list';
+  end if;
+end $$;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000090ae","role":"authenticated"}', true);
 do $$
 begin
@@ -538,8 +596,36 @@ end $$;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000090c2","role":"authenticated"}', true);
 select respond_gym_trainer_offer((select offer_id from my_gym_trainer_offer()), true);
 
--- O removes Tomas from Iron: he stops training M1 there, keeps M2 at the other gym, and can't come
--- back on Iron's trainer link.
+-- M4 joins. The admin A makes a trainer account named like Tara and joins as a trainer: offered to
+-- M4, A shows as also running the gym. A new suggestion replaces the open one.
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000090c4","role":"authenticated"}', true);
+select accept_gym_invite(current_setting('test.member_code'));
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000090ad","role":"authenticated"}', true);
+insert into trainer_profiles (user_id, display_name) values ('00000000-0000-0000-0000-0000000090ad', 'Tara');
+select accept_gym_invite(current_setting('test.trainer_code'));
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000090a0","role":"authenticated"}', true);
+select offer_gym_trainer(current_setting('test.gym')::uuid, '00000000-0000-0000-0000-0000000090c4', '00000000-0000-0000-0000-0000000090ad');
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000090c4","role":"authenticated"}', true);
+do $$
+begin
+  if not (select trainer_runs_gym from my_gym_trainer_offer() where trainer_name = 'Tara') then
+    raise exception 'a suggested trainer who also runs the gym should be flagged';
+  end if;
+end $$;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000090a0","role":"authenticated"}', true);
+select offer_gym_trainer(current_setting('test.gym')::uuid, '00000000-0000-0000-0000-0000000090c4', '00000000-0000-0000-0000-0000000090b2');
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000090c4","role":"authenticated"}', true);
+do $$
+begin
+  if (select count(*) from my_gym_trainer_offer()) <> 1
+     or (select trainer_name from my_gym_trainer_offer()) <> 'Tomas'
+     or (select trainer_runs_gym from my_gym_trainer_offer()) then
+    raise exception 'a new suggestion should replace the open one, unflagged for a plain trainer';
+  end if;
+end $$;
+
+-- O removes Tomas from Iron: he stops training M1 there, M4's open offer of him goes, he keeps M2
+-- at the other gym, and he can't come back on Iron's trainer link.
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000090a0","role":"authenticated"}', true);
 do $$
 begin
@@ -562,6 +648,13 @@ begin
   exception when raise_exception then
     if sqlerrm not like '%expired%' then raise; end if;
   end;
+end $$;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000090c4","role":"authenticated"}', true);
+do $$
+begin
+  if exists (select 1 from my_gym_trainer_offer()) then
+    raise exception 'removing a trainer should withdraw offers of them';
+  end if;
 end $$;
 
 -- An open offer goes when the member leaves. The admin removes M3 (whose private trainer stays) and
@@ -597,7 +690,7 @@ begin
   if not exists (select 1 from trainer_clients where client_id = '00000000-0000-0000-0000-0000000090c3' and status = 'active' and gym_id is null) then
     raise exception 'M3''s private trainer should be untouched by leaving the gym';
   end if;
-  if exists (select 1 from gym_staff where user_id = '00000000-0000-0000-0000-0000000090ad' and status = 'active') then
+  if exists (select 1 from gym_staff where user_id = '00000000-0000-0000-0000-0000000090ad' and role = 'admin' and status = 'active') then
     raise exception 'the admin should have stepped down';
   end if;
   -- An admin stepping down leaves the gym's links alone.

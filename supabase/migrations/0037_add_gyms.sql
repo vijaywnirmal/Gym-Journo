@@ -224,6 +224,8 @@ declare
   v_code text;
   v_bytes bytea;
   v_i int;
+  v_attempt int := 0;
+  v_constraint text;
   v_invite gym_invites;
 begin
   perform require_gym_admin(p_gym_id);
@@ -252,7 +254,12 @@ begin
       returning * into v_invite;
       return v_invite;
     exception when unique_violation then
-      -- Astronomically unlikely; try another code.
+      -- A code clash (astronomically unlikely) tries another; anything else is a real error.
+      get stacked diagnostics v_constraint = constraint_name;
+      v_attempt := v_attempt + 1;
+      if v_constraint <> 'gym_invites_pkey' or v_attempt >= 5 then
+        raise;
+      end if;
     end;
   end loop;
 end;
@@ -437,7 +444,8 @@ begin
   perform require_gym_admin(p_gym_id);
   -- Locked so a member leaving, or a trainer being removed, waits for this to finish (and then
   -- withdraws the offer) rather than slipping in between the checks and the insert.
-  perform 1 from gym_members where gym_id = p_gym_id and user_id = p_member_id and status = 'active' for share;
+  -- (no key update, not share: two admins suggesting to the same member at once take turns.)
+  perform 1 from gym_members where gym_id = p_gym_id and user_id = p_member_id and status = 'active' for no key update;
   if not found then
     raise exception 'Not a member of this gym';
   end if;
@@ -483,23 +491,30 @@ begin
 end;
 $$;
 
--- The signed-in member's open trainer offer, if any, with the names they decide on.
+-- The signed-in member's open trainer offer, if any, with the names they decide on. A trainer name
+-- is whatever that trainer typed, so trainer_runs_gym says when the suggested trainer is also the
+-- gym's owner or an admin (who could otherwise pose as one of its trainers).
 create function my_gym_trainer_offer()
-returns table (offer_id uuid, gym_name text, trainer_name text)
+returns table (offer_id uuid, gym_name text, trainer_name text, trainer_runs_gym boolean)
 language sql
 stable
 security definer
 set search_path = public
 as $$
-  select o.id, g.name, tp.display_name
+  select o.id, g.name, tp.display_name,
+    g.owner_id = o.trainer_id or exists (
+      select 1 from gym_staff s
+      where s.gym_id = o.gym_id and s.user_id = o.trainer_id and s.role = 'admin' and s.status = 'active'
+    )
   from gym_trainer_offers o
   join gyms g on g.id = o.gym_id
   join trainer_profiles tp on tp.user_id = o.trainer_id
   where o.member_id = auth.uid() and o.status = 'pending';
 $$;
 
--- The member accepts or declines the trainer the gym suggested. Accepting ends any other trainer
--- link they have, as accepting a trainer's own invite does (0034).
+-- The member accepts or declines the trainer the gym suggested. Accepting replaces a trainer the
+-- gym arranged before. A member who has since found their own trainer keeps them: the offer is
+-- withdrawn and this returns false.
 create function respond_gym_trainer_offer(p_offer_id uuid, p_accept boolean)
 returns boolean
 language plpgsql
@@ -513,33 +528,44 @@ begin
   if auth.uid() is null then
     raise exception 'Not authenticated';
   end if;
-  select * into v_offer from gym_trainer_offers
-  where id = p_offer_id and member_id = auth.uid() and status = 'pending'
-  for update;
+  if p_accept is null then
+    raise exception 'Answer yes or no';
+  end if;
+  select * into v_offer from gym_trainer_offers where id = p_offer_id and member_id = auth.uid() and status = 'pending';
   if not found then
     raise exception 'This offer is no longer open';
   end if;
-  if not p_accept then
-    update gym_trainer_offers set status = 'declined', decided_at = now() where id = v_offer.id;
-    return true;
-  end if;
 
-  -- Both still in the gym, locked as in offer_gym_trainer.
+  -- Locks in the order leaving and removing take them (membership and staff rows first, then the
+  -- offer, then the link), so they wait for each other instead of deadlocking. Both must still be
+  -- in the gym.
   perform 1 from gym_members where gym_id = v_offer.gym_id and user_id = auth.uid() and status = 'active' for share;
-  if not found then
+  if not found and p_accept then
     raise exception 'This offer is no longer open';
   end if;
   perform 1 from gym_staff
   where gym_id = v_offer.gym_id and user_id = v_offer.trainer_id and role = 'trainer' and status = 'active'
   for share;
+  if not found and p_accept then
+    raise exception 'This offer is no longer open';
+  end if;
+  select * into v_offer from gym_trainer_offers where id = p_offer_id and status = 'pending' for update;
   if not found then
     raise exception 'This offer is no longer open';
   end if;
 
-  update gym_trainer_offers set status = 'accepted', decided_at = now() where id = v_offer.id;
+  if not p_accept then
+    update gym_trainer_offers set status = 'declined', decided_at = now() where id = v_offer.id;
+    return true;
+  end if;
+
   select * into v_current from trainer_clients where client_id = auth.uid() and status = 'active' for update;
+  if found and v_current.gym_id is distinct from v_offer.gym_id then
+    update gym_trainer_offers set status = 'withdrawn', decided_at = now() where id = v_offer.id;
+    return false;
+  end if;
+  update gym_trainer_offers set status = 'accepted', decided_at = now() where id = v_offer.id;
   if found and v_current.trainer_id = v_offer.trainer_id then
-    update trainer_clients set gym_id = v_offer.gym_id where id = v_current.id;
     return true;
   end if;
   if found then
@@ -547,6 +573,51 @@ begin
   end if;
   insert into trainer_clients (trainer_id, client_id, gym_id) values (v_offer.trainer_id, auth.uid(), v_offer.gym_id);
   return true;
+end;
+$$;
+
+-- Accepting a trainer's own invite (0034) now also withdraws an offer from the gym the member hasn't
+-- answered, so an old suggestion can't later replace the trainer they chose. Otherwise unchanged.
+create or replace function accept_trainer_invite(p_code text)
+returns trainer_clients
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_invite trainer_invites;
+  v_link trainer_clients;
+begin
+  if auth.uid() is null then
+    raise exception 'Not authenticated';
+  end if;
+  if not exists (select 1 from profiles where id = auth.uid() and onboarded) then
+    raise exception 'Finish setting up your account first';
+  end if;
+
+  select * into v_invite from trainer_invites where code = lower(btrim(p_code));
+  if not found or v_invite.revoked_at is not null or v_invite.expires_at <= now() then
+    raise exception 'This invite link has expired or doesn''t exist';
+  end if;
+  if v_invite.trainer_id = auth.uid() then
+    raise exception 'This is your own invite link';
+  end if;
+
+  select * into v_link from trainer_clients
+  where client_id = auth.uid() and status = 'active'
+  for update;
+  if found and v_link.trainer_id = v_invite.trainer_id then
+    return v_link;
+  end if;
+
+  update trainer_clients set status = 'ended', ended_at = now(), ended_by = auth.uid()
+  where client_id = auth.uid() and status = 'active';
+  update gym_trainer_offers set status = 'withdrawn', decided_at = now()
+  where member_id = auth.uid() and status = 'pending';
+
+  insert into trainer_clients (trainer_id, client_id) values (v_invite.trainer_id, auth.uid())
+  returning * into v_link;
+  return v_link;
 end;
 $$;
 
