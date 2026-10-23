@@ -90,7 +90,8 @@ export default async function CalendarPage({
               </div>
               <div className="min-w-0 flex-1">
                 <p className={`truncate text-sm font-medium ${info?.dayType || logged ? "" : "text-label-3"}`}>{plan}</p>
-                {author && <p className="truncate text-xs text-label-2">{author}</p>}
+                {/* Wraps: the end ("edited by you") is the part that matters. */}
+                {author && <p className="text-xs text-label-2">{author}</p>}
                 {status && (
                   <p
                     className={`flex items-start gap-1 text-xs first-letter:uppercase ${
