@@ -39,6 +39,8 @@ export default function ScheduleForm({
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  // Separate, so removing doesn't show "Saving…" on the save button while the page refreshes.
+  const [removing, startRemoving] = useTransition();
   const [title, setTitle] = useState(existingPlan?.title ?? "");
   const [dayType, setDayType] = useState<DayType>(existingPlan ? dayTypeOf(existingPlan) : "workout");
   const isWorkout = dayType === "workout";
@@ -211,6 +213,7 @@ export default function ScheduleForm({
       </div>
 
       {existingPlan &&
+        !removed &&
         (confirmingDelete ? (
           <div className="flex flex-wrap items-center gap-2 rounded-[10px] border border-red/30 bg-red/5 p-3">
             <p className="mr-auto text-sm">Remove the plan for this day?</p>
@@ -223,9 +226,9 @@ export default function ScheduleForm({
             </button>
             <button
               type="button"
-              disabled={pending}
+              disabled={pending || removing}
               onClick={() =>
-                startTransition(async () => {
+                startRemoving(async () => {
                   const result = await deleteAction(existingPlan.id, date);
                   setConfirmingDelete(false);
                   if (result.error) {
@@ -246,7 +249,7 @@ export default function ScheduleForm({
               }
               className="h-8 rounded-lg bg-red px-3 text-sm font-semibold text-white disabled:opacity-50"
             >
-              Remove plan
+              {removing ? "Removing…" : "Remove plan"}
             </button>
           </div>
         ) : (

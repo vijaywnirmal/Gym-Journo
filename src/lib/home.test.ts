@@ -14,6 +14,8 @@ describe("getGreeting", () => {
     expect(getGreeting("Vijay Nirmal", 8)).toBe("Good morning, Vijay");
     expect(getGreeting("Vijay Nirmal", 14)).toBe("Good afternoon, Vijay");
     expect(getGreeting("Vijay Nirmal", 20)).toBe("Good evening, Vijay");
+    expect(getGreeting("Vijay Nirmal", 0)).toBe("Good evening, Vijay");
+    expect(getGreeting("Vijay Nirmal", 4)).toBe("Good morning, Vijay");
   });
 
   it("falls back to a generic greeting when full_name is null or blank", () => {
