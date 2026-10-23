@@ -14,11 +14,40 @@ import DateField from "@/components/ui/DateField";
 import Disclosure from "@/components/ui/Disclosure";
 import Icon from "@/components/Icon";
 import Select from "@/components/ui/Select";
-import { applyProgram, undoProgram, type ApplyProgramResult } from "./actions";
+import { applyProgram, undoProgram, type ApplyProgramInput, type ApplyProgramResult } from "./actions";
 
 const PREVIEW_DAYS = 6;
 
-export default function ProgramPicker({ programs, today }: { programs: Program[]; today: string }) {
+// Who the program is for: the signed-in person by default, or, on a trainer's screen, a client,
+// through server actions bound to that client (so it can come from a server component).
+export type ProgramTarget = {
+  apply: (input: ApplyProgramInput) => Promise<ApplyProgramResult>;
+  undo: (programId: string, dates: string[]) => Promise<{ error: string } | { removed: number }>;
+  // "Add to my calendar", "See calendar", and that link, which gets the first scheduled date appended.
+  addLabel: string;
+  seeLabel: string;
+  seeHrefPrefix: string;
+  removedFrom: string;
+};
+
+const OWN_CALENDAR: ProgramTarget = {
+  apply: applyProgram,
+  undo: undoProgram,
+  addLabel: "Add to my calendar",
+  seeLabel: "See calendar",
+  seeHrefPrefix: "/calendar?week=",
+  removedFrom: "your calendar",
+};
+
+export default function ProgramPicker({
+  programs,
+  today,
+  target = OWN_CALENDAR,
+}: {
+  programs: Program[];
+  today: string;
+  target?: ProgramTarget;
+}) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   return (
@@ -56,7 +85,7 @@ export default function ProgramPicker({ programs, today }: { programs: Program[]
             </button>
             {open && (
               // Keyed so switching programs resets the form to that program's defaults.
-              <ProgramForm key={program.id} program={program} today={today} />
+              <ProgramForm key={program.id} program={program} today={today} target={target} />
             )}
           </section>
         );
@@ -65,7 +94,7 @@ export default function ProgramPicker({ programs, today }: { programs: Program[]
   );
 }
 
-function ProgramForm({ program, today }: { program: Program; today: string }) {
+function ProgramForm({ program, today, target }: { program: Program; today: string; target: ProgramTarget }) {
   const [startDate, setStartDate] = useState(today);
   const [weekdays, setWeekdays] = useState<Set<number>>(new Set(program.defaultWeekdays));
   const [weeks, setWeeks] = useState(program.defaultWeeks);
@@ -90,13 +119,13 @@ function ProgramForm({ program, today }: { program: Program; today: string }) {
 
   function undo(dates: string[]) {
     startTransition(async () => {
-      const outcome = await undoProgram(program.id, dates);
+      const outcome = await target.undo(program.id, dates);
       if ("error" in outcome) {
         setUndone(outcome.error);
         return;
       }
       setResult(null);
-      setUndone(`Removed ${outcome.removed} workout${outcome.removed === 1 ? "" : "s"} from your calendar.`);
+      setUndone(`Removed ${outcome.removed} workout${outcome.removed === 1 ? "" : "s"} from ${target.removedFrom}.`);
     });
   }
 
@@ -104,7 +133,7 @@ function ProgramForm({ program, today }: { program: Program; today: string }) {
     setResult(null);
     setUndone(null);
     startTransition(async () => {
-      setResult(await applyProgram({ programId: program.id, startDate, weekdays: [...weekdays], weeks }));
+      setResult(await target.apply({ programId: program.id, startDate, weekdays: [...weekdays], weeks }));
     });
   }
 
@@ -211,8 +240,8 @@ function ProgramForm({ program, today }: { program: Program; today: string }) {
             {result.skipped > 0 &&
               ` · skipped ${result.skipped} day${result.skipped === 1 ? "" : "s"} you'd already planned`}
             .{" "}
-            <Link href={`/calendar?week=${result.firstDate}`} className="font-medium text-link">
-              See calendar
+            <Link href={`${target.seeHrefPrefix}${result.firstDate}`} className="font-medium text-link">
+              {target.seeLabel}
             </Link>
             {result.createdDates.length > 0 && (
               <>
@@ -242,7 +271,7 @@ function ProgramForm({ program, today }: { program: Program; today: string }) {
         disabled={pending || schedule.length === 0 || (result !== null && "success" in result)}
         className="h-11 rounded-[10px] bg-accent px-4 text-[15px] font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-40"
       >
-        {pending ? "Scheduling…" : "Add to my calendar"}
+        {pending ? "Scheduling…" : target.addLabel}
       </button>
     </div>
   );

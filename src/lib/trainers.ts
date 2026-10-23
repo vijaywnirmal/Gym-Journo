@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/currentUser";
-import type { MyTrainer, TrainerInvite, TrainerProfile } from "@/lib/types";
+import type { ClientLog, ClientOverview, ClientPlan, MyTrainer, TrainerInvite, TrainerProfile } from "@/lib/types";
 
 // The signed-in person's trainer profile, or null when they aren't a trainer.
 export async function getMyTrainerProfile(): Promise<TrainerProfile | null> {
@@ -43,4 +43,37 @@ export async function getMyTrainer(): Promise<MyTrainer | null> {
   const trainer = (Array.isArray(data?.trainer) ? data.trainer[0] : data?.trainer) as MyTrainer["trainer"] | undefined;
   if (!data || !trainer) return null;
   return { linkId: data.id, startedAt: data.started_at, trainer };
+}
+
+// The trainer's dashboard: one row per current client.
+export async function getClientOverview(): Promise<ClientOverview[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("trainer_client_overview");
+  if (error || !data) return [];
+  return data as ClientOverview[];
+}
+
+// One current client of the signed-in trainer, or null when they aren't (or are no longer) theirs.
+export async function getClient(clientId: string): Promise<ClientOverview | null> {
+  return (await getClientOverview()).find((row) => row.client_id === clientId) ?? null;
+}
+
+// A client's plans and logs in [from, to] (at most 120 days). Refused unless the signed-in person
+// is the client's trainer right now.
+export async function getClientPlans(clientId: string, from: string, to: string): Promise<ClientPlan[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("client_plans", { p_client_id: clientId, p_from: from, p_to: to });
+  return error || !data ? [] : (data as ClientPlan[]);
+}
+
+export async function getClientLogs(clientId: string, from: string, to: string): Promise<ClientLog[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("client_logs", { p_client_id: clientId, p_from: from, p_to: to });
+  return error || !data ? [] : (data as ClientLog[]);
+}
+
+export async function getClientBodyWeights(clientId: string, from: string, to: string): Promise<{ date: string; weight_kg: number }[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("client_body_weights", { p_client_id: clientId, p_from: from, p_to: to });
+  return error || !data ? [] : (data as { date: string; weight_kg: number }[]).map((r) => ({ ...r, weight_kg: Number(r.weight_kg) }));
 }

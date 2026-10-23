@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { validateTargetReps, validateTargetSets, validateTargetWeight, WEIGHT_UNITS } from "@/lib/validation";
+import { validatePlannedExercises } from "@/lib/planInput";
 import { isDayType, offKindOf, type DayType } from "@/lib/dayType";
 
 export type SavePlanInput = {
@@ -28,24 +28,8 @@ export async function savePlan(input: SavePlanInput) {
   if (!user) return { error: "Not signed in" };
   if (!isDayType(input.dayType)) return { error: "Invalid day type." };
 
-  // Same bounds as templates (template-actions.ts), so 0 sets or -5 reps can't be planned.
-  for (const ex of input.exercises) {
-    if (ex.targetSets != null) {
-      const setsError = validateTargetSets(ex.targetSets);
-      if (setsError) return { error: setsError };
-    }
-    if (ex.targetReps != null) {
-      const repsError = validateTargetReps(ex.targetReps);
-      if (repsError) return { error: repsError };
-    }
-    if (ex.targetWeight != null) {
-      const weightError = validateTargetWeight(ex.targetWeight);
-      if (weightError) return { error: weightError };
-    }
-    if (ex.targetWeightUnit !== undefined && !WEIGHT_UNITS.has(ex.targetWeightUnit)) {
-      return { error: "Invalid weight unit." };
-    }
-  }
+  const targetsError = validatePlannedExercises(input.exercises);
+  if (targetsError) return { error: targetsError };
 
   // A day off carries no muscle groups or exercises (save_workout_plan enforces this too).
   const offKind = offKindOf(input.dayType);

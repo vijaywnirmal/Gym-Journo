@@ -153,3 +153,72 @@ export type MyTrainer = {
   startedAt: string;
   trainer: Pick<TrainerProfile, "display_name" | "gym_name" | "city" | "whatsapp">;
 };
+
+// One row of the trainer's dashboard (trainer_client_overview). "Today" and "this week" (Monday to
+// Sunday) are the client's, in their time zone.
+export type ClientOverview = {
+  link_id: string;
+  client_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  primary_goal: string | null;
+  experience_level: string | null;
+  training_days_per_week: number | null;
+  started_at: string;
+  client_today: string;
+  today_plan: "workout" | "rest" | "absence" | null;
+  today_done: boolean;
+  planned_this_week: number;
+  done_this_week: number;
+  last_workout_on: string | null;
+  latest_weight_kg: number | null;
+  latest_weight_on: string | null;
+};
+
+// A client's plan as client_plans returns it.
+export type ClientPlan = {
+  id: string;
+  date: string;
+  title: string | null;
+  is_rest_day: boolean;
+  off_kind: string | null;
+  off_marked_late: boolean;
+  created_by: string | null;
+  updated_by: string | null;
+  muscle_group_ids: string[];
+  exercises: {
+    id: string;
+    exercise_id: string;
+    name: string;
+    equipment: string | null;
+    position: number;
+    target_sets: number | null;
+    target_reps: number | null;
+    target_weight: number | null;
+    target_weight_unit: string;
+  }[];
+};
+
+// A client's logged workout as client_logs returns it.
+export type ClientLog = {
+  id: string;
+  date: string;
+  plan_id: string | null;
+  notes: string | null;
+  completed_at: string | null;
+  exercises: {
+    exercise_id: string;
+    name: string;
+    position: number;
+    notes: string | null;
+    sets: {
+      set_number: number;
+      reps: number | null;
+      weight: number | null;
+      weight_unit: string;
+      set_type: string | null;
+      rpe: number | null;
+      notes: string | null;
+    }[];
+  }[];
+};
