@@ -361,6 +361,11 @@ begin
   if exists (select 1 from gym_members) or exists (select 1 from gym_trainer_offers) then
     raise exception 'a trainer should not see member or offer rows';
   end if;
+  begin
+    perform gym_admin_list(current_setting('test.gym')::uuid);
+    raise exception 'a trainer must not list the admins' using errcode = 'P0099';
+  exception when insufficient_privilege then null;
+  end;
 end $$;
 
 -- M2 can't answer M1's offer; M1 sees it by name and accepts; M2 declines theirs.
@@ -475,6 +480,9 @@ end $$;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000090ad","role":"authenticated"}', true);
 do $$
 begin
+  if (select array_agg(first_name order by first_name) from gym_admin_list(current_setting('test.gym')::uuid)) <> array['Ada', 'Admin'] then
+    raise exception 'admins should see who runs the gym';
+  end if;
   begin
     perform end_gym_staff(current_setting('test.gym')::uuid, '00000000-0000-0000-0000-0000000090ae', 'admin');
     raise exception 'an admin must not remove another admin' using errcode = 'P0099';

@@ -674,6 +674,25 @@ begin
 end;
 $$;
 
+-- The gym's admins, for its owner and admins to see who else runs it: names only.
+create function gym_admin_list(p_gym_id uuid)
+returns table (user_id uuid, first_name text, last_name text, joined_at timestamptz)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  perform require_gym_admin(p_gym_id);
+  return query
+  select s.user_id, p.first_name, p.last_name, s.started_at
+  from gym_staff s
+  left join profiles p on p.id = s.user_id
+  where s.gym_id = p_gym_id and s.role = 'admin' and s.status = 'active'
+  order by s.started_at;
+end;
+$$;
+
 do $$
 declare
   fn text;
@@ -691,7 +710,8 @@ begin
     'my_gym_trainer_offer()',
     'respond_gym_trainer_offer(uuid, boolean)',
     'gym_member_overview(uuid)',
-    'gym_trainer_overview(uuid)'
+    'gym_trainer_overview(uuid)',
+    'gym_admin_list(uuid)'
   ] loop
     execute format('revoke execute on function %s from public, anon', fn);
     execute format('grant execute on function %s to authenticated', fn);
