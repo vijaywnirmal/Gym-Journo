@@ -266,7 +266,7 @@ end;
 $$;
 
 -- What a gym join page shows before accepting. state: valid, expired (or replaced, or used),
--- not_found,
+-- not_found, own (the owner opening their gym's admin link, which they'd only use up),
 -- current (already in the gym in that role), or needs_trainer_profile (a trainer link opened by
 -- someone who hasn't set up a trainer account yet).
 create function gym_invite_details(p_code text)
@@ -296,6 +296,7 @@ begin
       when v_invite.role <> 'member' and exists (
         select 1 from gym_staff where gym_id = v_gym.id and user_id = auth.uid() and gym_staff.role = v_invite.role and status = 'active') then 'current'
       when v_invite.revoked_at is not null or v_invite.expires_at <= now() then 'expired'
+      when v_invite.role = 'admin' and v_gym.owner_id = auth.uid() then 'own'
       when v_invite.role = 'trainer' and not exists (select 1 from trainer_profiles where user_id = auth.uid()) then 'needs_trainer_profile'
       else 'valid'
     end,
@@ -325,6 +326,9 @@ begin
   select * into v_invite from gym_invites where code = lower(btrim(p_code)) for update;
   if not found or v_invite.revoked_at is not null or v_invite.expires_at <= now() then
     raise exception 'This invite link has expired or doesn''t exist';
+  end if;
+  if v_invite.role = 'admin' and exists (select 1 from gyms where id = v_invite.gym_id and owner_id = auth.uid()) then
+    raise exception 'This is your gym''s admin link';
   end if;
 
   if v_invite.role = 'member' then
@@ -429,8 +433,8 @@ $$;
 
 -- The gym suggests one of its trainers to a member (or a different one). Nothing is shared until the
 -- member accepts that trainer by name. A member who found their own trainer keeps them: the gym can
--- only suggest when it has no one or the trainer is one it arranged. Returns null when the member
--- already trains with that trainer through the gym.
+-- only suggest when it has no one or the trainer is one it arranged. Returns null when nothing
+-- changed: the member already trains with that trainer through the gym, or was already offered them.
 create function offer_gym_trainer(p_gym_id uuid, p_member_id uuid, p_trainer_id uuid)
 returns gym_trainer_offers
 language plpgsql
@@ -469,6 +473,12 @@ begin
     return null;
   end if;
 
+  if exists (
+    select 1 from gym_trainer_offers
+    where member_id = p_member_id and gym_id = p_gym_id and trainer_id = p_trainer_id and status = 'pending'
+  ) then
+    return null;
+  end if;
   update gym_trainer_offers set status = 'withdrawn', decided_at = now()
   where member_id = p_member_id and gym_id = p_gym_id and status = 'pending';
   insert into gym_trainer_offers (gym_id, member_id, trainer_id, created_by)
@@ -495,13 +505,13 @@ $$;
 -- is whatever that trainer typed, so trainer_runs_gym says when the suggested trainer is also the
 -- gym's owner or an admin (who could otherwise pose as one of its trainers).
 create function my_gym_trainer_offer()
-returns table (offer_id uuid, gym_name text, trainer_name text, trainer_runs_gym boolean)
+returns table (offer_id uuid, gym_name text, trainer_id uuid, trainer_name text, trainer_runs_gym boolean)
 language sql
 stable
 security definer
 set search_path = public
 as $$
-  select o.id, g.name, tp.display_name,
+  select o.id, g.name, o.trainer_id, tp.display_name,
     g.owner_id = o.trainer_id or exists (
       select 1 from gym_staff s
       where s.gym_id = o.gym_id and s.user_id = o.trainer_id and s.role = 'admin' and s.status = 'active'
@@ -524,6 +534,7 @@ as $$
 declare
   v_offer gym_trainer_offers;
   v_current trainer_clients;
+  v_has_link boolean;
 begin
   if auth.uid() is null then
     raise exception 'Not authenticated';
@@ -560,15 +571,16 @@ begin
   end if;
 
   select * into v_current from trainer_clients where client_id = auth.uid() and status = 'active' for update;
-  if found and v_current.gym_id is distinct from v_offer.gym_id then
+  v_has_link := found;
+  if v_has_link and v_current.gym_id is distinct from v_offer.gym_id then
     update gym_trainer_offers set status = 'withdrawn', decided_at = now() where id = v_offer.id;
     return false;
   end if;
   update gym_trainer_offers set status = 'accepted', decided_at = now() where id = v_offer.id;
-  if found and v_current.trainer_id = v_offer.trainer_id then
+  if v_has_link and v_current.trainer_id = v_offer.trainer_id then
     return true;
   end if;
-  if found then
+  if v_has_link then
     update trainer_clients set status = 'ended', ended_at = now(), ended_by = auth.uid() where id = v_current.id;
   end if;
   insert into trainer_clients (trainer_id, client_id, gym_id) values (v_offer.trainer_id, auth.uid(), v_offer.gym_id);

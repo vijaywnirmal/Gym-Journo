@@ -116,6 +116,15 @@ begin
   perform set_config('test.member_code', v_member.code, true);
   perform set_config('test.trainer_code', v_trainer.code, true);
   perform set_config('test.admin_code', (create_gym_invite(v_gym.id, 'admin')).code, true);
+  if (select state from gym_invite_details(current_setting('test.admin_code'))) <> 'own' then
+    raise exception 'the owner opening their own admin link should read as own';
+  end if;
+  begin
+    perform accept_gym_invite(current_setting('test.admin_code'));
+    raise exception 'the owner must not use up their own admin link' using errcode = 'P0099';
+  exception when raise_exception then
+    if sqlerrm not like '%your gym''s admin link%' then raise; end if;
+  end;
 
   update gyms set city = 'Pune West' where id = v_gym.id;
   if (select city from gyms where id = v_gym.id) <> 'Pune West' then
@@ -480,7 +489,7 @@ begin
   if v_row.trainer_name is distinct from 'Tara' or v_row.offered_trainer_name is distinct from 'Tomas' then
     raise exception 'M1 should stay with Tara while Tomas is offered: %', row_to_json(v_row);
   end if;
-  if offer_gym_trainer(current_setting('test.gym')::uuid, '00000000-0000-0000-0000-0000000090c1', '00000000-0000-0000-0000-0000000090b1') is not null then
+  if (offer_gym_trainer(current_setting('test.gym')::uuid, '00000000-0000-0000-0000-0000000090c1', '00000000-0000-0000-0000-0000000090b1')).id is not null then
     raise exception 'suggesting the trainer a member already has should change nothing';
   end if;
 end $$;
@@ -614,10 +623,17 @@ begin
 end $$;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000090a0","role":"authenticated"}', true);
 select offer_gym_trainer(current_setting('test.gym')::uuid, '00000000-0000-0000-0000-0000000090c4', '00000000-0000-0000-0000-0000000090b2');
+do $$
+begin
+  if (offer_gym_trainer(current_setting('test.gym')::uuid, '00000000-0000-0000-0000-0000000090c4', '00000000-0000-0000-0000-0000000090b2')).id is not null then
+    raise exception 'suggesting the trainer already suggested should change nothing';
+  end if;
+end $$;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000090c4","role":"authenticated"}', true);
 do $$
 begin
   if (select count(*) from my_gym_trainer_offer()) <> 1
+     or (select trainer_id from my_gym_trainer_offer()) <> '00000000-0000-0000-0000-0000000090b2'
      or (select trainer_name from my_gym_trainer_offer()) <> 'Tomas'
      or (select trainer_runs_gym from my_gym_trainer_offer()) then
     raise exception 'a new suggestion should replace the open one, unflagged for a plain trainer';
