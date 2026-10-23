@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getAiPlans, getNutritionForDate, getProfile } from "@/lib/queries";
 import { getToday } from "@/lib/userDate";
 import PageHeader from "@/components/PageHeader";
+import { formatDateTimeIn } from "@/lib/date";
 import AIPlanForm from "./AIPlanForm";
 
 export const metadata: Metadata = { title: "AI plan" };
@@ -27,7 +28,7 @@ export default async function AIPlanPage() {
           !profile?.weight_kg && "weight",
           !profile?.primary_goal && "goal",
         ].filter((field): field is string => !!field)}
-        pastPlans={pastPlans}
+        pastPlans={pastPlans.map((plan) => ({ ...plan, createdAtLabel: formatDateTimeIn(plan.created_at, profile?.timezone) }))}
         initialMealsToday={mealsToday ?? ""}
       />
     </main>

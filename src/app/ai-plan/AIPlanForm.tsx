@@ -7,7 +7,6 @@ import type { AiPlan } from "@/lib/queries";
 import PlanMarkdown from "@/components/PlanMarkdown";
 import Disclosure from "@/components/ui/Disclosure";
 import Select from "@/components/ui/Select";
-import { formatDateTime } from "@/lib/date";
 import { AI_PLAN_LIMITS, AI_PLAN_NOTICE } from "@/lib/ai-plan-prompt";
 import Icon from "@/components/Icon";
 import { generatePlan } from "./actions";
@@ -35,7 +34,8 @@ export default function AIPlanForm({
 }: {
   // Profile details the plan would use but that aren't filled in yet.
   missingProfile: string[];
-  pastPlans: AiPlan[];
+  // Each with created_at formatted on the server, in the person's time zone (see formatDateTimeIn).
+  pastPlans: (AiPlan & { createdAtLabel: string })[];
   initialMealsToday: string;
 }) {
   const router = useRouter();
@@ -198,7 +198,7 @@ export default function AIPlanForm({
       {result && !pending && (
         <section className="card p-5">
           <p className="mb-3 text-xs font-semibold text-link">
-            Your latest plan{pastPlans[0] ? ` · ${formatDateTime(pastPlans[0].created_at)}` : ""}
+            Your latest plan{pastPlans[0] ? ` · ${pastPlans[0].createdAtLabel}` : ""}
           </p>
           <PlanMarkdown markdown={result} />
         </section>
@@ -211,7 +211,7 @@ export default function AIPlanForm({
             {pastPlans.slice(1).map((plan) => (
               <Disclosure
                 key={plan.id}
-                summary={<span className="text-sm font-medium">{formatDateTime(plan.created_at)}</span>}
+                summary={<span className="text-sm font-medium">{plan.createdAtLabel}</span>}
                 summaryClassName="px-4 py-3"
                 panelClassName="px-4 pb-4"
               >
