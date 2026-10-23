@@ -14,6 +14,8 @@ import WeeklyInsightsCard from "@/components/WeeklyInsightsCard";
 import { formatDate, formatDateLong, hourIn, todayIn } from "@/lib/date";
 import { getUserTimeZone } from "@/lib/userDate";
 import { namePartsOf } from "@/lib/names";
+import { planAuthorLabel } from "@/lib/planAuthors";
+import { getKnownTrainer } from "@/lib/trainers";
 import {
   formatGoalSummary,
   formatPlannedExercise,
@@ -47,7 +49,7 @@ function ShortcutCard({ href, icon, title, text }: { href: string; icon: IconNam
 export default async function TodayPage() {
   const { timeZone } = await getUserTimeZone();
   const date = todayIn(timeZone);
-  const [profile, plan, log, trainingConsistency, weeklyInsights, suggestions, lastWorkout] = await Promise.all([
+  const [profile, plan, log, trainingConsistency, weeklyInsights, suggestions, lastWorkout, trainer] = await Promise.all([
     getProfile(),
     getPlanForDate(date),
     getLogForDate(date),
@@ -55,7 +57,9 @@ export default async function TodayPage() {
     getWeeklyInsights(),
     getAdaptSuggestions(),
     getLastPerformedWorkoutDate(),
+    getKnownTrainer(),
   ]);
+  const planAuthor = plan && profile ? planAuthorLabel(plan, profile.id, trainer) : null;
 
   const greeting = getGreeting(profile ? namePartsOf(profile).firstName : null, hourIn(timeZone));
   const goalSummary = profile ? formatGoalSummary(profile) : null;
@@ -107,6 +111,7 @@ export default async function TodayPage() {
             <p className="text-sm text-label-2">
               {plan.title ?? (dayTypeOf(plan) === "absence" ? "Marked as an absence." : "Recovery is part of the plan.")}
             </p>
+            {planAuthor && <p className="mt-0.5 text-xs text-label-2">{planAuthor}</p>}
           </div>
           <Link href={`/schedule/${date}`} className="rounded-lg px-3 py-1.5 text-sm font-medium text-link hover:bg-fill">
             Change
@@ -123,6 +128,7 @@ export default async function TodayPage() {
                   {plan.muscle_groups.map((mg) => mg.name).join(" · ")}
                 </p>
               )}
+              {planAuthor && <p className="mt-0.5 text-xs text-label-2">{planAuthor}</p>}
             </div>
             <Link
               href={`/schedule/${date}`}

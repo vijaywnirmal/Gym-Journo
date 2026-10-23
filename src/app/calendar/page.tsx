@@ -5,6 +5,9 @@ import PageHeader from "@/components/PageHeader";
 import { getWeekOverview } from "@/lib/queries";
 import { formatDate, shiftDate, weekDates, isValidIsoDate } from "@/lib/date";
 import { getToday } from "@/lib/userDate";
+import { getCurrentUser } from "@/lib/currentUser";
+import { planAuthorLabel } from "@/lib/planAuthors";
+import { getKnownTrainer } from "@/lib/trainers";
 import Icon from "@/components/Icon";
 import { describeCalendarDay, isMissedDay } from "./dayStatus";
 
@@ -20,7 +23,7 @@ export default async function CalendarPage({
   // A malformed ?week= (hand-edited or stale link) falls back to this week instead of crashing.
   const centerDate = week && isValidIsoDate(week) ? week : todayDate;
   const dates = weekDates(centerDate);
-  const overview = await getWeekOverview(dates);
+  const [overview, me, trainer] = await Promise.all([getWeekOverview(dates), getCurrentUser(), getKnownTrainer()]);
 
   return (
     <main className="px-4 pt-6 md:px-8 md:pt-10">
@@ -71,6 +74,8 @@ export default async function CalendarPage({
           const dayOff = info?.dayType === "rest" || info?.dayType === "absence";
           const logged = !!info && (info.performed || info.completed);
           const day = parseISO(date);
+          const author =
+            info && me ? planAuthorLabel({ created_by: info.createdBy, updated_by: info.updatedBy }, me.id, trainer) : null;
           return (
             <li key={date} className={`flex items-center gap-4 px-4 py-3 ${isToday ? "bg-accent/5" : ""}`}>
               <div
@@ -85,6 +90,7 @@ export default async function CalendarPage({
               </div>
               <div className="min-w-0 flex-1">
                 <p className={`truncate text-sm font-medium ${info?.dayType || logged ? "" : "text-label-3"}`}>{plan}</p>
+                {author && <p className="truncate text-xs text-label-2">{author}</p>}
                 {status && (
                   <p
                     className={`flex items-start gap-1 text-xs first-letter:uppercase ${

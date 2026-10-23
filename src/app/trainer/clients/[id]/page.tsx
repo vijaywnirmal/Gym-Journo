@@ -8,6 +8,7 @@ import TrendChart from "@/components/TrendChart";
 import { isValidIsoDate, shiftDate } from "@/lib/date";
 import { clientName, clientSummary, dayStatus, mondayOf, weekFrom } from "@/lib/clientStatus";
 import { formatSetCompact } from "@/lib/setData";
+import { editedByClient } from "@/lib/planAuthors";
 import { getClient, getClientBodyWeights, getClientLogs, getClientPlans } from "@/lib/trainers";
 import type { ClientLog, ClientPlan } from "@/lib/types";
 import DayStatusPill from "../../DayStatusPill";
@@ -120,6 +121,7 @@ export default async function ClientPage({
                       </>
                     )}
                   </span>
+                  {plan && editedByClient(plan, id) && <span className="block text-xs text-label-2">Edited by {firstName}</span>}
                   {status === "done" && log && <LoggedWorkout log={log} />}
                 </span>
               </Link>

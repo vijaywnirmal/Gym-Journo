@@ -1,6 +1,14 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+// after() runs its callback once the response is sent; here, when the test says so.
+const afterCallbacks: (() => Promise<void>)[] = [];
+vi.mock("next/server", () => ({ after: (fn: () => Promise<void>) => afterCallbacks.push(fn) }));
+const runAfter = async () => {
+  for (const fn of afterCallbacks.splice(0)) await fn();
+};
+const notifyUser = vi.fn();
+vi.mock("@/lib/push/notifyUser", () => ({ notifyUser: (...args: unknown[]) => notifyUser(...args) }));
 
 const rpc = vi.fn();
 const libraryQuery = {
@@ -19,6 +27,7 @@ const getClientPlans = vi.fn();
 vi.mock("@/lib/trainers", () => ({
   getClient: (id: string) => getClient(id),
   getClientPlans: (...args: unknown[]) => getClientPlans(...args),
+  getMyTrainerProfile: async () => ({ display_name: "Ravi" }),
 }));
 
 const { saveClientPlan, deleteClientPlan, applyClientProgram, undoClientProgram, endCoaching } = await import("./actions");
@@ -54,6 +63,33 @@ describe("saveClientPlan", () => {
     rpc.mockClear();
     expect((await saveClientPlan("c1", { ...planInput, exercises: [{ exerciseId: "ex-1", targetSets: 0, targetReps: 8 }] })).error).toBeTruthy();
     expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("tells the client about plans from their today onwards, after responding", async () => {
+    notifyUser.mockClear();
+    afterCallbacks.length = 0;
+    getClient.mockResolvedValue({ client_today: "2026-10-23" });
+    rpc.mockResolvedValue({ data: { id: "p1" }, error: null });
+
+    await saveClientPlan("c1", planInput);
+    expect(notifyUser).not.toHaveBeenCalled();
+    await runAfter();
+    expect(notifyUser).toHaveBeenCalledWith("c1", {
+      title: "Ravi planned your workout",
+      body: "Today: Legs",
+      url: "/",
+      tag: "trainer-plan",
+    });
+
+    notifyUser.mockClear();
+    await saveClientPlan("c1", { ...planInput, date: "2026-10-22" });
+    await runAfter();
+    expect(notifyUser).not.toHaveBeenCalled();
+
+    rpc.mockResolvedValue({ data: null, error: { code: "42501", message: "Not this person's trainer" } });
+    await saveClientPlan("c1", planInput);
+    await runAfter();
+    expect(notifyUser).not.toHaveBeenCalled();
   });
 
   it("explains the database's refusals", async () => {

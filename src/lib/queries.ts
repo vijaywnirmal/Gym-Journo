@@ -292,6 +292,9 @@ export type WeekDayOverview = {
   dayType: DayType | null;
   // A day off marked after its date had passed.
   markedLate: boolean;
+  // Who made and last changed the plan (see lib/planAuthors.ts).
+  createdBy?: string | null;
+  updatedBy?: string | null;
 };
 
 export async function getWeekOverview(dates: string[]) {
@@ -306,7 +309,7 @@ export async function getWeekOverview(dates: string[]) {
   const [{ data: plans }, { data: logs }, performed] = await Promise.all([
     supabase
       .from("workout_plans")
-      .select("date, title, is_rest_day, off_kind, off_marked_late")
+      .select("date, title, is_rest_day, off_kind, off_marked_late, created_by, updated_by")
       .eq("user_id", user.id)
       .in("date", dates),
     supabase
@@ -330,6 +333,8 @@ export async function getWeekOverview(dates: string[]) {
       title: plan.title,
       dayType: dayTypeOf(plan),
       markedLate: !!plan.off_marked_late,
+      createdBy: plan.created_by,
+      updatedBy: plan.updated_by,
     });
   }
   for (const log of (logs ?? []) as { date: string; completed_at: string | null }[]) {
