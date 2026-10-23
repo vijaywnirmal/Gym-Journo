@@ -95,6 +95,15 @@ export async function getGymAdmins(gymId: string): Promise<GymAdminRow[]> {
   return error || !data ? [] : (data as GymAdminRow[]);
 }
 
+// The gym that arranged the signed-in person's trainer link, or null for a trainer they found
+// themselves. Asked separately from getMyTrainer, which every page uses, so that a database without
+// gyms (0037) only loses this.
+export async function getTrainerLinkGymId(linkId: string): Promise<string | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("trainer_clients").select("gym_id").eq("id", linkId).maybeSingle();
+  return error ? null : (data?.gym_id ?? null);
+}
+
 // A trainer the signed-in person's gym suggested that they haven't answered yet, or null.
 export const getMyGymTrainerOffer = cache(async (): Promise<GymTrainerOffer | null> => {
   const user = await getCurrentUser();

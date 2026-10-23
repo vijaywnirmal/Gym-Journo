@@ -74,7 +74,10 @@ describe("saveTrainerProfile", () => {
     expect(await saveTrainerProfile({ ...input, next: "/g/abcdefgh23" })).toEqual({ success: true, next: "/g/abcdefgh23" });
     expect(await saveTrainerProfile({ ...input, next: "https://evil.example/g/abcdefgh23" })).toEqual({ success: true, next: null });
     gymJoinCookie = "pqrstuvw45";
-    expect(await saveTrainerProfile(input)).toEqual({ success: true, next: "/g/pqrstuvw45" });
+    // An account that was already set up ignores a leftover link.
+    expect(await saveTrainerProfile(input)).toEqual({ success: true, next: null });
+    onboarded = false;
+    expect(await saveTrainerProfile({ ...input, confirmedAdult: true })).toEqual({ success: true, next: "/g/pqrstuvw45" });
     expect(deleteCookie).toHaveBeenCalledWith("gj-gym-join");
   });
 

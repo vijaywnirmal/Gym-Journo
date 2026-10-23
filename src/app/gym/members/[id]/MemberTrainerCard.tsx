@@ -26,12 +26,15 @@ export default function MemberTrainerCard({
   const [choice, setChoice] = useState(choices[0]?.id ?? "");
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  // Removing a trainer ends their access at once, so it asks first, like every other removal.
+  const [confirmingRemove, setConfirmingRemove] = useState(false);
 
   function run(action: () => Promise<{ error?: string }>, message: string) {
     setError(null);
     setDone(null);
     startTransition(async () => {
       const result = await action();
+      setConfirmingRemove(false);
       if (result.error) {
         setError(result.error);
         return;
@@ -53,13 +56,38 @@ export default function MemberTrainerCard({
               {current && offered && ` · suggested ${offered.name}`}
             </p>
           </div>
+          {!confirmingRemove && (
+            <button
+              type="button"
+              onClick={() => (current ? setConfirmingRemove(true) : run(unassign, "Suggestion withdrawn."))}
+              disabled={pending}
+              className="h-8 shrink-0 rounded-lg border border-separator px-2.5 text-sm font-semibold hover:bg-fill disabled:opacity-50"
+            >
+              {current ? "Remove" : "Withdraw"}
+            </button>
+          )}
+        </div>
+      )}
+      {current && confirmingRemove && (
+        <div className="flex flex-wrap items-center gap-2 px-4 py-3">
+          <p className="min-w-40 flex-1 text-sm text-label-2">
+            {current.name} will stop training {firstName}
+            {offered ? `, and your suggestion of ${offered.name} is withdrawn.` : "."}
+          </p>
           <button
             type="button"
-            onClick={() => run(unassign, current ? "Trainer removed." : "Suggestion withdrawn.")}
-            disabled={pending}
-            className="h-8 shrink-0 rounded-lg border border-separator px-2.5 text-sm font-semibold hover:bg-fill disabled:opacity-50"
+            onClick={() => setConfirmingRemove(false)}
+            className="h-8 rounded-lg px-2.5 text-sm font-medium hover:bg-fill"
           >
-            {current ? "Remove" : "Withdraw"}
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => run(unassign, offered ? "Trainer removed and suggestion withdrawn." : "Trainer removed.")}
+            disabled={pending}
+            className="h-8 rounded-lg bg-red px-2.5 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {pending ? "Removing…" : "Remove"}
           </button>
         </div>
       )}

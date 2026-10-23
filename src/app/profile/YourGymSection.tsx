@@ -6,21 +6,24 @@ function place(gym: Gym): string {
   return [gym.area, gym.city].filter(Boolean).join(", ");
 }
 
-// The gym the person is a member of, and the gyms they train at. since is formatted on the server.
+// The gym the person is a member of, the gyms they train at, and a gym they help run (but don't own:
+// the owner's gym goes with their account). since is formatted on the server.
 export default function YourGymSection({
   membership,
   trainerGyms,
+  adminOf,
   gymTrainer,
 }: {
   membership: { gym: Gym; since: string } | null;
   trainerGyms: Gym[];
+  adminOf: Gym | null;
   // The trainer this gym arranged, who stops training them if they leave.
   gymTrainer: string | null;
 }) {
-  if (!membership && trainerGyms.length === 0) return null;
+  if (!membership && trainerGyms.length === 0 && !adminOf) return null;
   return (
     <>
-      <h2 className="section-title mt-8">{membership ? "Your gym" : "Gyms you train at"}</h2>
+      <h2 className="section-title mt-8">{membership ? "Your gym" : "Gyms"}</h2>
       <section className="card divide-y divide-separator">
         {membership && (
           <div>
@@ -66,6 +69,20 @@ export default function YourGymSection({
             />
           </div>
         ))}
+        {adminOf && (
+          <div>
+            <div className="px-4 pt-3">
+              <p className="text-sm font-semibold">Admin at {adminOf.name}</p>
+              {place(adminOf) && <p className="text-sm text-label-2">{place(adminOf)}</p>}
+            </div>
+            <RemoveButton
+              label="Step down"
+              warning={`You'll no longer run ${adminOf.name}.`}
+              action={leaveGymStaff.bind(null, adminOf.id, "admin")}
+              confirmLabel="Leave"
+            />
+          </div>
+        )}
       </section>
     </>
   );

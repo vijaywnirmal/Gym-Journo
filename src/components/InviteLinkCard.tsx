@@ -12,6 +12,7 @@ export default function InviteLinkCard({
   makeLink: createLink,
   shareText,
   replaceWarning = "Your current link will stop working.",
+  singleUse = false,
   children,
 }: {
   invite: { url: string; expiresOn: string | null } | null;
@@ -19,6 +20,8 @@ export default function InviteLinkCard({
   // The WhatsApp message, before the link.
   shareText: string;
   replaceWarning?: string;
+  // Works for one person (a gym's admin link).
+  singleUse?: boolean;
   // Extra actions shown under the share buttons.
   children?: React.ReactNode;
 }) {
@@ -75,7 +78,11 @@ export default function InviteLinkCard({
       <p className="select-all break-all rounded-[10px] bg-fill px-3 py-2.5 font-mono text-sm">
         {url.replace(/^https?:\/\/(www\.)?/, "")}
       </p>
-      {invite.expiresOn && <p className="text-xs text-label-2">Works until {invite.expiresOn}.</p>}
+      {invite.expiresOn && (
+        <p className="text-xs text-label-2">
+          {singleUse ? `Works for one person, until ${invite.expiresOn}.` : `Works until ${invite.expiresOn}.`}
+        </p>
+      )}
       <div className="flex flex-wrap gap-2">
         <a
           href={whatsappShareUrl(`${shareText} ${url}`)}

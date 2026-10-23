@@ -6,11 +6,17 @@ import type { GymTrainerOffer } from "@/lib/types";
 import { answerTrainerOffer } from "./gymActions";
 
 // A trainer the member's gym suggested: who they are, what they'd see, and the member's choice.
-export default function GymOfferCard({ offer, currentTrainer }: { offer: GymTrainerOffer; currentTrainer: string | null }) {
+export default function GymOfferCard({
+  offer,
+  currentTrainer,
+}: {
+  offer: GymTrainerOffer;
+  currentTrainer: { id: string; name: string } | null;
+}) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const name = offer.trainer_name;
-  const switching = currentTrainer !== null && currentTrainer !== name;
+  const switching = currentTrainer !== null && currentTrainer.id !== offer.trainer_id;
 
   function answer(accept: boolean) {
     setError(null);
@@ -27,7 +33,7 @@ export default function GymOfferCard({ offer, currentTrainer }: { offer: GymTrai
       </h2>
       {offer.trainer_runs_gym && <p className="mt-1 text-sm text-label-2">{name} also runs {offer.gym_name}.</p>}
       <TrainerSeesList name={name} heading="h3" className="mt-3" />
-      {switching && <p className="mt-3 text-sm font-medium">You&apos;ll stop training with {currentTrainer}.</p>}
+      {switching && <p className="mt-3 text-sm font-medium">You&apos;ll stop training with {currentTrainer.name}.</p>}
       {error && (
         <p role="alert" className="mt-3 text-sm text-red">
           {error}

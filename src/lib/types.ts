@@ -155,8 +155,6 @@ export type MyTrainer = {
   linkId: string;
   trainerId: string;
   startedAt: string;
-  // The gym that arranged this trainer (0037), or null for one the person found themselves.
-  gymId: string | null;
   trainer: Pick<TrainerProfile, "display_name" | "gym_name" | "city" | "whatsapp">;
 };
 
@@ -260,7 +258,13 @@ export type GymMemberRow = {
 
 // A trainer the member's gym suggested (my_gym_trainer_offer). trainer_runs_gym: they're also the
 // gym's owner or an admin.
-export type GymTrainerOffer = { offer_id: string; gym_name: string; trainer_name: string; trainer_runs_gym: boolean };
+export type GymTrainerOffer = {
+  offer_id: string;
+  gym_name: string;
+  trainer_id: string;
+  trainer_name: string;
+  trainer_runs_gym: boolean;
+};
 
 export type GymTrainerRow = {
   trainer_id: string;

@@ -66,7 +66,9 @@ export async function saveTrainerProfile(input: TrainerProfileInput) {
   }
 
   const store = await cookies();
-  const remembered = store.get(GYM_JOIN_COOKIE)?.value;
+  // The gym link remembered from before signing up only matters for a new account: someone already
+  // set up who edits their details stays out of an old link.
+  const remembered = onboarded ? undefined : store.get(GYM_JOIN_COOKIE)?.value;
   const gymCode = gymJoinCodeOf(input.next ?? "") ?? (isInviteCode(remembered) ? remembered : null);
   store.delete(SIGNUP_COOKIE);
   if (gymCode) store.delete(GYM_JOIN_COOKIE);

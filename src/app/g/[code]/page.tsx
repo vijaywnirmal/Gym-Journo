@@ -2,14 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { createClient } from "@/lib/supabase/server";
-import { getMyGymMembership } from "@/lib/gyms";
+import { getMyGymMembership, getTrainerLinkGymId } from "@/lib/gyms";
+import { getMyTrainer } from "@/lib/trainers";
 import type { GymRole } from "@/lib/types";
 import GymJoinActions from "./GymJoinActions";
 
 export const metadata: Metadata = { title: "Join a gym" };
 
 type InviteDetails = {
-  state: "valid" | "expired" | "not_found" | "current" | "needs_trainer_profile";
+  state: "valid" | "expired" | "not_found" | "current" | "own" | "needs_trainer_profile";
   role: GymRole | null;
   gym_name: string | null;
   city: string | null;
@@ -25,9 +26,10 @@ const CURRENT: Record<GymRole, (gym: string) => string> = {
 export default async function GymJoinPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
   const supabase = await createClient();
-  const [{ data, error }, membership] = await Promise.all([
+  const [{ data, error }, membership, myTrainer] = await Promise.all([
     supabase.rpc("gym_invite_details", { p_code: code }),
     getMyGymMembership(),
+    getMyTrainer(),
   ]);
   const details = (data as InviteDetails[] | null)?.[0];
 
@@ -44,6 +46,15 @@ export default async function GymJoinPage({ params }: { params: Promise<{ code: 
   }
   const gym = details.gym_name;
   const role = details.role;
+  if (details.state === "own") {
+    return (
+      <Message
+        title="This is your gym's admin link"
+        text="Send it to the person who'll help you run the gym. It works for one person."
+        link={{ href: "/gym/invite", label: "Invite people" }}
+      />
+    );
+  }
   if (details.state === "current") {
     return (
       <Message
@@ -53,6 +64,11 @@ export default async function GymJoinPage({ params }: { params: Promise<{ code: 
     );
   }
   const place = [details.area, details.city].filter(Boolean).join(", ") || undefined;
+  // A member switching gyms also loses the trainer their old gym arranged.
+  const leavingTrainer =
+    role === "member" && membership && myTrainer && (await getTrainerLinkGymId(myTrainer.linkId)) === membership.gym.id
+      ? myTrainer.trainer.display_name
+      : null;
   if (details.state === "needs_trainer_profile") {
     return (
       <Message
@@ -97,7 +113,11 @@ export default async function GymJoinPage({ params }: { params: Promise<{ code: 
         )}
 
         <p className="text-sm text-label-2">
-          {role === "member" && membership && `You'll leave ${membership.gym.name}. `}
+          {role === "member" &&
+            membership &&
+            (leavingTrainer
+              ? `You'll leave ${membership.gym.name}, and ${leavingTrainer} will stop training you. `
+              : `You'll leave ${membership.gym.name}. `)}
           You can leave anytime from Profile.{" "}
           <Link href="/privacy" className="text-link">
             Privacy policy

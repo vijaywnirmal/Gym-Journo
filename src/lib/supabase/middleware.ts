@@ -132,9 +132,11 @@ export async function updateSession(request: NextRequest) {
       url.search = "";
       const response = NextResponse.redirect(url);
       supabaseResponse.cookies.getAll().forEach((cookie) => response.cookies.set(cookie));
-      response.cookies.delete(
-        target.startsWith("/join/") ? JOIN_COOKIE : target.startsWith("/g/") ? GYM_JOIN_COOKIE : SIGNUP_COOKIE
-      );
+      // They're onboarded by now, so a sign-up role has done its job too (trainer setup, for a
+      // trainer link, is offered on the join page when they need it).
+      if (target.startsWith("/join/")) response.cookies.delete(JOIN_COOKIE);
+      if (target.startsWith("/g/")) response.cookies.delete(GYM_JOIN_COOKIE);
+      response.cookies.delete(SIGNUP_COOKIE);
       return response;
     }
   }

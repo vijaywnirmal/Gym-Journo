@@ -9,12 +9,12 @@ const runAfter = async () => {
 const notifyUser = vi.fn();
 vi.mock("@/lib/push/notifyUser", () => ({ notifyUser: (...args: unknown[]) => notifyUser(...args) }));
 vi.mock("@/lib/gyms", () => ({
-  getAdminGym: async () => ({ id: "gym-1", name: "Iron Gym" }),
   getGymTrainers: async () => [{ trainer_id: "t-1", display_name: "Ravi" }],
 }));
 
 const rpc = vi.fn();
-vi.mock("@/lib/supabase/server", () => ({ createClient: async () => ({ rpc }) }));
+const gymsQuery = { select: () => gymsQuery, eq: () => gymsQuery, maybeSingle: async () => ({ data: { name: "Iron Gym" } }) };
+vi.mock("@/lib/supabase/server", () => ({ createClient: async () => ({ rpc, from: () => gymsQuery }) }));
 
 const { suggestTrainer, unassignTrainer, removeMember, removeStaff } = await import("./actions");
 
@@ -33,8 +33,8 @@ describe("gym actions", () => {
     expect(notifyUser).toHaveBeenCalledWith("m-1", expect.objectContaining({ title: "Iron Gym suggests Ravi as your trainer", url: "/profile" }));
   });
 
-  it("doesn't notify when the member already trains with that trainer", async () => {
-    rpc.mockResolvedValue({ data: null, error: null });
+  it("doesn't notify when nothing changed (no offer: an empty row)", async () => {
+    rpc.mockResolvedValue({ data: { id: null, gym_id: null }, error: null });
     expect(await suggestTrainer("gym-1", "m-1", "t-1")).toEqual({ success: true });
     await runAfter();
     expect(notifyUser).not.toHaveBeenCalled();
@@ -45,6 +45,8 @@ describe("gym actions", () => {
     expect((await suggestTrainer("gym-1", "m-1", "t-1")).error).toBe("This member has their own trainer.");
     rpc.mockResolvedValue({ data: null, error: { code: "42501", message: "Not an admin of this gym" } });
     expect((await unassignTrainer("gym-1", "m-1")).error).toBe("You no longer run this gym.");
+    rpc.mockResolvedValue({ data: null, error: { code: "42501", message: "Only the gym's owner can remove admins" } });
+    expect((await removeStaff("gym-1", "a-1", "admin")).error).toBe("Only the gym's owner can do that.");
     rpc.mockResolvedValue({ data: null, error: { message: "connection reset" } });
     expect((await removeMember("gym-1", "m-1")).error).toBe("Couldn't remove the member. Please try again.");
     await runAfter();

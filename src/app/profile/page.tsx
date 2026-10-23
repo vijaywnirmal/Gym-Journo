@@ -3,7 +3,7 @@ import Link from "next/link";
 import Icon from "@/components/Icon";
 import { getProfile } from "@/lib/queries";
 import { getMyTrainer, getMyTrainerProfile } from "@/lib/trainers";
-import { getAdminGym, getMyGymMembership, getMyGymTrainerOffer, getMyTrainerGyms } from "@/lib/gyms";
+import { getAdminGym, getMyGymMembership, getMyGymTrainerOffer, getMyTrainerGyms, getTrainerLinkGymId } from "@/lib/gyms";
 import { profileFieldsFromProfile } from "@/lib/profile-fields";
 import { formatDateLong, todayIn } from "@/lib/date";
 import SignOutButton from "@/components/SignOutButton";
@@ -33,6 +33,11 @@ export default async function ProfilePage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  // The trainer the member's gym arranged stops training them if they leave it.
+  const gymArrangedTrainer =
+    myTrainer && membership && (await getTrainerLinkGymId(myTrainer.linkId)) === membership.gym.id
+      ? myTrainer.trainer.display_name
+      : null;
 
   return (
     <main className="px-4 pt-6 pb-10 md:px-8 md:pt-10">
@@ -40,7 +45,12 @@ export default async function ProfilePage() {
 
       <ProfileCard initial={profileFieldsFromProfile(profile)} email={user?.email ?? null} />
 
-      {offer && <GymOfferCard offer={offer} currentTrainer={myTrainer?.trainer.display_name ?? null} />}
+      {offer && (
+        <GymOfferCard
+          offer={offer}
+          currentTrainer={myTrainer && { id: myTrainer.trainerId, name: myTrainer.trainer.display_name }}
+        />
+      )}
 
       {myTrainer && (
         <YourTrainerSection
@@ -57,7 +67,8 @@ export default async function ProfilePage() {
           }
         }
         trainerGyms={trainerGyms}
-        gymTrainer={myTrainer && membership && myTrainer.gymId === membership.gym.id ? myTrainer.trainer.display_name : null}
+        adminOf={adminGym && !adminGym.isOwner ? adminGym : null}
+        gymTrainer={gymArrangedTrainer}
       />
 
       <h2 className="section-title mt-8">Tracking</h2>
