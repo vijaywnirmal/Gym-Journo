@@ -11,6 +11,7 @@ import {
   pageSessionViews,
   type ExerciseSession,
 } from "@/lib/analyze/exerciseSessions";
+import { requireMemberApp } from "@/lib/workAccount";
 import ExerciseFilter from "./ExerciseFilter";
 import { formatSessionSummary, summarizeVisibleSessions } from "./sessionSummary";
 import { formatExerciseRecurrence, summarizeExerciseRecurrence } from "./exerciseRecurrence";
@@ -25,6 +26,7 @@ export default async function HistoryPage({
 }: {
   searchParams: Promise<{ exercise?: string; before?: string }>;
 }) {
+  await requireMemberApp();
   const { exercise: exerciseId, before } = await searchParams;
   const [logPage, exercises, sessions] = await Promise.all([
     // Unfiltered History is the raw log list, unchanged. The exercise-filtered view below is built

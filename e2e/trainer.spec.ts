@@ -47,7 +47,7 @@ test("a trainer plans a client's day, the client sees who planned it, and the tr
     await trainerPage.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(trainerPage.getByRole("heading", { name: new RegExp(TRAINER.name) })).toBeVisible();
 
-    await trainerPage.goto("/trainer");
+    await trainerPage.goto("/trainer/clients");
     await expect(trainerPage.getByRole("link", { name: new RegExp(TEST_USER.firstName) })).toBeVisible();
 
     await trainerPage.goto(`/trainer/clients/${clientId}/plan/${DATE}`);

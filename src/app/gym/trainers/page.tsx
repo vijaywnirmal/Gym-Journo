@@ -7,7 +7,6 @@ import { getCurrentUser } from "@/lib/currentUser";
 import { getAdminGym, getGymAdmins, getGymTrainers } from "@/lib/gyms";
 import { joinName } from "@/lib/names";
 import { removeStaff } from "../actions";
-import GymTabs from "../GymTabs";
 import RemoveButton from "@/components/RemoveButton";
 
 export const metadata: Metadata = { title: "Trainers" };
@@ -28,15 +27,8 @@ export default async function GymTrainersPage() {
   return (
     <main className="px-4 pt-6 pb-10 md:px-8 md:pt-10">
       <PageHeader
-        title={gym.name}
-        subtitle={
-          <>
-            {count(trainers.length, "trainer")} ·{" "}
-            <Link href="/gym/setup" className="text-link">
-              Gym details
-            </Link>
-          </>
-        }
+        title="Trainers"
+        subtitle={`${gym.name} · ${count(trainers.length, "trainer")}`}
         actions={
           <Link
             href="/gym/invite"
@@ -47,7 +39,6 @@ export default async function GymTrainersPage() {
           </Link>
         }
       />
-      <GymTabs current="trainers" />
 
       {trainers.length === 0 ? (
         <section className="card p-4">
@@ -65,7 +56,7 @@ export default async function GymTrainersPage() {
                 <p className="text-sm font-semibold">{t.display_name}</p>
                 <p className="text-sm text-label-2">
                   {t.members_assigned > 0 ? (
-                    <Link href={`/gym?trainer=${t.trainer_id}`} className="text-link">
+                    <Link href={`/gym/members?trainer=${t.trainer_id}`} className="text-link">
                       {count(t.members_assigned, "member")}
                     </Link>
                   ) : (

@@ -5,6 +5,7 @@ import { getProfile } from "@/lib/queries";
 import { getMyTrainer, getMyTrainerProfile } from "@/lib/trainers";
 import { getAdminGym, getMyGymMembership, getMyGymTrainerOffer, getMyTrainerGyms, getTrainerLinkGymId } from "@/lib/gyms";
 import { profileFieldsFromProfile } from "@/lib/profile-fields";
+import { joinName, namePartsOf } from "@/lib/names";
 import { formatDateLong, todayIn } from "@/lib/date";
 import SignOutButton from "@/components/SignOutButton";
 import PageHeader from "@/components/PageHeader";
@@ -33,6 +34,72 @@ export default async function ProfilePage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  // Trainers and gym staff have no journal here (src/lib/workAccount.ts): just their account and work.
+  if (trainerProfile || adminGym) {
+    const { firstName, lastName } = namePartsOf(profile);
+    return (
+      <main className="px-4 pt-6 pb-10 md:px-8 md:pt-10">
+        <PageHeader title="Profile" subtitle={joinName(firstName, lastName) || undefined} />
+
+        {adminGym && (
+          <>
+            <h2 className="section-title">Gym</h2>
+            <section className="card divide-y divide-separator">
+              <LinkRow href="/gym/invite" title="Invite people" text="Member poster, trainer and admin links" />
+              <LinkRow
+                href="/gym/setup"
+                title="Gym details"
+                text={[adminGym.name, adminGym.area, adminGym.city].filter(Boolean).join(" · ")}
+              />
+            </section>
+          </>
+        )}
+
+        {trainerProfile && (
+          <>
+            <h2 className={`section-title ${adminGym ? "mt-8" : ""}`}>Trainer</h2>
+            <section className="card divide-y divide-separator">
+              <LinkRow href="/trainer/invite" title="Invite a client" text="Share your join link on WhatsApp" />
+              <LinkRow
+                href="/trainer/setup"
+                title="Trainer details"
+                text={[trainerProfile.display_name, trainerProfile.gym_name, trainerProfile.city].filter(Boolean).join(" · ")}
+              />
+            </section>
+          </>
+        )}
+
+        <YourGymSection
+          membership={null}
+          trainerGyms={trainerGyms}
+          adminOf={adminGym && !adminGym.isOwner ? adminGym : null}
+          gymTrainer={null}
+        />
+
+        <h2 className="section-title mt-8">Privacy</h2>
+        <section className="card">
+          <LinkRow href="/privacy" title="Privacy policy" text="What's kept, who sees it, and how to delete it" />
+        </section>
+
+        <h2 className="section-title mt-8">Account</h2>
+        <section className="card divide-y divide-separator">
+          {!trainerProfile && (
+            <LinkRow href="/trainer/setup" title="Train clients too" text="Invite clients and plan their workouts" />
+          )}
+          {!adminGym && <LinkRow href="/gym/setup" title="Set up a gym" text="Invite trainers and members" />}
+          <div className="flex items-center justify-between gap-3 px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold">Sign out</p>
+              <p className="truncate text-sm text-label-2">{user?.email ?? "This device"}</p>
+            </div>
+            <SignOutButton />
+          </div>
+          <DeleteAccountSection summary={workDeleteSummary(trainerProfile !== null, adminGym)} />
+        </section>
+      </main>
+    );
+  }
+
   // The trainer the member's gym arranged stops training them if they leave it.
   const gymArrangedTrainer =
     myTrainer && membership && (await getTrainerLinkGymId(myTrainer.linkId)) === membership.gym.id
@@ -68,7 +135,7 @@ export default async function ProfilePage() {
           }
         }
         trainerGyms={trainerGyms}
-        adminOf={adminGym && !adminGym.isOwner ? adminGym : null}
+        adminOf={null}
         gymTrainer={gymArrangedTrainer}
       />
 
@@ -84,34 +151,6 @@ export default async function ProfilePage() {
         <Icon name="chevronRight" className="size-4 text-label-3" strokeWidth={2} />
       </Link>
 
-      {adminGym && (
-        <>
-          <h2 className="section-title mt-8">Gym</h2>
-          <section className="card divide-y divide-separator">
-            <LinkRow href="/gym/invite" title="Invite people" text="Member poster, trainer and admin links" />
-            <LinkRow
-              href="/gym/setup"
-              title="Gym details"
-              text={[adminGym.name, adminGym.area, adminGym.city].filter(Boolean).join(" · ")}
-            />
-          </section>
-        </>
-      )}
-
-      {trainerProfile && (
-        <>
-          <h2 className="section-title mt-8">Trainer</h2>
-          <section className="card divide-y divide-separator">
-            <LinkRow href="/trainer/invite" title="Invite a client" text="Share your join link on WhatsApp" />
-            <LinkRow
-              href="/trainer/setup"
-              title="Trainer details"
-              text={[trainerProfile.display_name, trainerProfile.gym_name, trainerProfile.city].filter(Boolean).join(" · ")}
-            />
-          </section>
-        </>
-      )}
-
       <RemindersSection
         enabled={profile?.workout_reminders ?? false}
         time={(profile?.reminder_time ?? "18:00").slice(0, 5)}
@@ -126,10 +165,8 @@ export default async function ProfilePage() {
 
       <h2 className="section-title mt-8">Account</h2>
       <section className="card divide-y divide-separator">
-        {!trainerProfile && (
-          <LinkRow href="/trainer/setup" title="Set up a trainer account" text="Invite clients and plan their workouts" />
-        )}
-        {!adminGym && <LinkRow href="/gym/setup" title="Set up a gym" text="Invite trainers and members" />}
+        <LinkRow href="/trainer/setup" title="Set up a trainer account" text="Invite clients and plan their workouts" />
+        <LinkRow href="/gym/setup" title="Set up a gym" text="Invite trainers and members" />
         <div className="flex items-center justify-between gap-3 px-4 py-3">
           <div className="min-w-0">
             <p className="text-sm font-semibold">Sign out</p>
@@ -153,4 +190,15 @@ function LinkRow({ href, title, text }: { href: string; title: string; text: str
       <Icon name="chevronRight" className="size-4 text-label-3" strokeWidth={2} />
     </Link>
   );
+}
+
+// What deleting a work account removes, and what stays with other people.
+function workDeleteSummary(isTrainer: boolean, gym: { name: string; isOwner: boolean } | null): string {
+  const parts = [
+    gym?.isOwner ? `Removes your account and your gym, ${gym.name}: its member list, trainers and links.` : "Removes your account.",
+    isTrainer && "Your clients keep their accounts and the plans you made them.",
+    gym?.isOwner && "Members and trainers keep their own accounts.",
+    gym && !gym.isOwner && `${gym.name} stays as it is.`,
+  ];
+  return parts.filter(Boolean).join(" ");
 }

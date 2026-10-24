@@ -8,6 +8,7 @@ import { hasCoachConsent } from "@/lib/coach/consent";
 import PageHeader from "@/components/PageHeader";
 import { CoachConsentPrompt } from "@/app/profile/CoachConsentSection";
 import { formatDateTimeIn } from "@/lib/date";
+import { requireMemberApp } from "@/lib/workAccount";
 import CoachChat, { type LastCoachAnswer } from "./CoachChat";
 
 export const metadata: Metadata = { title: "Coach" };
@@ -39,6 +40,7 @@ async function getLastAnswer(userId: string, timeZone: string | null): Promise<L
 }
 
 export default async function CoachPage() {
+  await requireMemberApp();
   const profile = await getProfile();
   const consented = hasCoachConsent(profile);
   const lastAnswer = consented && profile ? await getLastAnswer(profile.id, profile.timezone) : null;

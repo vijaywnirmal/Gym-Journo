@@ -43,3 +43,26 @@ export function trainerLabel(
 export function memberName(row: Pick<GymMemberRow, "first_name" | "last_name">): string {
   return joinName(row.first_name, row.last_name) || "Member";
 }
+
+export type GymSummary = {
+  members: number;
+  joinedThisWeek: number;
+  trainedThisWeek: number;
+  notTraining: number;
+  needTrainer: number;
+  waitingToAccept: number;
+};
+
+// The dashboard's numbers. "Joined this week" is the last 7 days; "trained this week" is Monday to
+// Sunday in each member's time zone, as the list counts it.
+export function gymSummary(rows: GymMemberRow[], now: Date = new Date()): GymSummary {
+  const weekAgo = now.getTime() - 7 * 24 * 60 * 60 * 1000;
+  return {
+    members: rows.length,
+    joinedThisWeek: rows.filter((r) => new Date(r.joined_at).getTime() > weekAgo).length,
+    trainedThisWeek: rows.filter((r) => r.workouts_this_week > 0).length,
+    notTraining: rows.filter(isQuiet).length,
+    needTrainer: rows.filter(needsTrainer).length,
+    waitingToAccept: rows.filter((r) => r.offered_trainer_id !== null).length,
+  };
+}

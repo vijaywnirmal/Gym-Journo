@@ -9,6 +9,7 @@ import { getCurrentUser } from "@/lib/currentUser";
 import { planAuthorLabel } from "@/lib/planAuthors";
 import { getKnownTrainer } from "@/lib/trainers";
 import Icon from "@/components/Icon";
+import { requireMemberApp } from "@/lib/workAccount";
 import { describeCalendarDay, isMissedDay } from "./dayStatus";
 
 export const metadata: Metadata = { title: "Calendar" };
@@ -18,6 +19,7 @@ export default async function CalendarPage({
 }: {
   searchParams: Promise<{ week?: string }>;
 }) {
+  await requireMemberApp();
   const { week } = await searchParams;
   const todayDate = await getToday();
   // A malformed ?week= (hand-edited or stale link) falls back to this week instead of crashing.

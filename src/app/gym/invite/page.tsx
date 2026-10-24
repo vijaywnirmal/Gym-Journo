@@ -31,7 +31,7 @@ export default async function GymInvitePage() {
 
   return (
     <main className="px-4 pt-6 pb-10 md:px-8 md:pt-10">
-      <PageHeader title="Invite people" subtitle={gym.name} back={{ href: "/gym", label: "Members" }} />
+      <PageHeader title="Invite people" subtitle={gym.name} back={{ href: "/gym", label: "Dashboard" }} />
       <div className="flex max-w-md flex-col">
         <h2 className="section-title">Members</h2>
         <p className="mb-2 text-sm text-label-2">Members join by scanning the poster at your front desk.</p>

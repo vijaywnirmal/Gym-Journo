@@ -4,8 +4,12 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { deleteAccount } from "./actions";
 
-// Account deletion is permanent, so it asks the person to type DELETE before it runs.
-export default function DeleteAccountSection() {
+const MEMBER_SUMMARY =
+  "Removes your account and everything in it: workouts, plans, templates, custom exercises, body weight, AI plans, Coach history and reminders.";
+
+// Account deletion is permanent, so it asks the person to type DELETE before it runs. summary says
+// what goes with it (a work account's differs: src/app/profile/page.tsx).
+export default function DeleteAccountSection({ summary = MEMBER_SUMMARY }: { summary?: string }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState(false);
@@ -30,10 +34,7 @@ export default function DeleteAccountSection() {
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-red">Delete account</p>
-          <p className="text-sm text-label-2">
-            Removes your account and everything in it: workouts, plans, templates, custom exercises, body weight,
-            AI plans, Coach history and reminders.
-          </p>
+          <p className="text-sm text-label-2">{summary}</p>
         </div>
         {!confirming && (
           <button

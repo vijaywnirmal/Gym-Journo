@@ -22,7 +22,7 @@ export default async function TrainerInvitePage() {
       <PageHeader
         title="Invite a client"
         subtitle="Clients join you by opening this link."
-        back={{ href: "/trainer", label: "Clients" }}
+        back={{ href: "/trainer/clients", label: "Clients" }}
       />
       <div className="max-w-md">
         <InviteLinkCard

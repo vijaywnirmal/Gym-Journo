@@ -3,11 +3,13 @@ import { getAiPlans, getNutritionForDate, getProfile } from "@/lib/queries";
 import { getToday } from "@/lib/userDate";
 import PageHeader from "@/components/PageHeader";
 import { formatDateTimeIn } from "@/lib/date";
+import { requireMemberApp } from "@/lib/workAccount";
 import AIPlanForm from "./AIPlanForm";
 
 export const metadata: Metadata = { title: "AI plan" };
 
 export default async function AIPlanPage() {
+  await requireMemberApp();
   const [profile, pastPlans, mealsToday] = await Promise.all([
     getProfile(),
     getAiPlans(),

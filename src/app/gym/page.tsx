@@ -3,28 +3,22 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import Icon from "@/components/Icon";
 import PageHeader from "@/components/PageHeader";
-import { getAdminGym, getGymMembers } from "@/lib/gyms";
-import { filterMembers, isQuiet, lastWorkoutLabel, memberName, needsTrainer, trainerLabel, type MemberFilter } from "@/lib/gymStatus";
-import GymTabs from "./GymTabs";
+import { getAdminGym, getGymMembers, getGymTrainers } from "@/lib/gyms";
+import { gymSummary } from "@/lib/gymStatus";
 
-export const metadata: Metadata = { title: "Gym" };
+export const metadata: Metadata = { title: "Dashboard" };
 
-const FILTERS: { key: MemberFilter; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "needs-trainer", label: "Needs a trainer" },
-  { key: "quiet", label: "Not training" },
-];
+function plural(n: number, one: string, many = `${one}s`) {
+  return `${n} ${n === 1 ? one : many}`;
+}
 
-export default async function GymPage({ searchParams }: PageProps<"/gym">) {
+// The gym's home: how its members are doing this week, who needs a trainer, and its trainers.
+export default async function GymDashboardPage() {
   const gym = await getAdminGym();
   if (!gym) redirect("/gym/setup");
-  const { filter: filterParam, trainer: trainerParam } = await searchParams;
-  const filter = FILTERS.find((f) => f.key === filterParam)?.key ?? "all";
-  const members = await getGymMembers(gym.id);
-  // From the Trainers page: the members one trainer trains here.
-  const byTrainer = typeof trainerParam === "string" ? members.filter((m) => m.trainer_id === trainerParam) : null;
-  const trainerName = byTrainer?.[0]?.trainer_name ?? null;
-  const shown = byTrainer && trainerName ? byTrainer : filterMembers(members, filter);
+  const [members, trainers] = await Promise.all([getGymMembers(gym.id), getGymTrainers(gym.id)]);
+  const summary = gymSummary(members);
+  const place = [gym.area, gym.city].filter(Boolean).join(", ");
 
   return (
     <main className="px-4 pt-6 pb-10 md:px-8 md:pt-10">
@@ -32,7 +26,7 @@ export default async function GymPage({ searchParams }: PageProps<"/gym">) {
         title={gym.name}
         subtitle={
           <>
-            {members.length} member{members.length === 1 ? "" : "s"} ·{" "}
+            {place && `${place} · `}
             <Link href="/gym/setup" className="text-link">
               Gym details
             </Link>
@@ -48,7 +42,6 @@ export default async function GymPage({ searchParams }: PageProps<"/gym">) {
           </Link>
         }
       />
-      <GymTabs current="members" />
 
       {members.length === 0 ? (
         <section className="card p-4">
@@ -61,61 +54,89 @@ export default async function GymPage({ searchParams }: PageProps<"/gym">) {
           </Link>
         </section>
       ) : (
-        <>
-          {byTrainer && trainerName ? (
-            <p className="mb-3 px-1 text-sm">
-              Trained by {trainerName} ·{" "}
-              <Link href="/gym" className="text-link">
-                Show everyone
+        <div className="grid grid-cols-2 gap-3">
+          <Tile
+            href="/gym/members"
+            value={summary.members}
+            label="Members"
+            note={summary.joinedThisWeek > 0 ? `${summary.joinedThisWeek} joined this week` : undefined}
+          />
+          <Tile
+            href="/gym/members"
+            value={summary.trainedThisWeek}
+            label="Trained this week"
+            note={`of ${plural(summary.members, "member")}`}
+          />
+          <Tile
+            href="/gym/members?filter=quiet"
+            value={summary.notTraining}
+            label="Not training"
+            note="No workout in 7 days"
+            warn={summary.notTraining > 0}
+          />
+          <Tile
+            href="/gym/members?filter=needs-trainer"
+            value={summary.needTrainer}
+            label="Need a trainer"
+            note={summary.waitingToAccept > 0 ? `${summary.waitingToAccept} waiting to accept` : undefined}
+            warn={summary.needTrainer > 0}
+          />
+        </div>
+      )}
+
+      <h2 className="section-title mt-8">Trainers</h2>
+      {trainers.length === 0 ? (
+        <section className="card p-4">
+          <p className="text-sm text-label-2">No trainers yet. Send your trainers the invite link on WhatsApp.</p>
+          <Link href="/gym/invite" className="mt-2 inline-block text-sm font-semibold text-link">
+            Invite a trainer
+          </Link>
+        </section>
+      ) : (
+        <ul className="card divide-y divide-separator">
+          {trainers.map((t) => (
+            <li key={t.trainer_id}>
+              <Link
+                href={t.members_assigned > 0 ? `/gym/members?trainer=${t.trainer_id}` : "/gym/trainers"}
+                className="flex items-center gap-3 px-4 py-3 hover:bg-fill"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold">{t.display_name}</span>
+                  <span className="block text-sm text-label-2">
+                    {plural(t.members_assigned, "member")} · {plural(t.plans_this_week, "plan")} for this week
+                  </span>
+                  {t.members_inactive_7_days > 0 && (
+                    <span className="block text-xs text-orange">{t.members_inactive_7_days} not training in the last 7 days</span>
+                  )}
+                </span>
+                <Icon name="chevronRight" className="size-4 shrink-0 text-label-3" strokeWidth={2} />
               </Link>
-            </p>
-          ) : (
-            <div className="mb-3 flex gap-1.5 overflow-x-auto" role="group" aria-label="Show">
-              {FILTERS.map((f) => {
-                const count = filterMembers(members, f.key).length;
-                const active = f.key === filter;
-                return (
-                  <Link
-                    key={f.key}
-                    href={f.key === "all" ? "/gym" : `/gym?filter=${f.key}`}
-                    aria-current={active ? "true" : undefined}
-                    className={`flex h-8 shrink-0 items-center rounded-full px-3 text-sm font-medium ${
-                      active ? "bg-label text-background" : "bg-fill text-label-2 hover:text-label"
-                    }`}
-                  >
-                    {f.label}
-                    {f.key !== "all" && <span className="ml-1.5 tabular-nums opacity-70">{count}</span>}
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-          {shown.length === 0 ? (
-            <p className="px-1 text-sm text-label-2">
-              {filter === "needs-trainer" ? "Everyone has a trainer." : "Everyone has trained in the last 7 days."}
-            </p>
-          ) : (
-            <ul className="card divide-y divide-separator">
-              {shown.map((row) => (
-                <li key={row.member_id}>
-                  <Link href={`/gym/members/${row.member_id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-fill">
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold">{memberName(row)}</span>
-                      <span className={`block truncate text-sm ${needsTrainer(row) ? "text-orange" : "text-label-2"}`}>
-                        {trainerLabel(row)}
-                      </span>
-                      <span className={`block text-xs ${isQuiet(row) ? "text-orange" : "text-label-2"}`}>
-                        {row.workouts_this_week} this week · {lastWorkoutLabel(row)}
-                      </span>
-                    </span>
-                    <Icon name="chevronRight" className="size-4 shrink-0 text-label-3" strokeWidth={2} />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </>
+            </li>
+          ))}
+        </ul>
       )}
     </main>
+  );
+}
+
+function Tile({
+  href,
+  value,
+  label,
+  note,
+  warn = false,
+}: {
+  href: string;
+  value: number;
+  label: string;
+  note?: string;
+  warn?: boolean;
+}) {
+  return (
+    <Link href={href} className="card flex flex-col p-4 hover:bg-fill">
+      <span className={`text-2xl font-semibold tabular-nums ${warn ? "text-orange" : ""}`}>{value}</span>
+      <span className="text-sm font-medium">{label}</span>
+      {note && <span className="text-xs text-label-2">{note}</span>}
+    </Link>
   );
 }

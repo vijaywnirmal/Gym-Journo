@@ -4,14 +4,15 @@ import { getCurrentUser } from "@/lib/currentUser";
 import type { KnownTrainer } from "@/lib/planAuthors";
 import type { ClientLog, ClientOverview, ClientPlan, MyTrainer, TrainerInvite, TrainerProfile } from "@/lib/types";
 
-// The signed-in person's trainer profile, or null when they aren't a trainer.
-export async function getMyTrainerProfile(): Promise<TrainerProfile | null> {
+// The signed-in person's trainer profile, or null when they aren't a trainer. Cached per request (the
+// layout, the work-account check and the page all ask).
+export const getMyTrainerProfile = cache(async (): Promise<TrainerProfile | null> => {
   const user = await getCurrentUser();
   if (!user) return null;
   const supabase = await createClient();
   const { data } = await supabase.from("trainer_profiles").select("*").eq("user_id", user.id).maybeSingle();
   return data;
-}
+});
 
 // The trainer's join link that still works (one at a time), or null when there's none.
 export async function getCurrentInvite(): Promise<TrainerInvite | null> {

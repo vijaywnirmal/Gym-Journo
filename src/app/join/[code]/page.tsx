@@ -3,6 +3,7 @@ import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { createClient } from "@/lib/supabase/server";
 import { getMyTrainer } from "@/lib/trainers";
+import { getWorkRoles, isWorkAccount, workHome } from "@/lib/workAccount";
 import TrainerSeesList from "@/components/TrainerSeesList";
 import JoinActions from "./JoinActions";
 
@@ -18,9 +19,10 @@ type InviteDetails = {
 export default async function JoinPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
   const supabase = await createClient();
-  const [{ data, error }, current] = await Promise.all([
+  const [{ data, error }, current, roles] = await Promise.all([
     supabase.rpc("trainer_invite_details", { p_code: code }),
     getMyTrainer(),
+    getWorkRoles(),
   ]);
   const details = (data as InviteDetails[] | null)?.[0];
   const name = details?.display_name ?? "your trainer";
@@ -38,6 +40,16 @@ export default async function JoinPage({ params }: { params: Promise<{ code: str
   }
   if (details.state === "own") {
     return <Message title="This is your invite link" text="Send it to your clients." link={{ href: "/trainer/invite", label: "Invite a client" }} />;
+  }
+  // Trainers and gym staff have no journal to share (src/lib/workAccount.ts).
+  if (isWorkAccount(roles)) {
+    return (
+      <Message
+        title="This invite is for clients"
+        text={`Clients join ${name} with their own account.`}
+        link={{ href: workHome(roles), label: "Go to your home" }}
+      />
+    );
   }
   if (details.state === "current") {
     return <Message title={`You're already training with ${name}`} />;

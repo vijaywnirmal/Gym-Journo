@@ -28,6 +28,7 @@ import PageHeader from "@/components/PageHeader";
 import { dayTypeOf } from "@/lib/dayType";
 import { comebackGapDays } from "@/lib/analyze/comeback";
 import Icon, { type IconName } from "@/components/Icon";
+import { requireMemberApp } from "@/lib/workAccount";
 
 export const metadata: Metadata = { title: "Today" };
 
@@ -48,6 +49,7 @@ function ShortcutCard({ href, icon, title, text }: { href: string; icon: IconNam
 }
 
 export default async function TodayPage() {
+  await requireMemberApp();
   const { timeZone } = await getUserTimeZone();
   const date = todayIn(timeZone);
   const [profile, plan, log, trainingConsistency, weeklyInsights, suggestions, lastWorkout, trainer, gymOffer] = await Promise.all([

@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { clientName, clientSummary, dayStatus, mondayOf, todayStatus, toWorkoutPlan, weekFrom } from "./clientStatus";
-import type { ClientLog, ClientPlan } from "./types";
+import {
+  clientName,
+  clientSummary,
+  dayStatus,
+  isQuietClient,
+  lastWorkoutLine,
+  mondayOf,
+  todayStatus,
+  toWorkoutPlan,
+  trainerToday,
+  weekFrom,
+} from "./clientStatus";
+import type { ClientLog, ClientOverview, ClientPlan } from "./types";
 
 const plan = (over: Partial<ClientPlan> = {}): ClientPlan => ({
   id: "p1",
@@ -85,5 +96,45 @@ describe("toWorkoutPlan", () => {
     expect(result.user_id).toBe("c1");
     expect(result.muscle_groups?.map((m) => m.name)).toEqual(["Glutes", "Quads"]);
     expect(result.planned_exercises?.[0]).toMatchObject({ exercise_id: "e1", target_weight: 60, exercise: { name: "Squat" } });
+  });
+});
+
+const overview = (over: Partial<ClientOverview>): ClientOverview => ({
+  link_id: "l",
+  client_id: "c",
+  first_name: "Priya",
+  last_name: null,
+  primary_goal: null,
+  experience_level: null,
+  training_days_per_week: null,
+  started_at: "2026-10-01T00:00:00Z",
+  client_today: "2026-10-24",
+  today_plan: null,
+  today_done: false,
+  planned_this_week: 0,
+  done_this_week: 0,
+  last_workout_on: null,
+  latest_weight_kg: null,
+  latest_weight_on: null,
+  ...over,
+});
+
+describe("trainer's Today", () => {
+  it("calls a client quiet after 7 days without a workout, or with none", () => {
+    expect(isQuietClient(overview({ last_workout_on: "2026-10-18" }))).toBe(false);
+    expect(isQuietClient(overview({ last_workout_on: "2026-10-17" }))).toBe(true);
+    expect(isQuietClient(overview({}))).toBe(true);
+    expect(lastWorkoutLine(overview({ last_workout_on: "2026-10-23" }))).toBe("Last workout yesterday");
+  });
+
+  it("sorts clients into today's sessions, who needs a plan, and who has gone quiet", () => {
+    const done = overview({ client_id: "a", today_plan: "workout", today_done: true, planned_this_week: 3, done_this_week: 2, last_workout_on: "2026-10-24" });
+    const due = overview({ client_id: "b", today_plan: "workout", planned_this_week: 2, done_this_week: 1, last_workout_on: "2026-10-22" });
+    const unplanned = overview({ client_id: "c", last_workout_on: "2026-10-10" });
+    const view = trainerToday([done, due, unplanned]);
+    expect(view.today.map((r) => r.client_id)).toEqual(["b", "a"]);
+    expect(view.needPlan.map((r) => r.client_id)).toEqual(["c"]);
+    expect(view.quiet.map((r) => r.client_id)).toEqual(["c"]);
+    expect([view.doneThisWeek, view.plannedThisWeek]).toEqual([3, 5]);
   });
 });

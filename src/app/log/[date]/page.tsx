@@ -12,6 +12,7 @@ import LogModeSwitch from "./LogModeSwitch";
 import BackLink from "@/components/BackLink";
 import PageHeader from "@/components/PageHeader";
 import Icon from "@/components/Icon";
+import { requireMemberApp } from "@/lib/workAccount";
 
 // The day in the title, so each day's page is announced on its own.
 export async function generateMetadata({ params }: { params: Promise<{ date: string }> }): Promise<Metadata> {
@@ -26,6 +27,7 @@ export default async function LogPage({
   params: Promise<{ date: string }>;
   searchParams: Promise<{ lighter?: string }>;
 }) {
+  await requireMemberApp();
   const { date } = await params;
   if (!isValidIsoDate(date)) notFound();
   const today = await getToday();

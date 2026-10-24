@@ -4,10 +4,12 @@ import { formatDate } from "@/lib/date";
 import { explainSuggestion } from "@/lib/analyze/overload";
 import SuggestionCard from "./SuggestionCard";
 import PageHeader from "@/components/PageHeader";
+import { requireMemberApp } from "@/lib/workAccount";
 
 export const metadata: Metadata = { title: "Weight suggestions" };
 
 export default async function SuggestionsPage() {
+  await requireMemberApp();
   const suggestions = await getAdaptSuggestions();
 
   return (

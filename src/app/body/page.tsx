@@ -14,10 +14,12 @@ import { getTargetWeightKg } from "@/lib/home";
 import WeeklyTrainingDays from "./WeeklyTrainingDays";
 import { getToday } from "@/lib/userDate";
 import PageHeader from "@/components/PageHeader";
+import { requireMemberApp } from "@/lib/workAccount";
 
 export const metadata: Metadata = { title: "Body" };
 
 export default async function BodyPage() {
+  await requireMemberApp();
   const [todayStr, measurements, training, profile, lastWorkout, weeklyTraining] = await Promise.all([
     getToday(),
     getBodyMeasurements(),
