@@ -116,14 +116,20 @@ test("a gym invites a trainer and a member, suggests the trainer, the member acc
 
     // The gym and the trainer each record a fee; the member sees both on Profile.
     await owner.page.getByRole("link", { name: new RegExp(TEST_USER.firstName) }).click();
+    // A slow phone connection, where the refreshed page arrives after the action's result: the
+    // card's message must still show with the saved fee, not next to the old one.
+    const cdp = await owner.context.newCDPSession(owner.page);
+    await cdp.send("Network.emulateNetworkConditions", { offline: false, latency: 300, downloadThroughput: 20000, uploadThroughput: 20000 });
     await owner.page.getByRole("button", { name: "Set fee" }).click();
     await owner.page.getByLabel("Amount (₹)").fill("1500");
     await owner.page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(owner.page.getByText("Fee set.")).toBeVisible();
+    expect(await owner.page.getByText("No fee set").count()).toBe(0);
     await expect(owner.page.getByText("Due today")).toBeVisible();
     await owner.page.getByRole("button", { name: "Record payment" }).click();
     await owner.page.getByRole("button", { name: "Record", exact: true }).click();
     await expect(owner.page.getByText(/^Payment recorded\. Paid until/)).toBeVisible();
+    expect(await owner.page.getByText("Due today").count()).toBe(0);
     await owner.page.goto("/gym");
     await expect(owner.page.getByRole("link", { name: /Collected/ })).toContainText("₹1,500");
 
@@ -133,6 +139,7 @@ test("a gym invites a trainer and a member, suggests the trainer, the member acc
     await trainer.page.getByLabel("Every").selectOption("3");
     await trainer.page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(trainer.page.getByText("Fee set.")).toBeVisible();
+    expect(await trainer.page.getByText("No fee set").count()).toBe(0);
     await trainer.page.goto("/trainer");
     await expect(trainer.page.getByRole("heading", { name: "Fees due" })).toBeVisible();
     await expect(trainer.page.getByRole("link", { name: new RegExp(TEST_USER.firstName) }).last()).toContainText("Due today");

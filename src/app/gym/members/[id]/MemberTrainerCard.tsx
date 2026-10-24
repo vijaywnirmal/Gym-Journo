@@ -43,13 +43,16 @@ export default function MemberTrainerCard({
     setDone(null);
     startTransition(async () => {
       const result = await action();
-      setConfirmingRemove(false);
-      if (result.error) {
-        setError(result.error);
-        return;
-      }
-      setChanging(false);
-      setDone(message);
+      // In the same transition as the refreshed page, so the message shows with the new trainer.
+      startTransition(() => {
+        setConfirmingRemove(false);
+        if (result.error) {
+          setError(result.error);
+          return;
+        }
+        setChanging(false);
+        setDone(message);
+      });
     });
   }
 
