@@ -5,6 +5,10 @@ import Icon from "@/components/Icon";
 import PageHeader from "@/components/PageHeader";
 import { getAdminGym, getGymMembers, getGymTrainers } from "@/lib/gyms";
 import { gymSummary } from "@/lib/gymStatus";
+import { getGymFees, getGymPaymentsSince } from "@/lib/feeQueries";
+import { collectedThisMonth, feesDue, formatRupees } from "@/lib/fees";
+import { todayIn } from "@/lib/date";
+import { getUserTimeZone } from "@/lib/userDate";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -12,12 +16,21 @@ function plural(n: number, one: string, many = `${one}s`) {
   return `${n} ${n === 1 ? one : many}`;
 }
 
-// The gym's home: how its members are doing this week, who needs a trainer, and its trainers.
+// The gym's home: how its members are doing this week, who needs a trainer, fees (once it records
+// any), and its trainers.
 export default async function GymDashboardPage() {
-  const gym = await getAdminGym();
+  const [gym, { timeZone }] = await Promise.all([getAdminGym(), getUserTimeZone()]);
   if (!gym) redirect("/gym/setup");
-  const [members, trainers] = await Promise.all([getGymMembers(gym.id), getGymTrainers(gym.id)]);
+  const today = todayIn(timeZone);
+  const [members, trainers, fees, payments] = await Promise.all([
+    getGymMembers(gym.id),
+    getGymTrainers(gym.id),
+    getGymFees(gym.id),
+    getGymPaymentsSince(gym.id, `${today.slice(0, 7)}-01`),
+  ]);
   const summary = gymSummary(members);
+  const due = [...feesDue(fees, today).values()];
+  const overdue = due.filter((state) => state.kind === "overdue").length;
   const place = [gym.area, gym.city].filter(Boolean).join(", ");
 
   return (
@@ -81,6 +94,23 @@ export default async function GymDashboardPage() {
             note={summary.waitingToAccept > 0 ? `${summary.waitingToAccept} waiting to accept` : undefined}
             warn={summary.needTrainer > 0}
           />
+          {(fees.size > 0 || payments.length > 0) && (
+            <>
+              <Tile
+                href="/gym/members?filter=fees-due"
+                value={due.length}
+                label="Fees due"
+                note={overdue > 0 ? `${overdue} overdue` : "This week"}
+                warn={overdue > 0}
+              />
+              <Tile
+                href="/gym/members"
+                value={formatRupees(collectedThisMonth(payments, today))}
+                label="Collected"
+                note="This month"
+              />
+            </>
+          )}
         </div>
       )}
 
@@ -127,7 +157,7 @@ function Tile({
   warn = false,
 }: {
   href: string;
-  value: number;
+  value: number | string;
   label: string;
   note?: string;
   warn?: boolean;

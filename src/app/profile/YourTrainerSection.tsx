@@ -8,14 +8,17 @@ import { removeTrainer } from "./trainerActions";
 
 // since is formatted on the server, in the person's time zone, so it renders the same in the browser.
 // gym: the member's gym, when it arranged this trainer; shown instead of the gym the trainer typed.
+// fee: the member's fee with the trainer, if they record one.
 export default function YourTrainerSection({
   myTrainer,
   since,
   gym = null,
+  fee = null,
 }: {
   myTrainer: MyTrainer;
   since: string;
   gym?: Pick<Gym, "name" | "city"> | null;
+  fee?: React.ReactNode;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -68,6 +71,7 @@ export default function YourTrainerSection({
             </button>
           )}
         </div>
+        {fee && <div className="mt-3 border-t border-separator pt-3">{fee}</div>}
         {confirming && (
           <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-separator pt-3">
             <p className="flex-1 text-sm text-label-2">

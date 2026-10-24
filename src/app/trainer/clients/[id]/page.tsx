@@ -2,15 +2,19 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { format, parseISO } from "date-fns";
+import FeeCard from "@/components/FeeCard";
 import Icon from "@/components/Icon";
 import PageHeader from "@/components/PageHeader";
 import TrendChart from "@/components/TrendChart";
-import { isValidIsoDate, shiftDate } from "@/lib/date";
+import { getCurrentUser } from "@/lib/currentUser";
+import { isValidIsoDate, shiftDate, todayIn } from "@/lib/date";
 import { clientName, clientSummary, dayStatus, mondayOf, weekFrom } from "@/lib/clientStatus";
+import { getFeeFor } from "@/lib/feeQueries";
 import { formatSetCompact } from "@/lib/setData";
 import { editedByClient } from "@/lib/planAuthors";
-import { getClient, getClientBodyWeights, getClientLogs, getClientPlans } from "@/lib/trainers";
+import { getClient, getClientBodyWeights, getClientLogs, getClientPlans, getMyTrainerProfile } from "@/lib/trainers";
 import type { ClientLog, ClientPlan } from "@/lib/types";
+import { getUserTimeZone } from "@/lib/userDate";
 import DayStatusPill from "../../DayStatusPill";
 import EndCoaching from "./EndCoaching";
 
@@ -64,10 +68,14 @@ export default async function ClientPage({
   const thisMonday = mondayOf(today);
   const monday = week && isValidIsoDate(week) ? mondayOf(week) : thisMonday;
   const days = weekFrom(monday);
-  const [plans, logs, weights] = await Promise.all([
+  const user = await getCurrentUser();
+  const [plans, logs, weights, { fee, payments }, trainer, { timeZone }] = await Promise.all([
     getClientPlans(id, days[0], days[6]),
     getClientLogs(id, days[0], days[6]),
     getClientBodyWeights(id, shiftDate(today, -90), today),
+    user ? getFeeFor({ trainerId: user.id }, id) : Promise.resolve({ fee: null, payments: [] }),
+    getMyTrainerProfile(),
+    getUserTimeZone(),
   ]);
   const planOn = new Map(plans.map((p) => [p.date, p]));
   const logOn = new Map(logs.map((l) => [l.date, l]));
@@ -137,6 +145,18 @@ export default async function ClientPage({
         </span>
         <Icon name="chevronRight" className="size-4 text-label-3" strokeWidth={2} />
       </Link>
+
+      <h2 className="section-title mt-8">Fee</h2>
+      {user && (
+        <FeeCard
+          payee={{ clientId: id }}
+          fee={fee}
+          payments={payments}
+          today={todayIn(timeZone)}
+          payerFirstName={firstName}
+          payeeName={trainer?.display_name ?? "your trainer"}
+        />
+      )}
 
       <h2 className="section-title mt-8">Body weight</h2>
       <section className="card p-4">

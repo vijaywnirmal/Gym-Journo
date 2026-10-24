@@ -1,9 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import FeeDueLine from "@/components/FeeDueLine";
 import Icon from "@/components/Icon";
 import PageHeader from "@/components/PageHeader";
 import { clientName, isQuietClient, lastWorkoutLine, todayStatus } from "@/lib/clientStatus";
+import { todayIn } from "@/lib/date";
+import { getTrainerFees } from "@/lib/feeQueries";
+import { feesDue } from "@/lib/fees";
+import { getUserTimeZone } from "@/lib/userDate";
 import { getClientOverview, getMyTrainerProfile } from "@/lib/trainers";
 import type { ClientOverview } from "@/lib/types";
 import DayStatusPill from "../DayStatusPill";
@@ -18,7 +23,8 @@ function weekLine(row: ClientOverview): string {
 export default async function ClientsPage() {
   const trainer = await getMyTrainerProfile();
   if (!trainer) redirect("/trainer/setup");
-  const clients = await getClientOverview();
+  const [clients, fees, { timeZone }] = await Promise.all([getClientOverview(), getTrainerFees(), getUserTimeZone()]);
+  const due = feesDue(fees, todayIn(timeZone));
 
   return (
     <main className="px-4 pt-6 pb-10 md:px-8 md:pt-10">
@@ -51,6 +57,7 @@ export default async function ClientsPage() {
                   <span className="block truncate text-sm font-semibold">{clientName(row)}</span>
                   <span className="block text-sm text-label-2">{weekLine(row)}</span>
                   <span className={`block text-xs ${isQuietClient(row) ? "font-medium text-orange" : "text-label-2"}`}>{lastWorkoutLine(row)}</span>
+                  <FeeDueLine state={due.get(row.client_id)} />
                 </span>
                 <DayStatusPill status={todayStatus(row)} />
                 <Icon name="chevronRight" className="size-4 shrink-0 text-label-3" strokeWidth={2} />

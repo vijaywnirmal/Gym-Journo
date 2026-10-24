@@ -1,9 +1,9 @@
 import { expect, test, type Browser } from "@playwright/test";
 import { adminClient, isRemote, TEST_USER } from "./testUser";
 
-// Local only: it creates a gym owner and a trainer, the test user joins the gym as a member, and the
-// gym suggests the trainer, whom the member accepts. Both accounts are removed at the end (the gym
-// and the member's link with the trainer go with them).
+// Local only: it creates a gym owner and a trainer, the test user joins the gym as a member, the gym
+// suggests the trainer, whom the member accepts, and both record a fee. Both accounts are removed at
+// the end (the gym, the member's link with the trainer and the fees go with them).
 const OWNER = { email: "e2e-gym-owner@example.test", password: "e2e-gym-owner-123", name: "Vikram" };
 const TRAINER = { email: "e2e-gym-trainer@example.test", password: "e2e-gym-trainer-123", name: "Asha" };
 const GYM = "E2E Gym";
@@ -21,7 +21,7 @@ async function signIn(browser: Browser, who: { email: string; password: string; 
   return { context, page };
 }
 
-test("a gym invites a trainer and a member, suggests the trainer, and the member accepts", async ({ page, browser }) => {
+test("a gym invites a trainer and a member, suggests the trainer, the member accepts, and both record fees", async ({ page, browser }) => {
   const admin = adminClient();
   const { data: list, error: listError } = await admin.auth.admin.listUsers({ perPage: 1000 });
   if (listError) throw listError;
@@ -113,6 +113,34 @@ test("a gym invites a trainer and a member, suggests the trainer, and the member
     await expect(trainer.page.getByRole("link", { name: new RegExp(TEST_USER.firstName) })).toBeVisible();
     await owner.page.goto("/gym/members");
     await expect(owner.page.getByRole("link", { name: new RegExp(TEST_USER.firstName) })).toContainText(TRAINER.name);
+
+    // The gym and the trainer each record a fee; the member sees both on Profile.
+    await owner.page.getByRole("link", { name: new RegExp(TEST_USER.firstName) }).click();
+    await owner.page.getByRole("button", { name: "Set fee" }).click();
+    await owner.page.getByLabel("Amount (₹)").fill("1500");
+    await owner.page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(owner.page.getByText("Fee set.")).toBeVisible();
+    await expect(owner.page.getByText("Due today")).toBeVisible();
+    await owner.page.getByRole("button", { name: "Record payment" }).click();
+    await owner.page.getByRole("button", { name: "Record", exact: true }).click();
+    await expect(owner.page.getByText(/^Payment recorded\. Paid until/)).toBeVisible();
+    await owner.page.goto("/gym");
+    await expect(owner.page.getByRole("link", { name: /Collected/ })).toContainText("₹1,500");
+
+    await trainer.page.getByRole("link", { name: new RegExp(TEST_USER.firstName) }).click();
+    await trainer.page.getByRole("button", { name: "Set fee" }).click();
+    await trainer.page.getByLabel("Amount (₹)").fill("4000");
+    await trainer.page.getByLabel("Every").selectOption("3");
+    await trainer.page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(trainer.page.getByText("Fee set.")).toBeVisible();
+    await trainer.page.goto("/trainer");
+    await expect(trainer.page.getByRole("heading", { name: "Fees due" })).toBeVisible();
+    await expect(trainer.page.getByRole("link", { name: new RegExp(TEST_USER.firstName) }).last()).toContainText("Due today");
+
+    await page.goto("/profile");
+    await expect(page.getByText("Fee: ₹1,500 a month")).toBeVisible();
+    await expect(page.getByText(/^Paid ₹1,500 on/)).toBeVisible();
+    await expect(page.getByText("Fee: ₹4,000 every 3 months")).toBeVisible();
 
     await owner.context.close();
     await trainer.context.close();

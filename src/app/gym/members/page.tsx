@@ -4,7 +4,13 @@ import { redirect } from "next/navigation";
 import Icon from "@/components/Icon";
 import PageHeader from "@/components/PageHeader";
 import { getAdminGym, getGymMembers } from "@/lib/gyms";
+import FeeDueLine from "@/components/FeeDueLine";
+import { getGymFees } from "@/lib/feeQueries";
+import { feesDue } from "@/lib/fees";
+import { todayIn } from "@/lib/date";
+import { getUserTimeZone } from "@/lib/userDate";
 import { filterMembers, isQuiet, lastWorkoutLabel, memberName, needsTrainer, trainerLabel, type MemberFilter } from "@/lib/gymStatus";
+import type { GymMemberRow } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Members" };
 
@@ -12,6 +18,7 @@ const FILTERS: { key: MemberFilter; label: string }[] = [
   { key: "all", label: "All" },
   { key: "needs-trainer", label: "Needs a trainer" },
   { key: "quiet", label: "Not training" },
+  { key: "fees-due", label: "Fees due" },
 ];
 
 export default async function GymMembersPage({ searchParams }: PageProps<"/gym/members">) {
@@ -19,11 +26,13 @@ export default async function GymMembersPage({ searchParams }: PageProps<"/gym/m
   if (!gym) redirect("/gym/setup");
   const { filter: filterParam, trainer: trainerParam } = await searchParams;
   const filter = FILTERS.find((f) => f.key === filterParam)?.key ?? "all";
-  const members = await getGymMembers(gym.id);
+  const [members, fees, { timeZone }] = await Promise.all([getGymMembers(gym.id), getGymFees(gym.id), getUserTimeZone()]);
+  const due = feesDue(fees, todayIn(timeZone));
+  const feeDue = (row: GymMemberRow) => due.has(row.member_id);
   // From the Trainers page: the members one trainer trains here.
   const byTrainer = typeof trainerParam === "string" ? members.filter((m) => m.trainer_id === trainerParam) : null;
   const trainerName = byTrainer?.[0]?.trainer_name ?? null;
-  const shown = byTrainer && trainerName ? byTrainer : filterMembers(members, filter);
+  const shown = byTrainer && trainerName ? byTrainer : filterMembers(members, filter, feeDue);
 
   return (
     <main className="px-4 pt-6 pb-10 md:px-8 md:pt-10">
@@ -61,9 +70,9 @@ export default async function GymMembersPage({ searchParams }: PageProps<"/gym/m
               </Link>
             </p>
           ) : (
-            <div className="mb-3 flex gap-1.5 overflow-x-auto" role="group" aria-label="Show">
+            <div className="mb-3 flex flex-wrap gap-1.5" role="group" aria-label="Show">
               {FILTERS.map((f) => {
-                const count = filterMembers(members, f.key).length;
+                const count = filterMembers(members, f.key, feeDue).length;
                 const active = f.key === filter;
                 return (
                   <Link
@@ -83,7 +92,11 @@ export default async function GymMembersPage({ searchParams }: PageProps<"/gym/m
           )}
           {shown.length === 0 ? (
             <p className="px-1 text-sm text-label-2">
-              {filter === "needs-trainer" ? "Everyone has a trainer." : "Everyone has trained in the last 7 days."}
+              {filter === "needs-trainer"
+                ? "Everyone has a trainer."
+                : filter === "fees-due"
+                  ? "No fees are due this week."
+                  : "Everyone has trained in the last 7 days."}
             </p>
           ) : (
             <ul className="card divide-y divide-separator">
@@ -98,6 +111,7 @@ export default async function GymMembersPage({ searchParams }: PageProps<"/gym/m
                       <span className={`block text-xs ${isQuiet(row) ? "text-orange" : "text-label-2"}`}>
                         {row.workouts_this_week} this week · {lastWorkoutLabel(row)}
                       </span>
+                      <FeeDueLine state={due.get(row.member_id)} />
                     </span>
                     <Icon name="chevronRight" className="size-4 shrink-0 text-label-3" strokeWidth={2} />
                   </Link>

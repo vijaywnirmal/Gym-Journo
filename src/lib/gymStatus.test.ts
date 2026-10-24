@@ -49,6 +49,7 @@ describe("gym member status", () => {
     expect(filterMembers(rows, "needs-trainer").map((r) => r.member_id)).toEqual(["b"]);
     expect(filterMembers(rows, "quiet").map((r) => r.member_id)).toEqual(["b"]);
     expect(filterMembers(rows, "all")).toHaveLength(3);
+    expect(filterMembers(rows, "fees-due", (r) => r.member_id === "c").map((r) => r.member_id)).toEqual(["c"]);
     expect(lastWorkoutLabel(rows[0])).toBe("Last workout today");
     expect(lastWorkoutLabel(rows[2])).toBe("Last workout yesterday");
     expect(lastWorkoutLabel(rows[1])).toBe("Last workout 23 days ago");

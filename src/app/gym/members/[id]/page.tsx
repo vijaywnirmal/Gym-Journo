@@ -9,6 +9,8 @@ import { isQuiet, lastWorkoutLabel, memberName } from "@/lib/gymStatus";
 import { removeMember, suggestTrainer, unassignTrainer } from "../../actions";
 import MemberTrainerCard from "./MemberTrainerCard";
 import RemoveButton from "@/components/RemoveButton";
+import FeeCard from "@/components/FeeCard";
+import { getFeeFor } from "@/lib/feeQueries";
 
 export const metadata: Metadata = { title: "Member" };
 
@@ -16,7 +18,12 @@ export default async function GymMemberPage({ params }: PageProps<"/gym/members/
   const { id } = await params;
   const gym = await getAdminGym();
   if (!gym) redirect("/gym/setup");
-  const [members, trainers, { timeZone }] = await Promise.all([getGymMembers(gym.id), getGymTrainers(gym.id), getUserTimeZone()]);
+  const [members, trainers, { timeZone }, { fee, payments }] = await Promise.all([
+    getGymMembers(gym.id),
+    getGymTrainers(gym.id),
+    getUserTimeZone(),
+    getFeeFor({ gymId: gym.id }, id),
+  ]);
   const member = members.find((m) => m.member_id === id);
   if (!member) notFound();
   const name = memberName(member);
@@ -72,6 +79,18 @@ export default async function GymMemberPage({ params }: PageProps<"/gym/members/
               unassign={unassignTrainer.bind(null, gym.id, member.member_id)}
             />
           )}
+        </div>
+
+        <div>
+          <h2 className="section-title">Fee</h2>
+          <FeeCard
+            payee={{ gymId: gym.id, memberId: member.member_id }}
+            fee={fee}
+            payments={payments}
+            today={todayIn(timeZone)}
+            payerFirstName={firstName}
+            payeeName={gym.name}
+          />
         </div>
 
         <section className="card">
