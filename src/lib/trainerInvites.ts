@@ -10,9 +10,10 @@ const INVITE_CODE = /^[a-z0-9]{10}$/;
 export const JOIN_COOKIE = "gj-join";
 // The same for a gym's join link (gymjourno.fit/g/<code>).
 export const GYM_JOIN_COOKIE = "gj-gym-join";
-// "trainer" or "gym": which setup a new account goes to instead of regular onboarding.
+// "trainer", "gym" or "admin" (joining a gym's team): which setup a new account goes to instead of
+// regular onboarding.
 export const SIGNUP_COOKIE = "gj-signup";
-export const SIGNUP_ROLES = ["trainer", "gym"] as const;
+export const SIGNUP_ROLES = ["trainer", "gym", "admin"] as const;
 export type SignupRole = (typeof SIGNUP_ROLES)[number];
 
 export function isSignupRole(value: string | null | undefined): value is SignupRole {
@@ -21,7 +22,7 @@ export function isSignupRole(value: string | null | undefined): value is SignupR
 
 // The setup page for a sign-up role.
 export function setupPathFor(role: SignupRole): string {
-  return role === "gym" ? "/gym/setup" : "/trainer/setup";
+  return role === "gym" ? "/gym/setup" : role === "admin" ? "/gym/admin-setup" : "/trainer/setup";
 }
 export const INTENT_COOKIE_MAX_AGE = 60 * 60 * 24; // a day: long enough to confirm an email
 
@@ -43,9 +44,10 @@ export function gymJoinCodeOf(pathname: string): string | null {
   return isInviteCode(code) ? code : null;
 }
 
-// A trainer's link says so, so someone new is sent to trainer setup after signing up.
+// Trainer and admin links say so, so someone new is sent to the right setup after signing up
+// (trainer setup, or just a name for a gym's admin) instead of regular onboarding.
 export function gymInviteUrl(siteUrl: string, code: string, role?: "admin" | "trainer" | "member"): string {
-  return `${siteUrl.replace(/\/+$/, "")}/g/${code}${role === "trainer" ? "?role=trainer" : ""}`;
+  return `${siteUrl.replace(/\/+$/, "")}/g/${code}${role === "trainer" || role === "admin" ? `?role=${role}` : ""}`;
 }
 
 export function inviteUrl(siteUrl: string, code: string): string {

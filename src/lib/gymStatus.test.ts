@@ -11,6 +11,8 @@ const row = (over: Partial<GymMemberRow>): GymMemberRow => ({
   trainer_name: null,
   offered_trainer_id: null,
   offered_trainer_name: null,
+  declined_trainer_id: null,
+  declined_trainer_name: null,
   has_own_trainer: false,
   workouts_this_week: 0,
   days_since_last_workout: null,
@@ -33,6 +35,9 @@ describe("gym member status", () => {
     expect(trainerLabel(row({ offered_trainer_id: "t", offered_trainer_name: "Tara" }))).toBe("Suggested Tara");
     expect(trainerLabel(row({ has_own_trainer: true }))).toBe("Own trainer");
     expect(trainerLabel(row({}))).toBe("Needs a trainer");
+    const declined = row({ declined_trainer_id: "t", declined_trainer_name: "Asha" });
+    expect(trainerLabel(declined)).toBe("Needs a trainer · declined Asha");
+    expect(needsTrainer(declined)).toBe(true);
   });
 
   it("filters and labels", () => {

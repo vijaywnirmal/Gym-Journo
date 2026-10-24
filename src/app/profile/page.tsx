@@ -55,6 +55,7 @@ export default async function ProfilePage() {
       {myTrainer && (
         <YourTrainerSection
           myTrainer={myTrainer}
+          gym={gymArrangedTrainer && membership ? membership.gym : null}
           since={formatDateLong(todayIn(profile?.timezone, new Date(myTrainer.startedAt)))}
         />
       )}
@@ -82,6 +83,20 @@ export default async function ProfilePage() {
         </span>
         <Icon name="chevronRight" className="size-4 text-label-3" strokeWidth={2} />
       </Link>
+
+      {adminGym && (
+        <>
+          <h2 className="section-title mt-8">Gym</h2>
+          <section className="card divide-y divide-separator">
+            <LinkRow href="/gym/invite" title="Invite people" text="Member poster, trainer and admin links" />
+            <LinkRow
+              href="/gym/setup"
+              title="Gym details"
+              text={[adminGym.name, adminGym.area, adminGym.city].filter(Boolean).join(" · ")}
+            />
+          </section>
+        </>
+      )}
 
       {trainerProfile && (
         <>

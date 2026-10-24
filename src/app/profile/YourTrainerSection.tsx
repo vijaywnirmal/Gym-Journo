@@ -3,17 +3,26 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { whatsappChatUrl } from "@/lib/trainerInvites";
-import type { MyTrainer } from "@/lib/types";
+import type { Gym, MyTrainer } from "@/lib/types";
 import { removeTrainer } from "./trainerActions";
 
 // since is formatted on the server, in the person's time zone, so it renders the same in the browser.
-export default function YourTrainerSection({ myTrainer, since }: { myTrainer: MyTrainer; since: string }) {
+// gym: the member's gym, when it arranged this trainer; shown instead of the gym the trainer typed.
+export default function YourTrainerSection({
+  myTrainer,
+  since,
+  gym = null,
+}: {
+  myTrainer: MyTrainer;
+  since: string;
+  gym?: Pick<Gym, "name" | "city"> | null;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { trainer } = myTrainer;
-  const details = [trainer.gym_name, trainer.city, `since ${since}`]
+  const details = [gym ? gym.name : trainer.gym_name, gym ? gym.city : trainer.city, `since ${since}`]
     .filter(Boolean)
     .join(" · ");
 

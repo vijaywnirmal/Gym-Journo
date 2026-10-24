@@ -54,8 +54,12 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/reset-password") ||
     // Readable before signing up.
     pathname === "/privacy";
-  // Trainer and gym setup are those accounts' onboarding, so they're open before regular onboarding.
-  const isOnboardingRoute = pathname.startsWith("/onboarding") || pathname === "/trainer/setup" || pathname === "/gym/setup";
+  // Trainer, gym and gym-admin setup are those accounts' onboarding, so they're open before regular onboarding.
+  const isOnboardingRoute =
+    pathname.startsWith("/onboarding") ||
+    pathname === "/trainer/setup" ||
+    pathname === "/gym/setup" ||
+    pathname === "/gym/admin-setup";
   // JSON endpoints answer for themselves: a signed-out fetch gets a 401 rather than the login page's
   // HTML, and onboarding (a page flow) doesn't apply.
   const isApiRoute = pathname.startsWith("/api/");
@@ -85,9 +89,11 @@ export async function updateSession(request: NextRequest) {
   if (!userId && !isAuthRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    // A gym's trainer link carries ?role=trainer through to sign-up.
+    // A gym's trainer or admin link carries its ?role= through to sign-up.
     if (joinCode) url.search = "?invite=1";
-    if (gymJoinCode) url.search = signupRole === "trainer" ? "?invite=gym&role=trainer" : "?invite=gym";
+    if (gymJoinCode) {
+      url.search = signupRole === "trainer" || signupRole === "admin" ? `?invite=gym&role=${signupRole}` : "?invite=gym";
+    }
     const response = NextResponse.redirect(url);
     if (joinCode) response.cookies.set(JOIN_COOKIE, joinCode, intentCookie);
     if (gymJoinCode) response.cookies.set(GYM_JOIN_COOKIE, gymJoinCode, intentCookie);

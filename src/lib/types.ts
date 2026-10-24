@@ -241,7 +241,8 @@ export type Gym = {
 export type GymRole = "admin" | "trainer" | "member";
 
 // One row of a gym's members list (gym_member_overview): counts and dates only. offered_* is a
-// trainer the gym suggested that the member hasn't answered yet.
+// trainer the gym suggested that the member hasn't answered yet; declined_* one they said no to
+// (0038), while they have no trainer and nothing new is suggested.
 export type GymMemberRow = {
   member_id: string;
   first_name: string | null;
@@ -251,6 +252,8 @@ export type GymMemberRow = {
   trainer_name: string | null;
   offered_trainer_id: string | null;
   offered_trainer_name: string | null;
+  declined_trainer_id: string | null;
+  declined_trainer_name: string | null;
   has_own_trainer: boolean;
   workouts_this_week: number;
   days_since_last_workout: number | null;

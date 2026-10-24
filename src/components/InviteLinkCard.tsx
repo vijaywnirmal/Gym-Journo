@@ -74,9 +74,10 @@ export default function InviteLinkCard({
 
   return (
     <section className="card flex flex-col gap-3 p-4">
-      {/* Shown without https://www. so it fits a phone on one line; copying and sharing use the full link. */}
+      {/* Shown without https://www. or a query (a trainer link's ?role=trainer) so it fits a phone on
+          one line; copying and sharing use the full link. */}
       <p className="select-all break-all rounded-[10px] bg-fill px-3 py-2.5 font-mono text-sm">
-        {url.replace(/^https?:\/\/(www\.)?/, "")}
+        {url.replace(/^https?:\/\/(www\.)?/, "").replace(/\?.*$/, "")}
       </p>
       {invite.expiresOn && (
         <p className="text-xs text-label-2">

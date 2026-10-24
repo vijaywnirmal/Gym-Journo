@@ -63,6 +63,11 @@ export default async function GymMemberPage({ params }: PageProps<"/gym/members/
                   ? { id: member.offered_trainer_id, name: member.offered_trainer_name }
                   : null
               }
+              declined={
+                member.declined_trainer_id && member.declined_trainer_name
+                  ? { id: member.declined_trainer_id, name: member.declined_trainer_name }
+                  : null
+              }
               suggest={suggestTrainer.bind(null, gym.id, member.member_id)}
               unassign={unassignTrainer.bind(null, gym.id, member.member_id)}
             />

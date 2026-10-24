@@ -30,10 +30,13 @@ export function lastWorkoutLabel(row: Pick<GymMemberRow, "days_since_last_workou
   return `Last workout ${days} days ago`;
 }
 
-export function trainerLabel(row: Pick<GymMemberRow, "trainer_name" | "offered_trainer_name" | "has_own_trainer">): string {
+export function trainerLabel(
+  row: Pick<GymMemberRow, "trainer_name" | "offered_trainer_name" | "declined_trainer_name" | "has_own_trainer">
+): string {
   if (row.trainer_name) return row.trainer_name;
   if (row.has_own_trainer) return "Own trainer";
   if (row.offered_trainer_name) return `Suggested ${row.offered_trainer_name}`;
+  if (row.declined_trainer_name) return `Needs a trainer · declined ${row.declined_trainer_name}`;
   return "Needs a trainer";
 }
 
