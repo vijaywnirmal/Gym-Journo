@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatPhone,
   gymInviteUrl,
   gymJoinCodeOf,
   inviteUrl,
@@ -77,5 +78,13 @@ describe("pendingRedirect", () => {
 
   it("never redirects to a malformed code", () => {
     expect(pendingRedirect({ pathname: "/", joinCookie: "//evil.test", signupCookie: undefined })).toBeNull();
+  });
+});
+
+describe("formatPhone", () => {
+  it("spaces an Indian number and leaves others as they are", () => {
+    expect(formatPhone("+919876543210")).toBe("+91 98765 43210");
+    expect(formatPhone("98765 43210")).toBe("+91 98765 43210");
+    expect(formatPhone("+447700900123")).toBe("+447700900123");
   });
 });
