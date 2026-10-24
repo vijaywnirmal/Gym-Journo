@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Icon from "@/components/Icon";
 import { getProfile } from "@/lib/queries";
-import { getMyTrainer, getMyTrainerProfile } from "@/lib/trainers";
+import { getClientOverview, getMyTrainer, getMyTrainerProfile } from "@/lib/trainers";
+import RemoveButton from "@/components/RemoveButton";
+import { stopTraining } from "./trainerActions";
 import { getAdminGym, getMyGymMembership, getMyGymTrainerOffer, getMyTrainerGyms, getTrainerLinkGymId } from "@/lib/gyms";
 import { profileFieldsFromProfile } from "@/lib/profile-fields";
 import { joinName, namePartsOf } from "@/lib/names";
@@ -37,6 +39,7 @@ export default async function ProfilePage() {
   // Trainers and gym staff have no journal here (src/lib/workAccount.ts): just their account and work.
   if (trainerProfile || adminGym) {
     const { firstName, lastName } = namePartsOf(profile);
+    const clients = trainerProfile ? (await getClientOverview()).length : 0;
     return (
       <main className="px-4 pt-6 pb-10 md:px-8 md:pt-10">
         <PageHeader title="Profile" subtitle={joinName(firstName, lastName) || undefined} />
@@ -64,6 +67,20 @@ export default async function ProfilePage() {
                 href="/trainer/setup"
                 title="Trainer details"
                 text={[trainerProfile.display_name, trainerProfile.gym_name, trainerProfile.city].filter(Boolean).join(" · ")}
+              />
+              <RemoveButton
+                label="Stop training clients"
+                warning={[
+                  clients > 0 && `Your ${clients} client${clients === 1 ? "" : "s"} will lose you as their trainer.`,
+                  "Your trainer details and invite link are deleted; plans you made stay with your clients.",
+                  adminGym ? "This account stays a gym account." : "This account goes back to your own workout journal.",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                action={stopTraining}
+                confirmLabel="Stop"
+                done="/"
+                subtle
               />
             </section>
           </>

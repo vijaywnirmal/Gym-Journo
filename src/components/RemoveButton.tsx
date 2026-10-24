@@ -15,7 +15,7 @@ export default function RemoveButton({
 }: {
   label: string;
   warning: string;
-  confirmLabel?: "Remove" | "Leave";
+  confirmLabel?: "Remove" | "Leave" | "Stop";
   // Grey until confirming, for lists where every row has one.
   subtle?: boolean;
   action: () => Promise<{ error?: string }>;
@@ -57,7 +57,7 @@ export default function RemoveButton({
             disabled={pending}
             className="h-8 rounded-lg bg-red px-2.5 text-sm font-semibold text-white disabled:opacity-50"
           >
-            {pending ? (confirmLabel === "Leave" ? "Leaving…" : "Removing…") : confirmLabel}
+            {pending ? { Remove: "Removing…", Leave: "Leaving…", Stop: "Stopping…" }[confirmLabel] : confirmLabel}
           </button>
         </div>
       ) : (
