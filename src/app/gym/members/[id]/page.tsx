@@ -27,7 +27,7 @@ export default async function GymMemberPage({ params }: PageProps<"/gym/members/
       <PageHeader
         title={name}
         subtitle={`Joined ${formatDateLong(todayIn(timeZone, new Date(member.joined_at)))}`}
-        back={{ href: "/gym", label: "Members" }}
+        back={{ href: "/gym/members", label: "Members" }}
       />
       <div className="flex max-w-md flex-col gap-6">
         <section className="card grid grid-cols-2 divide-x divide-separator">
@@ -83,7 +83,7 @@ export default async function GymMemberPage({ params }: PageProps<"/gym/members/
                 : `${firstName} will leave ${gym.name}.`
             }
             action={removeMember.bind(null, gym.id, member.member_id)}
-            done="/gym"
+            done="/gym/members"
           />
         </section>
       </div>

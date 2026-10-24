@@ -4,12 +4,14 @@ import PageHeader from "@/components/PageHeader";
 import { getProfile } from "@/lib/queries";
 import { getAdminGym } from "@/lib/gyms";
 import { joinName, namePartsOf } from "@/lib/names";
+import WorkAccountNotice, { hasJournal } from "@/components/WorkAccountNotice";
+import { getMyTrainerProfile } from "@/lib/trainers";
 import GymSetupForm from "./GymSetupForm";
 
 export const metadata: Metadata = { title: "Gym account" };
 
 export default async function GymSetupPage() {
-  const [gym, profile] = await Promise.all([getAdminGym(), getProfile()]);
+  const [gym, profile, trainer] = await Promise.all([getAdminGym(), getProfile(), getMyTrainerProfile()]);
   const onboarded = profile?.onboarded === true;
   const { firstName, lastName } = namePartsOf(profile);
 
@@ -21,6 +23,7 @@ export default async function GymSetupPage() {
         back={gym ? { href: "/gym", label: "Gym" } : onboarded ? { href: "/profile", label: "Profile" } : undefined}
       />
       <div className="max-w-md">
+        {hasJournal(profile) && !gym && !trainer && <WorkAccountNotice as="gym" className="mb-4" />}
         <GymSetupForm
           initial={{
             name: gym?.name ?? "",

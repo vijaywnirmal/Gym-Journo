@@ -4,6 +4,9 @@ import PageHeader from "@/components/PageHeader";
 import { createClient } from "@/lib/supabase/server";
 import { getMyGymMembership, getTrainerLinkGymId } from "@/lib/gyms";
 import { getMyTrainer } from "@/lib/trainers";
+import { getWorkRoles, isWorkAccount } from "@/lib/workAccount";
+import WorkAccountNotice, { hasJournal } from "@/components/WorkAccountNotice";
+import { getProfile } from "@/lib/queries";
 import type { GymRole } from "@/lib/types";
 import GymJoinActions from "./GymJoinActions";
 
@@ -26,11 +29,14 @@ const CURRENT: Record<GymRole, (gym: string) => string> = {
 export default async function GymJoinPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
   const supabase = await createClient();
-  const [{ data, error }, membership, myTrainer] = await Promise.all([
+  const [{ data, error }, membership, myTrainer, roles, profile] = await Promise.all([
     supabase.rpc("gym_invite_details", { p_code: code }),
     getMyGymMembership(),
     getMyTrainer(),
+    getWorkRoles(),
+    getProfile(),
   ]);
+  const work = isWorkAccount(roles);
   const details = (data as InviteDetails[] | null)?.[0];
 
   if (error) {
@@ -59,7 +65,16 @@ export default async function GymJoinPage({ params }: { params: Promise<{ code: 
     return (
       <Message
         title={CURRENT[role](gym)}
-        link={role === "admin" ? { href: "/gym", label: "Go to your gym" } : role === "trainer" ? { href: "/trainer", label: "Go to Clients" } : undefined}
+        link={role === "admin" ? { href: "/gym", label: "Go to your gym" } : role === "trainer" ? { href: "/trainer/clients", label: "Go to Clients" } : undefined}
+      />
+    );
+  }
+  if (role === "member" && work) {
+    return (
+      <Message
+        title="This link is for members"
+        text={`Members join ${gym} with their own account. This one is for ${roles.trainer ? "training clients" : "running a gym"}.`}
+        link={{ href: roles.trainer ? "/trainer" : "/gym", label: "Go to your home" }}
       />
     );
   }
@@ -85,6 +100,7 @@ export default async function GymJoinPage({ params }: { params: Promise<{ code: 
     <main className="px-4 pt-6 pb-10 md:px-8 md:pt-10">
       <PageHeader title={role === "member" ? `Join ${gym}` : role === "trainer" ? `Train at ${gym}` : `Help run ${gym}`} subtitle={place} />
       <div className="flex max-w-md flex-col gap-4">
+        {role !== "member" && !work && hasJournal(profile) && <WorkAccountNotice as={role === "trainer" ? "trainer" : "admin"} />}
         {role === "member" && (
           <Consent
             sees={["Your name", "How many workouts you log each week, and when you last trained", "Whether you have a trainer"]}

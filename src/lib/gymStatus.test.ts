@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterMembers, isQuiet, lastWorkoutLabel, needsTrainer, trainerLabel } from "./gymStatus";
+import { filterMembers, gymSummary, isQuiet, lastWorkoutLabel, needsTrainer, trainerLabel } from "./gymStatus";
 import type { GymMemberRow } from "./types";
 
 const row = (over: Partial<GymMemberRow>): GymMemberRow => ({
@@ -53,5 +53,25 @@ describe("gym member status", () => {
     expect(lastWorkoutLabel(rows[2])).toBe("Last workout yesterday");
     expect(lastWorkoutLabel(rows[1])).toBe("Last workout 23 days ago");
     expect(lastWorkoutLabel(row({}))).toBe("No workouts yet");
+  });
+});
+
+describe("gymSummary", () => {
+  it("counts the dashboard's numbers", () => {
+    const now = new Date("2026-10-24T12:00:00Z");
+    const rows = [
+      row({ member_id: "a", joined_at: "2026-10-23T09:00:00Z", workouts_this_week: 2, days_since_last_workout: 0, trainer_id: "t", trainer_name: "Ravi" }),
+      row({ member_id: "b", joined_at: "2026-10-01T09:00:00Z", days_since_last_workout: 12 }),
+      row({ member_id: "c", joined_at: "2026-10-02T09:00:00Z", workouts_this_week: 1, days_since_last_workout: 1, offered_trainer_id: "t", offered_trainer_name: "Ravi" }),
+      row({ member_id: "d", joined_at: "2026-10-20T09:00:00Z", has_own_trainer: true }),
+    ];
+    expect(gymSummary(rows, now)).toEqual({
+      members: 4,
+      joinedThisWeek: 2,
+      trainedThisWeek: 2,
+      notTraining: 2,
+      needTrainer: 1,
+      waitingToAccept: 1,
+    });
   });
 });

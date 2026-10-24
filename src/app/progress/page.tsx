@@ -16,6 +16,7 @@ import ExerciseFilter from "@/app/history/ExerciseFilter";
 import TrendChart from "@/components/TrendChart";
 import PageHeader from "@/components/PageHeader";
 import Icon from "@/components/Icon";
+import { requireMemberApp } from "@/lib/workAccount";
 
 export const metadata: Metadata = { title: "Progress" };
 
@@ -38,6 +39,7 @@ export default async function ProgressPage({
 }: {
   searchParams: Promise<{ exercise?: string }>;
 }) {
+  await requireMemberApp();
   const { exercise: exerciseId } = await searchParams;
   const [exercises, sessions] = await Promise.all([
     getExerciseFilterOptions(exerciseId),

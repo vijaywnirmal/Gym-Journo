@@ -7,12 +7,19 @@ import { getMyTrainerProfile } from "@/lib/trainers";
 import { createClient } from "@/lib/supabase/server";
 import { GYM_JOIN_COOKIE, gymJoinCodeOf, isInviteCode } from "@/lib/trainerInvites";
 import { joinName, namePartsOf } from "@/lib/names";
+import WorkAccountNotice, { hasJournal } from "@/components/WorkAccountNotice";
+import { getAdminGym } from "@/lib/gyms";
 import TrainerSetupForm from "./TrainerSetupForm";
 
 export const metadata: Metadata = { title: "Trainer account" };
 
 export default async function TrainerSetupPage({ searchParams }: PageProps<"/trainer/setup">) {
-  const [trainer, profile, { next }] = await Promise.all([getMyTrainerProfile(), getProfile(), searchParams]);
+  const [trainer, profile, { next }, adminGym] = await Promise.all([
+    getMyTrainerProfile(),
+    getProfile(),
+    searchParams,
+    getAdminGym(),
+  ]);
   const onboarded = profile?.onboarded === true;
   const { firstName, lastName } = namePartsOf(profile);
   const gym = trainer ? null : await joiningGym(typeof next === "string" ? next : undefined, onboarded);
@@ -25,6 +32,7 @@ export default async function TrainerSetupPage({ searchParams }: PageProps<"/tra
         back={onboarded ? { href: "/profile", label: "Profile" } : undefined}
       />
       <div className="max-w-md">
+        {hasJournal(profile) && !trainer && !adminGym && <WorkAccountNotice as="trainer" className="mb-4" />}
         <TrainerSetupForm
           initial={{
             displayName: trainer?.display_name ?? joinName(firstName, lastName),

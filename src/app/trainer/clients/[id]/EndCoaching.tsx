@@ -18,7 +18,7 @@ export default function EndCoaching({ linkId, name }: { linkId: string; name: st
         setError(result.error);
         return;
       }
-      router.push("/trainer");
+      router.push("/trainer/clients");
     });
   }
 

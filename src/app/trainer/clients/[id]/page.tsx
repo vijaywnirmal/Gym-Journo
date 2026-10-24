@@ -77,7 +77,7 @@ export default async function ClientPage({
 
   return (
     <main className="px-4 pt-6 pb-10 md:px-8 md:pt-10">
-      <PageHeader title={name} subtitle={clientSummary(client) || undefined} back={{ href: "/trainer", label: "Clients" }} />
+      <PageHeader title={name} subtitle={clientSummary(client) || undefined} back={{ href: "/trainer/clients", label: "Clients" }} />
 
       <div className="mb-2 flex items-center justify-between gap-2">
         <Link href={`${base}?week=${shiftDate(monday, -7)}`} aria-label="Previous week" className="grid size-9 place-items-center rounded-lg hover:bg-fill">

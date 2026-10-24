@@ -72,6 +72,9 @@ test("a gym invites a trainer and a member, suggests the trainer, and the member
     await expect(owner.page.getByRole("button", { name: "Make an invite link" })).toHaveCount(1);
     const memberCode = await liveCode("member");
     const trainerCode = await liveCode("trainer");
+    // Running a gym makes it a work account: the journal's pages lead to the gym's dashboard.
+    await owner.page.goto("/calendar");
+    await expect(owner.page).toHaveURL(/\/gym$/);
 
     // The trainer joins.
     const trainer = await signIn(browser, TRAINER);
@@ -79,6 +82,7 @@ test("a gym invites a trainer and a member, suggests the trainer, and the member
     await expect(trainer.page.getByRole("heading", { name: `Train at ${GYM}` })).toBeVisible();
     await trainer.page.getByRole("button", { name: `Join ${GYM}` }).click();
     await expect(trainer.page).toHaveURL(/\/trainer$/);
+    await expect(trainer.page.getByRole("navigation", { name: "Primary" }).first()).toContainText("Plans");
 
     // The test user joins as a member, after seeing what the gym will see.
     await page.goto(`/g/${memberCode}`);
@@ -88,13 +92,13 @@ test("a gym invites a trainer and a member, suggests the trainer, and the member
     await expect(page.getByRole("heading", { name: "Your gym" })).toBeVisible();
 
     // The owner suggests the trainer.
-    await owner.page.goto("/gym?filter=needs-trainer");
+    await owner.page.goto("/gym/members?filter=needs-trainer");
     await owner.page.getByRole("link", { name: new RegExp(TEST_USER.firstName) }).click();
     await owner.page.getByRole("button", { name: `Suggest ${TRAINER.name}` }).click();
     await expect(owner.page.getByRole("status")).toContainText(`Suggested ${TRAINER.name}.`);
 
     // Nothing is shared until the member accepts.
-    await trainer.page.goto("/trainer");
+    await trainer.page.goto("/trainer/clients");
     await expect(trainer.page.getByText("No clients yet")).toBeVisible();
 
     // The member sees the suggestion on Today and accepts it on Profile.
@@ -105,9 +109,9 @@ test("a gym invites a trainer and a member, suggests the trainer, and the member
     await expect(page.getByRole("heading", { name: "Your trainer" })).toBeVisible();
     await expect(page.getByText(TRAINER.name, { exact: true })).toBeVisible();
 
-    await trainer.page.goto("/trainer");
+    await trainer.page.goto("/trainer/clients");
     await expect(trainer.page.getByRole("link", { name: new RegExp(TEST_USER.firstName) })).toBeVisible();
-    await owner.page.goto("/gym");
+    await owner.page.goto("/gym/members");
     await expect(owner.page.getByRole("link", { name: new RegExp(TEST_USER.firstName) })).toContainText(TRAINER.name);
 
     await owner.context.close();

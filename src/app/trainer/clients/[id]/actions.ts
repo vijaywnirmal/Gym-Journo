@@ -27,7 +27,7 @@ function refusal(error: { code?: string; message: string }, fallback: string): s
 
 function revalidateClient(clientId: string) {
   revalidatePath(`/trainer/clients/${clientId}`, "layout");
-  revalidatePath("/trainer");
+  revalidatePath("/trainer", "layout");
 }
 
 // savePlan (schedule/[date]/actions.ts) for a client, through save_client_plan (migration 0034).
@@ -166,7 +166,7 @@ export async function endCoaching(linkId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("end_trainer_link", { p_link_id: linkId });
   if (error) return { error: "Couldn't end coaching. Please try again." };
-  revalidatePath("/trainer");
+  revalidatePath("/trainer", "layout");
   if (!data) return { error: "Coaching had already ended." };
   return { success: true };
 }

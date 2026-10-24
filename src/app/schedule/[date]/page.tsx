@@ -6,6 +6,7 @@ import { planAuthorNote } from "@/lib/planAuthors";
 import { getKnownTrainer } from "@/lib/trainers";
 import { formatDate, isValidIsoDate } from "@/lib/date";
 import PageHeader from "@/components/PageHeader";
+import { requireMemberApp } from "@/lib/workAccount";
 import ScheduleForm from "./ScheduleForm";
 
 // The day in the title, so each day's page is announced on its own.
@@ -19,6 +20,7 @@ export default async function SchedulePage({
 }: {
   params: Promise<{ date: string }>;
 }) {
+  await requireMemberApp();
   const { date } = await params;
   if (!isValidIsoDate(date)) notFound();
   const [muscleGroups, plan, templates, me, trainer] = await Promise.all([

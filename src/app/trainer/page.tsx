@@ -3,51 +3,29 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import Icon from "@/components/Icon";
 import PageHeader from "@/components/PageHeader";
-import { daysSince } from "@/lib/date";
-import { QUIET_AFTER_DAYS } from "@/lib/gymStatus";
-import { clientName, todayStatus } from "@/lib/clientStatus";
+import { formatDateLong, hourIn, todayIn } from "@/lib/date";
+import { getGreeting } from "@/lib/home";
+import { getUserTimeZone } from "@/lib/userDate";
+import { clientName, lastWorkoutLine, todayStatus, trainerToday } from "@/lib/clientStatus";
 import { getClientOverview, getMyTrainerProfile } from "@/lib/trainers";
 import type { ClientOverview } from "@/lib/types";
 import DayStatusPill from "./DayStatusPill";
 
-export const metadata: Metadata = { title: "Clients" };
+export const metadata: Metadata = { title: "Today" };
 
-function weekLine(row: ClientOverview): string {
-  const done = `${row.done_this_week} workout${row.done_this_week === 1 ? "" : "s"}`;
-  return row.planned_this_week > 0 ? `${row.done_this_week} of ${row.planned_this_week} this week` : `${done} this week`;
-}
-
-// No workout in a week (or ever): shown in orange so a client going quiet stands out.
-function isQuiet(row: ClientOverview): boolean {
-  return !row.last_workout_on || daysSince(row.last_workout_on, row.client_today) >= QUIET_AFTER_DAYS;
-}
-
-function lastWorkout(row: ClientOverview): string {
-  if (!row.last_workout_on) return "No workouts yet";
-  const days = daysSince(row.last_workout_on, row.client_today);
-  if (days === 0) return "Last workout today";
-  if (days === 1) return "Last workout yesterday";
-  return `Last workout ${days} days ago`;
-}
-
-export default async function ClientsPage() {
+// The trainer's home: today's sessions across clients, who has nothing planned this week, and who
+// has gone quiet. Each row opens the client's week.
+export default async function TrainerTodayPage() {
   const trainer = await getMyTrainerProfile();
   if (!trainer) redirect("/trainer/setup");
-  const clients = await getClientOverview();
+  const [clients, { timeZone }] = await Promise.all([getClientOverview(), getUserTimeZone()]);
+  const view = trainerToday(clients);
 
   return (
     <main className="px-4 pt-6 pb-10 md:px-8 md:pt-10">
       <PageHeader
-        title="Clients"
-        actions={
-          <Link
-            href="/trainer/invite"
-            className="flex h-9 items-center gap-1 rounded-lg bg-accent px-3 text-sm font-semibold text-on-accent hover:bg-accent-hover"
-          >
-            <Icon name="plus" className="size-4" strokeWidth={2.5} />
-            Invite
-          </Link>
-        }
+        title={getGreeting(trainer.display_name, hourIn(timeZone))}
+        subtitle={formatDateLong(todayIn(timeZone))}
       />
 
       {clients.length === 0 ? (
@@ -56,24 +34,73 @@ export default async function ClientsPage() {
           <p className="mt-0.5 text-sm text-label-2">
             Send your invite link on WhatsApp. Clients show up here once they accept.
           </p>
+          <Link href="/trainer/invite" className="mt-3 inline-block text-sm font-semibold text-link">
+            Invite a client
+          </Link>
         </section>
       ) : (
-        <ul className="card divide-y divide-separator">
-          {clients.map((row) => (
-            <li key={row.client_id}>
-              <Link href={`/trainer/clients/${row.client_id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-fill">
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold">{clientName(row)}</span>
-                  <span className="block text-sm text-label-2">{weekLine(row)}</span>
-                  <span className={`block text-xs ${isQuiet(row) ? "font-medium text-orange" : "text-label-2"}`}>{lastWorkout(row)}</span>
-                </span>
-                <DayStatusPill status={todayStatus(row)} />
-                <Icon name="chevronRight" className="size-4 shrink-0 text-label-3" strokeWidth={2} />
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <>
+          <p className="text-sm text-label-2">
+            {view.plannedThisWeek > 0
+              ? `${view.doneThisWeek} of ${view.plannedThisWeek} planned sessions done this week`
+              : `${view.doneThisWeek} workout${view.doneThisWeek === 1 ? "" : "s"} logged this week`}
+            {" · "}
+            <Link href="/trainer/clients" className="text-link">
+              All clients
+            </Link>
+          </p>
+
+          <Section title="Today" empty="No sessions planned for today.">
+            {view.today.map((row) => (
+              <ClientRow key={row.client_id} row={row} line={lastWorkoutLine(row)} pill />
+            ))}
+          </Section>
+
+          {view.needPlan.length > 0 && (
+            <Section title="Nothing planned this week">
+              {view.needPlan.map((row) => (
+                <ClientRow key={row.client_id} row={row} line="Plan their week" />
+              ))}
+            </Section>
+          )}
+
+          {view.quiet.length > 0 && (
+            <Section title="Not training">
+              {view.quiet.map((row) => (
+                <ClientRow key={row.client_id} row={row} line={lastWorkoutLine(row)} warn />
+              ))}
+            </Section>
+          )}
+        </>
       )}
     </main>
+  );
+}
+
+function Section({ title, empty, children }: { title: string; empty?: string; children: React.ReactNode[] }) {
+  return (
+    <>
+      <h2 className="section-title mt-6">{title}</h2>
+      {children.length === 0 ? (
+        <p className="px-1 text-sm text-label-2">{empty}</p>
+      ) : (
+        <ul className="card divide-y divide-separator">{children}</ul>
+      )}
+    </>
+  );
+}
+
+function ClientRow({ row, line, pill = false, warn = false }: { row: ClientOverview; line: string; pill?: boolean; warn?: boolean }) {
+  return (
+    <li>
+      <Link href={`/trainer/clients/${row.client_id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-fill">
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold">{clientName(row)}</span>
+          <span className={`block text-sm ${warn ? "text-orange" : "text-label-2"}`}>{line}</span>
+        </span>
+        {pill && <DayStatusPill status={todayStatus(row)} />}
+        <Icon name="chevronRight" className="size-4 shrink-0 text-label-3" strokeWidth={2} />
+      </Link>
+    </li>
   );
 }

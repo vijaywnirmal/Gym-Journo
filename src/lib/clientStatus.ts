@@ -1,7 +1,7 @@
 // How a trainer's screens describe a client's days. Pure, so the rules are tested in one place.
 
 import { addDays, format, parseISO } from "date-fns";
-import { DATE_FMT } from "@/lib/date";
+import { DATE_FMT, daysSince } from "@/lib/date";
 import { joinName } from "@/lib/names";
 import { PRIMARY_GOAL_LABELS } from "@/lib/ai-plan-prompt";
 import type { ClientLog, ClientOverview, ClientPlan, MuscleGroup, WorkoutPlan } from "@/lib/types";
@@ -39,6 +39,42 @@ export function todayStatus(row: Pick<ClientOverview, "today_plan" | "today_done
   if (row.today_plan === "rest") return "rest";
   if (row.today_plan === "absence") return "absence";
   return row.today_plan === "workout" ? "today" : "none";
+}
+
+// No workout in a week, or ever (the same 7 days as a gym's "Not training").
+export const QUIET_CLIENT_DAYS = 7;
+
+export function isQuietClient(row: Pick<ClientOverview, "last_workout_on" | "client_today">): boolean {
+  return !row.last_workout_on || daysSince(row.last_workout_on, row.client_today) >= QUIET_CLIENT_DAYS;
+}
+
+export function lastWorkoutLine(row: Pick<ClientOverview, "last_workout_on" | "client_today">): string {
+  if (!row.last_workout_on) return "No workouts yet";
+  const days = daysSince(row.last_workout_on, row.client_today);
+  if (days === 0) return "Last workout today";
+  if (days === 1) return "Last workout yesterday";
+  return `Last workout ${days} days ago`;
+}
+
+export type TrainerToday = {
+  // Clients with a workout planned for their today, the ones not done yet first.
+  today: ClientOverview[];
+  // Nothing planned for them this week.
+  needPlan: ClientOverview[];
+  quiet: ClientOverview[];
+  doneThisWeek: number;
+  plannedThisWeek: number;
+};
+
+// The trainer's Today screen, from the dashboard rows.
+export function trainerToday(rows: ClientOverview[]): TrainerToday {
+  return {
+    today: rows.filter((r) => r.today_plan === "workout").sort((a, b) => Number(a.today_done) - Number(b.today_done)),
+    needPlan: rows.filter((r) => r.planned_this_week === 0),
+    quiet: rows.filter(isQuietClient),
+    doneThisWeek: rows.reduce((sum, r) => sum + r.done_this_week, 0),
+    plannedThisWeek: rows.reduce((sum, r) => sum + r.planned_this_week, 0),
+  };
 }
 
 export function clientName(row: Pick<ClientOverview, "first_name" | "last_name">): string {

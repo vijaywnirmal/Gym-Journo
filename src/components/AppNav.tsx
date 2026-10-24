@@ -6,7 +6,8 @@ import Icon, { type IconName } from "@/components/Icon";
 
 type Tab = { href: string; label: string; icon: IconName };
 
-const TABS: Tab[] = [
+// The workout journal: members.
+const MEMBER_TABS: Tab[] = [
   { href: "/", label: "Today", icon: "today" },
   { href: "/calendar", label: "Calendar", icon: "calendar" },
   { href: "/history", label: "History", icon: "history" },
@@ -15,18 +16,27 @@ const TABS: Tab[] = [
   { href: "/profile", label: "Profile", icon: "person" },
 ];
 
-const CLIENTS_TAB: Tab = { href: "/trainer", label: "Clients", icon: "people" };
-const GYM_TAB: Tab = { href: "/gym", label: "Gym", icon: "gym" };
+const PROFILE_TAB: Tab = { href: "/profile", label: "Profile", icon: "person" };
+const TRAINER_TABS: Tab[] = [
+  { href: "/trainer", label: "Today", icon: "today" },
+  { href: "/trainer/clients", label: "Clients", icon: "people" },
+  { href: "/trainer/plans", label: "Plans", icon: "calendar" },
+];
+const GYM_TABS: Tab[] = [
+  { href: "/gym", label: "Dashboard", icon: "gym" },
+  { href: "/gym/members", label: "Members", icon: "people" },
+  { href: "/gym/trainers", label: "Trainers", icon: "dumbbell" },
+  { href: "/gym/invite", label: "Invite", icon: "share" },
+];
 
-// Gym admins get a Gym tab and trainers a Clients tab, after Calendar. The phone bar has room for
-// six, so there they take Exercises' place (the library is still a tap away when planning, and in
-// the sidebar), then History's (also reachable from Calendar).
-export function tabsFor(isTrainer: boolean, isGymAdmin: boolean, phone: boolean): Tab[] {
-  const extra = [...(isGymAdmin ? [GYM_TAB] : []), ...(isTrainer ? [CLIENTS_TAB] : [])];
-  if (extra.length === 0) return TABS;
-  const dropped = phone ? ["/exercises", "/history"].slice(0, extra.length) : [];
-  const tabs = TABS.filter((t) => !dropped.includes(t.href));
-  return [...tabs.slice(0, 2), ...extra, ...tabs.slice(2)];
+// Trainers and the people who run a gym get work screens instead of the journal (src/lib/
+// workAccount.ts). Someone who does both gets the trainer's tabs and one Gym tab, whose dashboard
+// leads to the gym's other screens.
+export function tabsFor(isTrainer: boolean, isGymAdmin: boolean): Tab[] {
+  if (isTrainer && isGymAdmin) return [...TRAINER_TABS, { href: "/gym", label: "Gym", icon: "gym" }, PROFILE_TAB];
+  if (isTrainer) return [...TRAINER_TABS, { href: "/exercises", label: "Exercises", icon: "dumbbell" }, PROFILE_TAB];
+  if (isGymAdmin) return [...GYM_TABS, PROFILE_TAB];
+  return MEMBER_TABS;
 }
 
 // Sub-pages highlight the tab they belong to.
@@ -40,6 +50,7 @@ const SECTION_OF: [string, string][] = [
   ["/coach", "/"],
   ["/ai-plan", "/"],
   ["/suggestions", "/"],
+  ["/trainer/invite", "/trainer/clients"],
 ];
 
 const HIDDEN_ON = [
@@ -55,19 +66,22 @@ const HIDDEN_ON = [
   "/privacy",
 ];
 
-function activeTab(pathname: string): string {
-  const section = SECTION_OF.find(([prefix]) => pathname.startsWith(prefix));
-  if (section) return section[1];
-  return (
-    [...TABS, CLIENTS_TAB, GYM_TAB].find((t) => t.href !== "/" && pathname.startsWith(t.href))?.href ?? (pathname === "/" ? "/" : "")
-  );
+// The tab a page belongs to: its section, else the tab with the longest path it sits under (so
+// /trainer/clients/… is Clients, not the trainer's Today at /trainer).
+export function activeTab(pathname: string, tabs: Tab[]): string {
+  const section = SECTION_OF.find(([prefix]) => pathname.startsWith(prefix))?.[1];
+  if (section && tabs.some((t) => t.href === section)) return section;
+  if (pathname === "/") return "/";
+  const under = tabs.filter((t) => t.href !== "/" && (pathname === t.href || pathname.startsWith(`${t.href}/`)));
+  return under.sort((a, b) => b.href.length - a.href.length)[0]?.href ?? "";
 }
 
 // Primary navigation: a bottom bar on phones, a sidebar from tablet width up.
 export default function AppNav({ isTrainer = false, isGymAdmin = false }: { isTrainer?: boolean; isGymAdmin?: boolean }) {
   const pathname = usePathname();
   if (HIDDEN_ON.some((p) => pathname.startsWith(p))) return null;
-  const current = activeTab(pathname);
+  const tabs = tabsFor(isTrainer, isGymAdmin);
+  const current = activeTab(pathname, tabs);
 
   return (
     <>
@@ -76,7 +90,7 @@ export default function AppNav({ isTrainer = false, isGymAdmin = false }: { isTr
         className="material fixed inset-x-0 bottom-0 z-30 border-t border-separator pb-[env(safe-area-inset-bottom)] md:hidden"
       >
         <ul className="mx-auto flex max-w-lg">
-          {tabsFor(isTrainer, isGymAdmin, true).map((tab) => {
+          {tabs.map((tab) => {
             const active = current === tab.href;
             return (
               <li key={tab.href} className="flex-1">
@@ -107,7 +121,7 @@ export default function AppNav({ isTrainer = false, isGymAdmin = false }: { isTr
           <span className="text-[15px] font-semibold tracking-tight">Gym Journal</span>
         </Link>
         <ul className="flex flex-col gap-0.5">
-          {tabsFor(isTrainer, isGymAdmin, false).map((tab) => {
+          {tabs.map((tab) => {
             const active = current === tab.href;
             return (
               <li key={tab.href}>
