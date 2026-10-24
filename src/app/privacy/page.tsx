@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Privacy" };
 
 // Keep this true to the app: it states what's stored, who sees it, which services handle it, and
 // how to leave. The Gemini lists themselves live in lib/ai-plan-prompt.ts and lib/coach/consent.ts.
-const UPDATED = "23 October 2026";
+const UPDATED = "24 October 2026";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -74,6 +74,15 @@ export default async function PrivacyPage() {
               <>
                 <strong>If you&apos;re a trainer:</strong> your name, gym, city, WhatsApp number and invite links.
               </>,
+              <>
+                <strong>If you run a gym:</strong> its name, area, city, phone number, invite links, and who its
+                members, trainers and admins are.
+              </>,
+              <>
+                <strong>Fees, if your gym or trainer records them:</strong> the amount, how often it&apos;s due, and
+                each payment&apos;s date, amount and method (cash, UPI and so on). Gym Journal doesn&apos;t take
+                payments.
+              </>,
             ]}
           />
         </Section>
@@ -90,6 +99,19 @@ export default async function PrivacyPage() {
                 you), logged workouts including notes, body weight, and your name, goal, experience and training days.
                 Not your email, date of birth, height, gender, Coach, AI plans or meals. Remove them in Profile and they
                 lose access at once; plans they made stay with you.
+              </>,
+              <>
+                <strong>Your gym, only after you join it:</strong> your name, how many workouts you log each week, when
+                you last trained, and whether you have a trainer. Not your plans, sets, notes, body weight, email or
+                other profile details. Leave it in Profile and it loses access at once.
+              </>,
+              <>
+                <strong>A gym you train at</strong> sees your name, how many of its members you train and how many
+                plans you&apos;ve made them this week. Not your other clients or your own workouts.
+              </>,
+              <>
+                <strong>Fees:</strong> the gym or trainer who records your fee, and you, in Profile. Nobody else. They
+                keep their record of what you paid if you leave.
               </>,
               <>
                 <strong>A trainer&apos;s details</strong> (name, gym, city, WhatsApp) are shown to people who open

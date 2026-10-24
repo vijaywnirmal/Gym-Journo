@@ -13,12 +13,15 @@ export default function YourGymSection({
   trainerGyms,
   adminOf,
   gymTrainer,
+  fee = null,
 }: {
   membership: { gym: Gym; since: string } | null;
   trainerGyms: Gym[];
   adminOf: Gym | null;
   // The trainer this gym arranged, who stops training them if they leave.
   gymTrainer: string | null;
+  // The member's fee with the gym, if it records one.
+  fee?: React.ReactNode;
 }) {
   if (!membership && trainerGyms.length === 0 && !adminOf) return null;
   return (
@@ -43,6 +46,7 @@ export default function YourGymSection({
                 </a>
               )}
             </div>
+            {fee && <div className="px-4 pt-3">{fee}</div>}
             <RemoveButton
               label="Leave gym"
               warning={

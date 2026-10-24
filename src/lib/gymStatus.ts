@@ -5,7 +5,7 @@ import type { GymMemberRow } from "@/lib/types";
 
 export const QUIET_AFTER_DAYS = 7;
 
-export type MemberFilter = "all" | "needs-trainer" | "quiet";
+export type MemberFilter = "all" | "needs-trainer" | "quiet" | "fees-due";
 
 export function isQuiet(row: Pick<GymMemberRow, "days_since_last_workout">): boolean {
   return row.days_since_last_workout === null || row.days_since_last_workout >= QUIET_AFTER_DAYS;
@@ -16,9 +16,15 @@ export function needsTrainer(row: Pick<GymMemberRow, "trainer_id" | "offered_tra
   return !row.trainer_id && !row.offered_trainer_id && !row.has_own_trainer;
 }
 
-export function filterMembers(rows: GymMemberRow[], filter: MemberFilter): GymMemberRow[] {
+// feeDue: whether a member's fee is due or overdue (fees come from their own table, 0040).
+export function filterMembers(
+  rows: GymMemberRow[],
+  filter: MemberFilter,
+  feeDue: (row: GymMemberRow) => boolean = () => false
+): GymMemberRow[] {
   if (filter === "needs-trainer") return rows.filter(needsTrainer);
   if (filter === "quiet") return rows.filter(isQuiet);
+  if (filter === "fees-due") return rows.filter(feeDue);
   return rows;
 }
 

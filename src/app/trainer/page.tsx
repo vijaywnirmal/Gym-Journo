@@ -7,19 +7,23 @@ import { formatDateLong, hourIn, todayIn } from "@/lib/date";
 import { getGreeting } from "@/lib/home";
 import { getUserTimeZone } from "@/lib/userDate";
 import { clientName, lastWorkoutLine, todayStatus, trainerToday } from "@/lib/clientStatus";
+import { getTrainerFees } from "@/lib/feeQueries";
+import { feeStateLabel, feesDue } from "@/lib/fees";
 import { getClientOverview, getMyTrainerProfile } from "@/lib/trainers";
 import type { ClientOverview } from "@/lib/types";
 import DayStatusPill from "./DayStatusPill";
 
 export const metadata: Metadata = { title: "Today" };
 
-// The trainer's home: today's sessions across clients, who has nothing planned this week, and who
-// has gone quiet. Each row opens the client's week.
+// The trainer's home: today's sessions across clients, who has nothing planned this week, who has
+// gone quiet, and whose fee is due. Each row opens the client's week.
 export default async function TrainerTodayPage() {
   const trainer = await getMyTrainerProfile();
   if (!trainer) redirect("/trainer/setup");
-  const [clients, { timeZone }] = await Promise.all([getClientOverview(), getUserTimeZone()]);
+  const [clients, fees, { timeZone }] = await Promise.all([getClientOverview(), getTrainerFees(), getUserTimeZone()]);
   const view = trainerToday(clients);
+  const due = feesDue(fees, todayIn(timeZone));
+  const feesToChase = clients.filter((row) => due.has(row.client_id));
 
   return (
     <main className="px-4 pt-6 pb-10 md:px-8 md:pt-10">
@@ -69,6 +73,15 @@ export default async function TrainerTodayPage() {
               {view.quiet.map((row) => (
                 <ClientRow key={row.client_id} row={row} line={lastWorkoutLine(row)} warn />
               ))}
+            </Section>
+          )}
+
+          {feesToChase.length > 0 && (
+            <Section title="Fees due">
+              {feesToChase.map((row) => {
+                const state = due.get(row.client_id)!;
+                return <ClientRow key={row.client_id} row={row} line={feeStateLabel(state)} warn={state.kind === "overdue"} />;
+              })}
             </Section>
           )}
         </>

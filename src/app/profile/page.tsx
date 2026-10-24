@@ -6,6 +6,7 @@ import { getClientOverview, getMyTrainer, getMyTrainerProfile } from "@/lib/trai
 import RemoveButton from "@/components/RemoveButton";
 import { stopTraining } from "./trainerActions";
 import { getAdminGym, getMyGymMembership, getMyGymTrainerOffer, getMyTrainerGyms, getTrainerLinkGymId } from "@/lib/gyms";
+import { getMyFees } from "@/lib/feeQueries";
 import { profileFieldsFromProfile } from "@/lib/profile-fields";
 import { joinName, namePartsOf } from "@/lib/names";
 import { formatDateLong, todayIn } from "@/lib/date";
@@ -19,6 +20,7 @@ import RemindersSection from "./RemindersSection";
 import YourTrainerSection from "./YourTrainerSection";
 import YourGymSection from "./YourGymSection";
 import GymOfferCard from "./GymOfferCard";
+import MyFee from "./MyFee";
 
 export const metadata: Metadata = { title: "Profile" };
 
@@ -118,10 +120,14 @@ export default async function ProfilePage() {
   }
 
   // The trainer the member's gym arranged stops training them if they leave it.
-  const gymArrangedTrainer =
-    myTrainer && membership && (await getTrainerLinkGymId(myTrainer.linkId)) === membership.gym.id
-      ? myTrainer.trainer.display_name
-      : null;
+  const [gymLinkId, myFees] = await Promise.all([
+    myTrainer && membership ? getTrainerLinkGymId(myTrainer.linkId) : null,
+    getMyFees(),
+  ]);
+  const gymArrangedTrainer = myTrainer && membership && gymLinkId === membership.gym.id ? myTrainer.trainer.display_name : null;
+  const today = todayIn(profile?.timezone);
+  const gymFee = membership && myFees.find(({ fee }) => fee.gym_id === membership.gym.id);
+  const trainerFee = myTrainer && myFees.find(({ fee }) => fee.trainer_id === myTrainer.trainerId);
 
   return (
     <main className="px-4 pt-6 pb-10 md:px-8 md:pt-10">
@@ -141,6 +147,7 @@ export default async function ProfilePage() {
           myTrainer={myTrainer}
           gym={gymArrangedTrainer && membership ? membership.gym : null}
           since={formatDateLong(todayIn(profile?.timezone, new Date(myTrainer.startedAt)))}
+          fee={trainerFee && <MyFee fee={trainerFee.fee} payments={trainerFee.payments} today={today} />}
         />
       )}
 
@@ -154,6 +161,7 @@ export default async function ProfilePage() {
         trainerGyms={trainerGyms}
         adminOf={null}
         gymTrainer={gymArrangedTrainer}
+        fee={gymFee && <MyFee fee={gymFee.fee} payments={gymFee.payments} today={today} />}
       />
 
       <h2 className="section-title mt-8">Tracking</h2>
