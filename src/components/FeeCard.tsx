@@ -72,12 +72,15 @@ export default function FeeCard({
     setDone(null);
     startTransition(async () => {
       const result = await action();
-      if (result.error) {
-        setError(result.error);
-        return;
-      }
-      setMode("view");
-      setDone(message);
+      // In the same transition as the refreshed page, so the message shows with the saved fee.
+      startTransition(() => {
+        if (result.error) {
+          setError(result.error);
+          return;
+        }
+        setMode("view");
+        setDone(message);
+      });
     });
   }
 
