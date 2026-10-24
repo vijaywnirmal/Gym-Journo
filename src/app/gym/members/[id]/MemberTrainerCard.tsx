@@ -11,6 +11,7 @@ export default function MemberTrainerCard({
   trainers,
   current,
   offered,
+  declined,
   suggest,
   unassign,
 }: {
@@ -18,11 +19,19 @@ export default function MemberTrainerCard({
   trainers: Trainer[];
   current: Trainer | null;
   offered: Trainer | null;
+  // The trainer they said no to last, if they still have none.
+  declined: Trainer | null;
   suggest: (trainerId: string) => Promise<{ error?: string }>;
   unassign: () => Promise<{ error?: string }>;
 }) {
   const [pending, startTransition] = useTransition();
-  const choices = trainers.filter((t) => t.id !== current?.id && t.id !== offered?.id);
+  // The one they declined goes last, so the obvious choice is someone else.
+  const choices = trainers
+    .filter((t) => t.id !== current?.id && t.id !== offered?.id)
+    .sort((a, b) => Number(a.id === declined?.id) - Number(b.id === declined?.id));
+  // With a trainer or a suggestion in place, choosing another is a second step, so the main button
+  // on the card isn't a different trainer right after suggesting one.
+  const [changing, setChanging] = useState(false);
   const [choice, setChoice] = useState(choices[0]?.id ?? "");
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
@@ -39,6 +48,7 @@ export default function MemberTrainerCard({
         setError(result.error);
         return;
       }
+      setChanging(false);
       setDone(message);
     });
   }
@@ -47,6 +57,16 @@ export default function MemberTrainerCard({
 
   return (
     <section className="card divide-y divide-separator">
+      {(error || done) && (
+        <p role={error ? "alert" : "status"} className={`px-4 py-3 text-sm ${error ? "text-red" : "font-medium"}`}>
+          {error ?? done}
+        </p>
+      )}
+      {declined && !current && !offered && (
+        <p className="px-4 py-3 text-sm text-label-2">
+          {firstName} declined {declined.name}.
+        </p>
+      )}
       {(current || offered) && (
         <div className="flex items-center gap-3 px-4 py-3">
           <div className="min-w-0 flex-1">
@@ -92,7 +112,15 @@ export default function MemberTrainerCard({
         </div>
       )}
 
-      {chosen && (
+      {chosen && (current || offered) && !changing && (
+        <div className="px-4 py-3">
+          <button type="button" onClick={() => setChanging(true)} className="text-sm font-medium text-link">
+            Suggest a different trainer
+          </button>
+        </div>
+      )}
+
+      {chosen && (!(current || offered) || changing) && (
         <div className="flex flex-col gap-2 px-4 py-3">
           <label className="block">
             <span className="mb-1.5 block text-sm font-medium">
@@ -122,12 +150,6 @@ export default function MemberTrainerCard({
             {firstName} chooses whether to accept. Once they do, their trainer sees their plans, workouts and body weight.
           </p>
         </div>
-      )}
-
-      {(error || done) && (
-        <p role={error ? "alert" : "status"} className={`px-4 py-3 text-sm ${error ? "text-red" : "text-label-2"}`}>
-          {error ?? done}
-        </p>
       )}
     </section>
   );

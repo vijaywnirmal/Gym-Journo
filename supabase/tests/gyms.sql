@@ -427,6 +427,22 @@ begin
   end if;
 end $$;
 
+-- The gym sees that M2 declined Tara (0038), and not once it suggests someone again.
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000090a0","role":"authenticated"}', true);
+do $$
+declare
+  v_row record;
+begin
+  select * into v_row from gym_member_overview(current_setting('test.gym')::uuid) where member_id = '00000000-0000-0000-0000-0000000090c2';
+  if v_row.declined_trainer_name is distinct from 'Tara' or v_row.trainer_id is not null or v_row.offered_trainer_id is not null then
+    raise exception 'the gym should see that M2 declined Tara: %', row_to_json(v_row);
+  end if;
+  select * into v_row from gym_member_overview(current_setting('test.gym')::uuid) where member_id = '00000000-0000-0000-0000-0000000090c1';
+  if v_row.declined_trainer_id is not null then
+    raise exception 'M1 accepted, so nothing was declined: %', row_to_json(v_row);
+  end if;
+end $$;
+
 -- An old suggestion can't replace a trainer the member chose: accepting a trainer's own invite
 -- withdraws it, and one left over from before is withdrawn rather than accepted.
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000090a0","role":"authenticated"}', true);
@@ -450,6 +466,13 @@ begin
 end $$;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000090a0","role":"authenticated"}', true);
 select offer_gym_trainer(current_setting('test.gym')::uuid, '00000000-0000-0000-0000-0000000090c2', '00000000-0000-0000-0000-0000000090b1');
+do $$
+begin
+  if (select declined_trainer_id from gym_member_overview(current_setting('test.gym')::uuid)
+      where member_id = '00000000-0000-0000-0000-0000000090c2') is not null then
+    raise exception 'a new suggestion should replace the declined one in the list';
+  end if;
+end $$;
 -- (As if M2 had found Pat while the offer was open, before offers were withdrawn on accepting.)
 reset role;
 insert into trainer_clients (trainer_id, client_id) values ('00000000-0000-0000-0000-0000000090bf', '00000000-0000-0000-0000-0000000090c2');
@@ -534,6 +557,13 @@ begin
   select * into v_row from gym_trainer_overview(current_setting('test.gym')::uuid) where trainer_id = '00000000-0000-0000-0000-0000000090b1';
   if v_row.members_assigned <> 1 or v_row.members_inactive_7_days <> 1 then
     raise exception 'Tara''s row is wrong (M2 hasn''t trained): %', row_to_json(v_row);
+  end if;
+end $$;
+do $$
+begin
+  if (select declined_trainer_id from gym_member_overview(current_setting('test.gym')::uuid)
+      where member_id = '00000000-0000-0000-0000-0000000090c2') is not null then
+    raise exception 'M2 accepted Tara after declining, so the list should no longer say declined';
   end if;
 end $$;
 

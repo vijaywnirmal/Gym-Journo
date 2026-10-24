@@ -48,6 +48,7 @@ const HIDDEN_ON = [
   "/onboarding",
   "/trainer/setup",
   "/gym/setup",
+  "/gym/admin-setup",
   "/gym/poster",
   "/forgot-password",
   "/reset-password",

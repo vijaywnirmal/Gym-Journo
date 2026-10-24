@@ -11,10 +11,13 @@ export default function RemoveButton({
   action,
   done,
   confirmLabel = "Remove",
+  subtle = false,
 }: {
   label: string;
   warning: string;
   confirmLabel?: "Remove" | "Leave";
+  // Grey until confirming, for lists where every row has one.
+  subtle?: boolean;
   action: () => Promise<{ error?: string }>;
   done?: string;
 }) {
@@ -58,7 +61,11 @@ export default function RemoveButton({
           </button>
         </div>
       ) : (
-        <button type="button" onClick={() => setConfirming(true)} className="text-sm font-semibold text-red">
+        <button
+          type="button"
+          onClick={() => setConfirming(true)}
+          className={`text-sm ${subtle ? "font-medium text-label-2 hover:text-red" : "font-semibold text-red"}`}
+        >
           {label}
         </button>
       )}

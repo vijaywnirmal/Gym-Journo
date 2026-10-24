@@ -69,6 +69,8 @@ export default async function GymJoinPage({ params }: { params: Promise<{ code: 
     role === "member" && membership && myTrainer && (await getTrainerLinkGymId(myTrainer.linkId)) === membership.gym.id
       ? myTrainer.trainer.display_name
       : null;
+  // A trainer they found themselves stays theirs (the gym can't suggest another).
+  const ownTrainer = role === "member" && myTrainer && !leavingTrainer ? myTrainer.trainer.display_name : null;
   if (details.state === "needs_trainer_profile") {
     return (
       <Message
@@ -89,7 +91,9 @@ export default async function GymJoinPage({ params }: { params: Promise<{ code: 
             doesntSee={["Your plans, sets, notes or body weight", "Your email or other profile details"]}
             gym={gym}
           >
-            {gym} may suggest a trainer. You choose whether to accept, and only then do they see your plans, workouts and body weight.
+            {ownTrainer
+              ? `${ownTrainer} stays your trainer.`
+              : `${gym} may suggest a trainer. You choose whether to accept, and only then does that trainer see your plans, workouts and body weight.`}
           </Consent>
         )}
         {role === "trainer" && (

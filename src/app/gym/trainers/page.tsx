@@ -29,7 +29,14 @@ export default async function GymTrainersPage() {
     <main className="px-4 pt-6 pb-10 md:px-8 md:pt-10">
       <PageHeader
         title={gym.name}
-        subtitle={count(trainers.length, "trainer")}
+        subtitle={
+          <>
+            {count(trainers.length, "trainer")} ·{" "}
+            <Link href="/gym/setup" className="text-link">
+              Gym details
+            </Link>
+          </>
+        }
         actions={
           <Link
             href="/gym/invite"
@@ -57,7 +64,14 @@ export default async function GymTrainersPage() {
               <div className="px-4 py-3">
                 <p className="text-sm font-semibold">{t.display_name}</p>
                 <p className="text-sm text-label-2">
-                  {count(t.members_assigned, "member")} · {count(t.plans_this_week, "plan")} for this week
+                  {t.members_assigned > 0 ? (
+                    <Link href={`/gym?trainer=${t.trainer_id}`} className="text-link">
+                      {count(t.members_assigned, "member")}
+                    </Link>
+                  ) : (
+                    count(t.members_assigned, "member")
+                  )}{" "}
+                  · {count(t.plans_this_week, "plan")} for this week
                 </p>
                 {t.members_inactive_7_days > 0 && (
                   <p className="text-xs text-orange">{t.members_inactive_7_days} not training in the last 7 days</p>
@@ -65,12 +79,13 @@ export default async function GymTrainersPage() {
               </div>
               <RemoveButton
                 label="Remove from gym"
-                warning={
+                warning={`${
                   t.members_assigned > 0
-                    ? `${t.display_name} will stop training ${count(t.members_assigned, "member")} here. Your trainer invite link will stop working.`
-                    : `${t.display_name} will leave ${gym.name}. Your trainer invite link will stop working.`
-                }
+                    ? `${t.display_name} will stop training ${count(t.members_assigned, "member")} here.`
+                    : `${t.display_name} will leave ${gym.name}.`
+                } Your trainer invite link stops working, so make a new one for trainers who haven't joined yet.`}
                 action={removeStaff.bind(null, gym.id, t.trainer_id, "trainer")}
+                subtle
               />
             </li>
           ))}

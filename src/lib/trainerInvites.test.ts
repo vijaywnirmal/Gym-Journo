@@ -56,6 +56,7 @@ describe("pendingRedirect", () => {
   it("sends someone back to their invite, then to trainer setup, from the home page only", () => {
     expect(pendingRedirect({ pathname: "/", joinCookie: "abcde23456", signupCookie: "trainer" })).toBe("/join/abcde23456");
     expect(pendingRedirect({ pathname: "/", joinCookie: undefined, signupCookie: "trainer" })).toBe("/trainer/setup");
+    expect(pendingRedirect({ pathname: "/", joinCookie: undefined, signupCookie: "admin" })).toBe("/gym/admin-setup");
     expect(pendingRedirect({ pathname: "/calendar", joinCookie: "abcde23456", signupCookie: undefined })).toBeNull();
     expect(pendingRedirect({ pathname: "/", joinCookie: undefined, signupCookie: undefined })).toBeNull();
   });
@@ -71,6 +72,7 @@ describe("pendingRedirect", () => {
     expect(gymInviteUrl("https://www.gymjourno.fit", "abcde23456")).toBe("https://www.gymjourno.fit/g/abcde23456");
     expect(gymInviteUrl("https://www.gymjourno.fit/", "abcde23456", "trainer")).toBe("https://www.gymjourno.fit/g/abcde23456?role=trainer");
     expect(gymInviteUrl("https://www.gymjourno.fit", "abcde23456", "member")).toBe("https://www.gymjourno.fit/g/abcde23456");
+    expect(gymInviteUrl("https://www.gymjourno.fit", "abcde23456", "admin")).toBe("https://www.gymjourno.fit/g/abcde23456?role=admin");
   });
 
   it("never redirects to a malformed code", () => {

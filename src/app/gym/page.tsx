@@ -18,16 +18,26 @@ const FILTERS: { key: MemberFilter; label: string }[] = [
 export default async function GymPage({ searchParams }: PageProps<"/gym">) {
   const gym = await getAdminGym();
   if (!gym) redirect("/gym/setup");
-  const { filter: filterParam } = await searchParams;
+  const { filter: filterParam, trainer: trainerParam } = await searchParams;
   const filter = FILTERS.find((f) => f.key === filterParam)?.key ?? "all";
   const members = await getGymMembers(gym.id);
-  const shown = filterMembers(members, filter);
+  // From the Trainers page: the members one trainer trains here.
+  const byTrainer = typeof trainerParam === "string" ? members.filter((m) => m.trainer_id === trainerParam) : null;
+  const trainerName = byTrainer?.[0]?.trainer_name ?? null;
+  const shown = byTrainer && trainerName ? byTrainer : filterMembers(members, filter);
 
   return (
     <main className="px-4 pt-6 pb-10 md:px-8 md:pt-10">
       <PageHeader
         title={gym.name}
-        subtitle={`${members.length} member${members.length === 1 ? "" : "s"}`}
+        subtitle={
+          <>
+            {members.length} member{members.length === 1 ? "" : "s"} ·{" "}
+            <Link href="/gym/setup" className="text-link">
+              Gym details
+            </Link>
+          </>
+        }
         actions={
           <Link
             href="/gym/invite"
@@ -52,25 +62,34 @@ export default async function GymPage({ searchParams }: PageProps<"/gym">) {
         </section>
       ) : (
         <>
-          <div className="mb-3 flex gap-1.5 overflow-x-auto" role="group" aria-label="Show">
-            {FILTERS.map((f) => {
-              const count = filterMembers(members, f.key).length;
-              const active = f.key === filter;
-              return (
-                <Link
-                  key={f.key}
-                  href={f.key === "all" ? "/gym" : `/gym?filter=${f.key}`}
-                  aria-current={active ? "true" : undefined}
-                  className={`flex h-8 shrink-0 items-center rounded-full px-3 text-sm font-medium ${
-                    active ? "bg-label text-background" : "bg-fill text-label-2 hover:text-label"
-                  }`}
-                >
-                  {f.label}
-                  {f.key !== "all" && <span className="ml-1.5 tabular-nums opacity-70">{count}</span>}
-                </Link>
-              );
-            })}
-          </div>
+          {byTrainer && trainerName ? (
+            <p className="mb-3 px-1 text-sm">
+              Trained by {trainerName} ·{" "}
+              <Link href="/gym" className="text-link">
+                Show everyone
+              </Link>
+            </p>
+          ) : (
+            <div className="mb-3 flex gap-1.5 overflow-x-auto" role="group" aria-label="Show">
+              {FILTERS.map((f) => {
+                const count = filterMembers(members, f.key).length;
+                const active = f.key === filter;
+                return (
+                  <Link
+                    key={f.key}
+                    href={f.key === "all" ? "/gym" : `/gym?filter=${f.key}`}
+                    aria-current={active ? "true" : undefined}
+                    className={`flex h-8 shrink-0 items-center rounded-full px-3 text-sm font-medium ${
+                      active ? "bg-label text-background" : "bg-fill text-label-2 hover:text-label"
+                    }`}
+                  >
+                    {f.label}
+                    {f.key !== "all" && <span className="ml-1.5 tabular-nums opacity-70">{count}</span>}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
           {shown.length === 0 ? (
             <p className="px-1 text-sm text-label-2">
               {filter === "needs-trainer" ? "Everyone has a trainer." : "Everyone has trained in the last 7 days."}
