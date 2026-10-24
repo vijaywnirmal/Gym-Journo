@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
+import DetailsView from "@/components/DetailsView";
+import { formatPhone } from "@/lib/trainerInvites";
 import { saveTrainerProfile } from "./actions";
 
 export default function TrainerSetupForm({
@@ -23,6 +25,11 @@ export default function TrainerSetupForm({
   const [fields, setFields] = useState(initial);
   const [confirmedAdult, setConfirmedAdult] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Saved details show as text until Edit; a new trainer goes straight to the form. Coming from a
+  // gym's trainer link (next), the form opens so they can check their details before joining.
+  const [viewing, setViewing] = useState(editing && !next);
+  const [saved, setSaved] = useState<string | null>(null);
+  const [savedFields, setSavedFields] = useState(initial);
 
   function set(key: keyof typeof fields) {
     return (e: React.ChangeEvent<HTMLInputElement>) => setFields((f) => ({ ...f, [key]: e.target.value }));
@@ -36,10 +43,35 @@ export default function TrainerSetupForm({
         setError(result.error);
         return;
       }
+      if (editing && !result.next) {
+        setSavedFields(fields);
+        setViewing(true);
+        setSaved("Trainer details saved.");
+        return;
+      }
       // The action revalidates the layout, so no refresh: one racing the next page's first render
       // could paint it with data from before this save.
-      router.push(result.next ?? (editing ? "/profile" : "/trainer/invite"));
+      router.push(result.next ?? "/trainer/invite");
     });
+  }
+
+  if (viewing) {
+    return (
+      <DetailsView
+        rows={[
+          { label: "Name", value: savedFields.displayName },
+          { label: "Gym", value: savedFields.gymName },
+          { label: "City", value: savedFields.city },
+          { label: "WhatsApp number", value: savedFields.whatsapp ? formatPhone(savedFields.whatsapp) : null },
+        ]}
+        onEdit={() => {
+          setSaved(null);
+          setFields(savedFields);
+          setViewing(false);
+        }}
+        saved={saved}
+      />
+    );
   }
 
   return (
@@ -88,13 +120,27 @@ export default function TrainerSetupForm({
         </p>
       )}
 
-      <button
-        type="submit"
-        disabled={pending || (askAge && !confirmedAdult)}
-        className="h-11 rounded-[10px] bg-accent px-4 text-[15px] font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-50"
-      >
-        {pending ? "Saving…" : editing ? "Save" : "Continue"}
-      </button>
+      <div className="flex gap-2">
+        {editing && !next && (
+          <button
+            type="button"
+            onClick={() => {
+              setError(null);
+              setViewing(true);
+            }}
+            className="h-11 flex-1 rounded-[10px] border border-separator px-4 text-[15px] font-semibold hover:bg-fill"
+          >
+            Cancel
+          </button>
+        )}
+        <button
+          type="submit"
+          disabled={pending || (askAge && !confirmedAdult)}
+          className="h-11 flex-1 rounded-[10px] bg-accent px-4 text-[15px] font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-50"
+        >
+          {pending ? "Saving…" : editing ? "Save" : "Continue"}
+        </button>
+      </div>
     </form>
   );
 }

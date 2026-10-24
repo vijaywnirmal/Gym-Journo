@@ -63,6 +63,16 @@ export function whatsappChatUrl(number: string): string {
   return `https://wa.me/${number.replace(/\D/g, "")}`;
 }
 
+// A stored (or typed) phone number for reading: an Indian number as "+91 98765 43210", anything else
+// as it is.
+export function formatPhone(value: string): string {
+  const normalized = normalizeWhatsapp(value);
+  if (normalized && normalized !== "invalid" && /^\+91\d{10}$/.test(normalized)) {
+    return `+91 ${normalized.slice(3, 8)} ${normalized.slice(8)}`;
+  }
+  return value.trim();
+}
+
 // A WhatsApp number as typed ("98765 43210", "+91-98765-43210") to the stored form: digits with a
 // leading +. India first: ten digits on their own get +91. Null for blank; "invalid" for anything
 // that isn't 10–15 digits.
