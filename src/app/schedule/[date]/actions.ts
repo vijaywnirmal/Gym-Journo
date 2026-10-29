@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { validatePlannedExercises } from "@/lib/planInput";
+import { validatePlannedExercises, validateWorkoutNotEmpty } from "@/lib/planInput";
 import { isDayType, offKindOf, type DayType } from "@/lib/dayType";
 
 export type SavePlanInput = {
@@ -35,6 +35,8 @@ export async function savePlan(input: SavePlanInput) {
   const offKind = offKindOf(input.dayType);
   const muscleGroupIds = offKind ? [] : input.muscleGroupIds;
   const exercises = offKind ? [] : input.exercises;
+  const emptyError = validateWorkoutNotEmpty({ offKind, title: input.title, muscleGroupIds, exercises });
+  if (emptyError) return { error: emptyError };
 
   // Single RPC call = single transaction: either the whole plan is replaced, or (on any error)
   // nothing changes — see save_workout_plan in 0018_add_save_workout_plan_rpc.sql. Replaces what

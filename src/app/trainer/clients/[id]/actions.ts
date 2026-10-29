@@ -5,7 +5,7 @@ import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isValidIsoDate } from "@/lib/date";
 import { isDayType, offKindOf } from "@/lib/dayType";
-import { validatePlannedExercises } from "@/lib/planInput";
+import { validatePlannedExercises, validateWorkoutNotEmpty } from "@/lib/planInput";
 import { findProgram } from "@/lib/programs";
 import { programPlans, type ApplyProgramInput } from "@/lib/programPlans";
 import { getClient, getClientPlans, getMyTrainerProfile } from "@/lib/trainers";
@@ -40,6 +40,13 @@ export async function saveClientPlan(clientId: string, input: SavePlanInput) {
 
   const offKind = offKindOf(input.dayType);
   const exercises = offKind ? [] : input.exercises;
+  const emptyError = validateWorkoutNotEmpty({
+    offKind,
+    title: input.title,
+    muscleGroupIds: offKind ? [] : input.muscleGroupIds,
+    exercises,
+  });
+  if (emptyError) return { error: emptyError };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("save_client_plan", {
     p_client_id: clientId,

@@ -58,6 +58,24 @@ describe("savePlan", () => {
     });
   });
 
+  it("refuses a workout day with nothing in it, without calling the RPC", async () => {
+    const result = await savePlan({ ...baseInput, title: "  ", muscleGroupIds: [], exercises: [] });
+    expect(result).toEqual({ error: "Add an exercise, pick a muscle group or give the day a name first." });
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("saves a workout day with only a name, only a muscle group, or only an exercise", async () => {
+    const empty = { ...baseInput, title: "", muscleGroupIds: [], exercises: [] };
+    expect(await savePlan({ ...empty, title: "5k run" })).toEqual({ success: true });
+    expect(await savePlan({ ...empty, muscleGroupIds: ["mg-1"] })).toEqual({ success: true });
+    expect(await savePlan({ ...empty, exercises: baseInput.exercises })).toEqual({ success: true });
+  });
+
+  it("saves a rest day with nothing else in it", async () => {
+    const result = await savePlan({ ...baseInput, dayType: "rest", title: "", muscleGroupIds: [], exercises: [] });
+    expect(result).toEqual({ success: true });
+  });
+
   it("sends a supplied target weight and unit", async () => {
     await savePlan({
       ...baseInput,
