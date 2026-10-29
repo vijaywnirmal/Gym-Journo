@@ -7,7 +7,8 @@ const libraryNames = (() => {
   const sql = readFileSync(
     path.join(__dirname, "../../supabase/migrations/0021_expand_exercise_library.sql"),
     "utf8"
-  );
+    // Normalise line endings so the slice below works on a Windows checkout too.
+  ).replace(/\r\n/g, "\n");
   const json = sql.slice(sql.indexOf("library jsonb := '") + "library jsonb := '".length, sql.indexOf("';\nbegin"));
   return new Set((JSON.parse(json.replace(/''/g, "'")) as { name: string }[]).map((e) => e.name));
 })();

@@ -198,6 +198,19 @@ export async function visibleExerciseNamed(name: string): Promise<boolean | null
   return data.length > 0;
 }
 
+// Ids of the shared-library exercises with the given names (names not found are left out). Used to
+// turn built-in sessions, which are written by name, into loggable exercises.
+export async function getLibraryExerciseIds(names: string[]): Promise<Map<string, string>> {
+  if (names.length === 0) return new Map();
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("exercises")
+    .select("id, name")
+    .is("user_id", null)
+    .in("name", [...new Set(names)]);
+  return new Map((data ?? []).map((row) => [row.name as string, row.id as string]));
+}
+
 // Names for the given exercise ids (ids this person can't see are left out).
 export async function getExerciseNames(ids: string[]): Promise<Map<string, string>> {
   if (ids.length === 0) return new Map();

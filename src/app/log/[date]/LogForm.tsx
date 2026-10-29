@@ -22,6 +22,8 @@ import LogExercisePicker from "./LogExercisePicker";
 import RestTimer, { type RestTimerHandle } from "./RestTimer";
 import Icon from "@/components/Icon";
 import ShareWorkoutButton from "@/components/ShareWorkoutButton";
+import QuickWorkoutList from "@/components/QuickWorkoutList";
+import type { QuickWorkout } from "@/lib/quickWorkouts";
 
 type Props = {
   date: string;
@@ -39,6 +41,16 @@ type Props = {
   // A lighter session after a break (lib/analyze/comeback.ts): fewer planned sets, and "Same as
   // last time" at lighter weights. The plan itself is unchanged.
   lighter?: boolean;
+  // A built-in short session picked from a suggestion (lib/quickWorkouts.ts), with its exercises
+  // resolved to library ids. Fills an empty, unplanned log; nothing is scheduled.
+  quickStart?: QuickStart | null;
+  // Short sessions to offer while the log is empty, in suggestion order.
+  quickSuggestions?: QuickWorkout[];
+};
+
+export type QuickStart = {
+  name: string;
+  exercises: { exerciseId: string; name: string; sets: number; reps: number }[];
 };
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -113,6 +125,8 @@ export default function LogForm({
   showTargets = true,
   backupScope = null,
   lighter = false,
+  quickStart = null,
+  quickSuggestions = [],
 }: Props) {
   const backupStorageKey = backupScope ? backupKey(backupScope, date) : null;
   const plannedSets = (sets: number | null) => (lighter && sets !== null ? lighterSetCount(sets) : sets);
@@ -155,14 +169,23 @@ export default function LogForm({
           !!existingLog.completed_at ||
           (!!le.logged_sets?.length && le.logged_sets.every((s) => s.reps !== null || s.weight !== null)),
       }))
-    : plan?.planned_exercises?.map((pe) => ({
-        exerciseId: pe.exercise_id,
-        name: pe.exercise?.name ?? "Exercise",
-        notes: "",
-        target: showTargets ? planTarget(pe) : null,
-        sets: Array.from({ length: plannedSets(pe.target_sets ?? 3) ?? 3 }, () => emptySet()),
-        done: false,
-      })) ?? [];
+    : quickStart && !plan?.planned_exercises?.length
+      ? quickStart.exercises.map((qe) => ({
+          exerciseId: qe.exerciseId,
+          name: qe.name,
+          notes: "",
+          target: { sets: qe.sets, reps: qe.reps },
+          sets: Array.from({ length: qe.sets }, () => emptySet()),
+          done: false,
+        }))
+      : plan?.planned_exercises?.map((pe) => ({
+          exerciseId: pe.exercise_id,
+          name: pe.exercise?.name ?? "Exercise",
+          notes: "",
+          target: showTargets ? planTarget(pe) : null,
+          sets: Array.from({ length: plannedSets(pe.target_sets ?? 3) ?? 3 }, () => emptySet()),
+          done: false,
+        })) ?? [];
 
   const [entries, setEntries] = useState<ExerciseEntry[]>(initialEntries);
   const [notes, setNotes] = useState(existingLog?.notes ?? "");
@@ -765,9 +788,18 @@ export default function LogForm({
       )}
 
       {entries.length === 0 && !pickerOpen && (
-        <section className="card px-6 py-8 text-center">
+        <section className="card px-5 py-6">
           <h2 className="text-base font-semibold">No exercises yet</h2>
-          <p className="mt-1 text-sm text-label-2">Add the first exercise you&apos;re doing, or plan this day first.</p>
+          <p className="mt-1 text-sm text-label-2">
+            {quickSuggestions.length > 0
+              ? "Start one of these short sessions, or add exercises yourself below."
+              : "Add the first exercise you're doing, or plan this day first."}
+          </p>
+          {quickSuggestions.length > 0 && (
+            <div className="mt-4">
+              <QuickWorkoutList date={date} workouts={quickSuggestions} />
+            </div>
+          )}
         </section>
       )}
 

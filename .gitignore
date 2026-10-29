@@ -45,3 +45,8 @@ next-env.d.ts
 /test-results/
 /playwright-report/
 /e2e/.auth/
+
+.claude
+
+# credentials kept out of the repo (e.g. test-account lists)
+*accounts*.txt
