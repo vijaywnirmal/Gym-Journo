@@ -7,6 +7,11 @@ import { deliver, type PushTransport, type StoredSubscription } from "./send";
 // day so nobody is reminded twice. A person whose every delivery failed for a transient reason is
 // not marked, so the next run inside their window tries again.
 
+// How long after someone's reminder time they still count as due. The scheduler (GitHub's cron)
+// often runs hours late, and a 3-hour window (the function's default) missed many people's day
+// entirely. 8 hours covers the gaps seen in practice; the day still ends at local midnight.
+export const REMINDER_WINDOW = "8 hours";
+
 type DueRow = { user_id: string; local_date: string; plan_title: string | null; exercise_count: number };
 
 export type ReminderRunSummary = { due: number; notified: number; expiredDevices: number; failedDevices: number };
@@ -16,7 +21,7 @@ export async function sendDueWorkoutReminders(
   transport: PushTransport,
   now: Date = new Date()
 ): Promise<ReminderRunSummary> {
-  const { data, error } = await admin.rpc("due_workout_reminders", { p_now: now.toISOString() });
+  const { data, error } = await admin.rpc("due_workout_reminders", { p_now: now.toISOString(), p_window: REMINDER_WINDOW });
   if (error) throw new Error(`due_workout_reminders failed: ${error.message}`);
   const due = (data ?? []) as DueRow[];
 

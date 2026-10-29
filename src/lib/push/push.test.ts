@@ -93,8 +93,10 @@ describe("sendDueWorkoutReminders", () => {
 
     const summary = await sendDueWorkoutReminders(admin, transport, now);
 
+    // The 8-hour window keeps a late scheduler run from skipping someone's day.
     expect((admin as unknown as { rpc: ReturnType<typeof vi.fn> }).rpc).toHaveBeenCalledWith("due_workout_reminders", {
       p_now: now.toISOString(),
+      p_window: "8 hours",
     });
     expect(transport).toHaveBeenCalledWith(device(1), expect.objectContaining({ url: "/log/2026-10-01" }));
     expect(deleted).toEqual([[device(2).endpoint]]);
