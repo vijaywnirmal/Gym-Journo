@@ -108,4 +108,13 @@ describe("planAdherence", () => {
   it("is null when nothing was planned", () => {
     expect(planAdherence(["2026-09-28"], new Set(), "2026-09-25")).toBeNull();
   });
+
+  it("doesn't count today as missed before it's over, and counts it once it's done", () => {
+    expect(planAdherence(["2026-09-25"], new Set(), "2026-09-25")).toBeNull();
+    expect(planAdherence(["2026-09-24", "2026-09-25"], new Set(["2026-09-24"]), "2026-09-25")).toEqual({
+      planned: 1,
+      performed: 1,
+    });
+    expect(planAdherence(["2026-09-25"], new Set(["2026-09-25"]), "2026-09-25")).toEqual({ planned: 1, performed: 1 });
+  });
 });

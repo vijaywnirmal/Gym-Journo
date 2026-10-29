@@ -82,14 +82,17 @@ export function weeklyStreak(weeks: WeeklyTrainingDays[], goalDaysPerWeek: numbe
 
 export type PlanAdherence = { planned: number; performed: number };
 
-// Of the planned training days (rest days excluded) on or before today, how many have a workout.
-// Null when nothing was planned, so there is no ratio to show.
+// Of the planned training days (rest days excluded) before today, how many have a workout. Today
+// only counts once it's done: the day isn't over, so it isn't missed yet. Null when nothing was
+// planned, so there is no ratio to show.
 export function planAdherence(
   plannedTrainingDates: Iterable<string>,
   performedDates: ReadonlySet<string>,
   todayStr: string
 ): PlanAdherence | null {
-  const planned = [...new Set(plannedTrainingDates)].filter((d) => d <= todayStr);
+  const planned = [...new Set(plannedTrainingDates)].filter(
+    (d) => d < todayStr || (d === todayStr && performedDates.has(d))
+  );
   if (planned.length === 0) return null;
   return { planned: planned.length, performed: planned.filter((d) => performedDates.has(d)).length };
 }
