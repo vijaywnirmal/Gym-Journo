@@ -69,6 +69,9 @@ test("a gym invites a trainer and a member, suggests the trainer, the member acc
     await owner.page.getByRole("button", { name: "Make an invite link" }).first().click();
     await expect(owner.page.getByRole("link", { name: "Print poster" })).toBeVisible();
     await owner.page.getByRole("button", { name: "Make an invite link" }).first().click();
+    // Wait for the trainer link itself: while it's being made the button reads "Making a link…",
+    // so counting "Make an invite link" buttons can pass before the link is saved.
+    await expect(owner.page.getByRole("button", { name: "Make a new link" })).toHaveCount(2);
     await expect(owner.page.getByRole("button", { name: "Make an invite link" })).toHaveCount(1);
     const memberCode = await liveCode("member");
     const trainerCode = await liveCode("trainer");
