@@ -34,7 +34,8 @@ export default function ExerciseLibraryBrowser({ renderExercise, version = 0, au
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex gap-2">
+      {/* Stacked on phones, so neither the search hint nor the equipment choice gets cut off. */}
+      <div className="flex flex-col gap-2 sm:flex-row">
         <label className="field flex h-10 min-w-0 flex-1 items-center gap-2 rounded-[10px] px-3 focus-within:border-accent">
           <Icon name="search" className="size-4 shrink-0 text-label-3" />
           <input
@@ -63,7 +64,7 @@ export default function ExerciseLibraryBrowser({ renderExercise, version = 0, au
           onChange={(v) => setEquipment(v as Equipment | "")}
           options={[{ value: "", label: "All equipment" }, ...EQUIPMENT_OPTIONS.map((o) => ({ value: o, label: o }))]}
           ariaLabel="Filter by equipment"
-          className="w-28 shrink-0 sm:w-36"
+          className="w-full sm:w-36 sm:shrink-0"
         />
       </div>
 

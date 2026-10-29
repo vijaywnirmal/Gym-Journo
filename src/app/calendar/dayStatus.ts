@@ -7,7 +7,8 @@ import type { DayType } from "@/lib/dayType";
 export function formatDayStatus(day: { performed: boolean; completed: boolean }): string {
   const parts: string[] = [];
   if (day.performed) parts.push("performed");
-  if (day.completed) parts.push("completed ✓");
+  // No ✓ here: the calendar already shows a tick beside any logged day.
+  if (day.completed) parts.push("completed");
   return parts.join(" · ");
 }
 

@@ -84,9 +84,9 @@ export type WorkoutCta = {
 };
 
 export function getWorkoutCta(date: string, hasLog: boolean, completed: boolean): WorkoutCta {
-  if (completed) return { label: "View Log", href: `/log/${date}` };
-  if (hasLog) return { label: "Continue Workout", href: `/log/${date}` };
-  return { label: "Start Workout", href: `/log/${date}` };
+  if (completed) return { label: "View log", href: `/log/${date}` };
+  if (hasLog) return { label: "Continue workout", href: `/log/${date}` };
+  return { label: "Start workout", href: `/log/${date}` };
 }
 
 // "This week" card wording (M7).

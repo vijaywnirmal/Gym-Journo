@@ -128,23 +128,23 @@ describe("formatTrainingFrequency (Phase 13)", () => {
 });
 
 describe("getWorkoutCta", () => {
-  it("shows Start Workout when no log exists", () => {
+  it("shows Start workout when no log exists", () => {
     expect(getWorkoutCta("2026-09-16", false, false)).toEqual({
-      label: "Start Workout",
+      label: "Start workout",
       href: "/log/2026-09-16",
     });
   });
 
-  it("shows Continue Workout for an incomplete log", () => {
+  it("shows Continue workout for an incomplete log", () => {
     expect(getWorkoutCta("2026-09-16", true, false)).toEqual({
-      label: "Continue Workout",
+      label: "Continue workout",
       href: "/log/2026-09-16",
     });
   });
 
-  it("shows View Log for a completed log", () => {
+  it("shows View log for a completed log", () => {
     expect(getWorkoutCta("2026-09-16", true, true)).toEqual({
-      label: "View Log",
+      label: "View log",
       href: "/log/2026-09-16",
     });
   });
