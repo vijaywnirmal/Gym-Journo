@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { validatePassword } from "@/lib/validation";
+import { friendlyAuthError } from "@/lib/authErrors";
 
 export async function resetPassword(_prevState: unknown, formData: FormData) {
   const password = String(formData.get("password") || "");
@@ -17,7 +18,7 @@ export async function resetPassword(_prevState: unknown, formData: FormData) {
   }
 
   const { error } = await supabase.auth.updateUser({ password });
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyAuthError(error) };
 
   return { success: true };
 }

@@ -45,3 +45,22 @@ export function profileFieldsFromProfile(profile: Profile | null): ProfileFields
     trainingLocation: profile?.training_location ?? "",
   };
 }
+
+// What onboarding still needs before it can finish (completeOnboarding checks the same on the
+// server), in the form's order, so a member sees everything at once rather than one per attempt.
+export function missingOnboardingFields(fields: ProfileFieldsValue, confirmedAdult: boolean): string[] {
+  const missing: string[] = [];
+  if (!fields.firstName.trim()) missing.push("your first name");
+  if (!fields.gender) missing.push("gender");
+  if (!fields.primaryGoal) missing.push("goal");
+  if (!fields.experienceLevel) missing.push("experience level");
+  if (!fields.trainingDaysPerWeek) missing.push("training days per week");
+  if (!confirmedAdult) missing.push("confirming you're 18 or older");
+  return missing;
+}
+
+export function missingFieldsMessage(missing: string[]): string | null {
+  if (missing.length === 0) return null;
+  const list = missing.length === 1 ? missing[0] : `${missing.slice(0, -1).join(", ")} and ${missing[missing.length - 1]}`;
+  return `Still needed: ${list}.`;
+}
