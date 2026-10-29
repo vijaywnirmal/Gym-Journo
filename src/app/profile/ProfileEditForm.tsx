@@ -45,6 +45,7 @@ export default function ProfileEditForm({
         targetWeightKg: fields.targetWeightKg ? parseFloat(fields.targetWeightKg) : null,
         experienceLevel: fields.experienceLevel,
         trainingDaysPerWeek: fields.trainingDaysPerWeek ? parseInt(fields.trainingDaysPerWeek, 10) : null,
+        trainingLocation: fields.trainingLocation,
         password: password || undefined,
       });
       if (result.error) {

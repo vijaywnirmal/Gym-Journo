@@ -18,6 +18,8 @@ export type Profile = {
   target_weight_kg: number | null;
   experience_level: string | null;
   training_days_per_week: number | null;
+  // Where they usually train (migration 0041): "gym" | "home_dumbbells" | "bodyweight"; null = not answered.
+  training_location?: string | null;
   // When the person opted in to sending training evidence to Coach's external model; null = no consent.
   coach_consent_at: string | null;
   // IANA timezone from the person's device; defines their "today". Null = not known yet.

@@ -73,6 +73,21 @@ export function validateExperienceLevel(value: string): string | null {
   return null;
 }
 
+// Where the person usually trains (migration 0041); decides what quick workouts can suggest.
+export const TRAINING_LOCATIONS = ["gym", "home_dumbbells", "bodyweight"] as const;
+export type TrainingLocation = (typeof TRAINING_LOCATIONS)[number];
+
+export const TRAINING_LOCATION_LABELS: Record<TrainingLocation, string> = {
+  gym: "At a gym",
+  home_dumbbells: "At home with dumbbells",
+  bodyweight: "Anywhere, no equipment",
+};
+
+export function validateTrainingLocation(value: string): string | null {
+  if (!TRAINING_LOCATIONS.includes(value as TrainingLocation)) return "Select where you usually train.";
+  return null;
+}
+
 export function validateTrainingDaysPerWeek(value: number): string | null {
   if (!Number.isInteger(value) || value < 1 || value > 7) {
     return "Training days per week must be between 1 and 7.";

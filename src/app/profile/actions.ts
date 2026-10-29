@@ -14,6 +14,7 @@ import {
   validateTargetWeightKg,
   validateWeightKg,
   validateTrainingDaysPerWeek,
+  validateTrainingLocation,
 } from "@/lib/validation";
 
 export type UpdateProfileInput = {
@@ -27,6 +28,8 @@ export type UpdateProfileInput = {
   targetWeightKg: number | null;
   experienceLevel: string;
   trainingDaysPerWeek: number | null;
+  // Optional; "" = not answered.
+  trainingLocation: string;
   password?: string;
 };
 
@@ -67,6 +70,11 @@ export async function updateProfile(input: UpdateProfileInput) {
     if (trainingDaysError) return { error: trainingDaysError };
   }
 
+  if (input.trainingLocation) {
+    const trainingLocationError = validateTrainingLocation(input.trainingLocation);
+    if (trainingLocationError) return { error: trainingLocationError };
+  }
+
   if (input.heightCm !== null) {
     const heightError = validateHeightCm(input.heightCm);
     if (heightError) return { error: heightError };
@@ -105,6 +113,8 @@ export async function updateProfile(input: UpdateProfileInput) {
       target_weight_kg: input.targetWeightKg,
       experience_level: input.experienceLevel || null,
       training_days_per_week: input.trainingDaysPerWeek,
+      // Only sent once chosen, so saving still works before migration 0041 reaches the database.
+      ...(input.trainingLocation ? { training_location: input.trainingLocation } : {}),
       updated_at: new Date().toISOString(),
     })
     .eq("id", user.id);

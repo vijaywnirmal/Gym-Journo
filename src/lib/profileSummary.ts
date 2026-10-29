@@ -1,6 +1,6 @@
 import { formatDateLong } from "@/lib/date";
 import type { ProfileFieldsValue } from "@/lib/profile-fields";
-import { GENDER_LABELS } from "@/lib/validation";
+import { GENDER_LABELS, TRAINING_LOCATION_LABELS, type TrainingLocation } from "@/lib/validation";
 import { joinName } from "@/lib/names";
 
 // What the read-only profile card shows: label + value rows, with a missing value shown as "Not set"
@@ -59,6 +59,7 @@ export function summarizeProfile(fields: ProfileFieldsValue): SummarySection[] {
           "Training days",
           fields.trainingDaysPerWeek ? `${fields.trainingDaysPerWeek} per week` : null
         ),
+        row("Trains", TRAINING_LOCATION_LABELS[fields.trainingLocation as TrainingLocation] ?? null),
         ...(showTarget ? [row("Target weight", measure(fields.targetWeightKg, "kg"))] : []),
       ],
     },

@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  canDoQuickWorkout,
+  equipmentAt,
   equipmentLabel,
   personaliseQuickWorkout,
   QUICK_EXERCISE_NAMES,
@@ -10,6 +12,7 @@ import {
   rankQuickWorkouts,
   sortUsual,
   toSetsByMuscle,
+  topQuickWorkouts,
   type ExerciseInfo,
   type QuickWorkout,
   type UsualExercise,
@@ -182,6 +185,58 @@ describe("personaliseQuickWorkout", () => {
     const partial = new Map(libraryMap);
     partial.delete("Dead Bug");
     expect(names(personaliseQuickWorkout(session("full-body-reset"), partial, []))).not.toContain("Dead Bug");
+  });
+});
+
+describe("where the person trains", () => {
+  it("allows any equipment at a gym or when not answered", () => {
+    expect(equipmentAt("gym")).toBeNull();
+    expect(equipmentAt(null)).toBeNull();
+    expect(equipmentAt(undefined)).toBeNull();
+  });
+
+  it("offers only the no-equipment circuit to someone with no equipment", () => {
+    const available = equipmentAt("bodyweight");
+    expect(QUICK_WORKOUTS.filter((w) => canDoQuickWorkout(w, libraryMap, available)).map((w) => w.id)).toEqual(["no-equipment"]);
+  });
+
+  it("offers every session to someone at home with dumbbells", () => {
+    const available = equipmentAt("home_dumbbells");
+    expect(QUICK_WORKOUTS.every((w) => canDoQuickWorkout(w, libraryMap, available))).toBe(true);
+  });
+
+  it("doesn't swap gym equipment into a home session, but does swap dumbbell exercises", () => {
+    const home = equipmentAt("home_dumbbells");
+    const w = personaliseQuickWorkout(session("full-body-reset"), libraryMap, [usual("Barbell Bench Press"), usual("Bulgarian Split Squat")], home);
+    expect(names(w)).not.toContain("Barbell Bench Press");
+    expect(names(w)).toContain("Bulgarian Split Squat");
+    expect(w.equipmentLabel).toBe("Dumbbells");
+  });
+
+  it("still swaps barbell exercises in at a gym", () => {
+    const w = personaliseQuickWorkout(session("full-body-reset"), libraryMap, [usual("Barbell Bench Press")], equipmentAt("gym"));
+    expect(names(w)).toContain("Barbell Bench Press");
+  });
+});
+
+describe("topQuickWorkouts", () => {
+  const ranked = [{ id: "a" }, { id: "b" }, { id: "c" }, { id: "no-equipment" }];
+
+  it("adds the no-equipment circuit at the end when it isn't in the top suggestions", () => {
+    expect(topQuickWorkouts(ranked, 3).map((w) => w.id)).toEqual(["a", "b", "c", "no-equipment"]);
+  });
+
+  it("doesn't repeat it when it's already there", () => {
+    const first = [{ id: "no-equipment" }, ...ranked.slice(0, 3)];
+    expect(topQuickWorkouts(first, 3).map((w) => w.id)).toEqual(["no-equipment", "a", "b"]);
+  });
+
+  it("is just the top suggestions when the circuit isn't offered", () => {
+    expect(topQuickWorkouts(ranked.slice(0, 3), 2).map((w) => w.id)).toEqual(["a", "b"]);
+  });
+
+  it("matches the circuit's real id", () => {
+    expect(QUICK_WORKOUTS.some((w) => w.id === "no-equipment" && w.equipment === "None")).toBe(true);
   });
 });
 

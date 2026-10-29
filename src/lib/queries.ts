@@ -11,6 +11,8 @@ import {
 } from "@/lib/analyze/weeklyInsights";
 import { getToday } from "@/lib/userDate";
 import {
+  canDoQuickWorkout,
+  equipmentAt,
   HISTORY_WEEKS,
   MIN_USUAL_SESSIONS,
   personaliseQuickWorkout,
@@ -230,7 +232,8 @@ function toExerciseInfo(row: ExerciseInfoRow): ExerciseInfo {
 
 // The built-in short sessions (lib/quickWorkouts.ts) made this person's own, in suggestion order:
 // ranked by the muscle groups they've trained least over the last HISTORY_WEEKS (after a break,
-// the most familiar first), with their usual exercises swapped in. With no history (or if it can't
+// the most familiar first), with their usual exercises swapped in, and only what they can do where
+// they usually train. With no history (or if it can't
 // be read) they're the plain sessions, in list order.
 export async function getPersonalQuickWorkouts(afterBreak: boolean): Promise<PersonalQuickWorkout[]> {
   const supabase = await createClient();
@@ -238,7 +241,7 @@ export async function getPersonalQuickWorkouts(afterBreak: boolean): Promise<Per
   const todayStr = await getToday();
   const from = shiftDate(todayStr, -(HISTORY_WEEKS * 7 - 1));
 
-  const [libraryResult, setsResult, logsResult] = await Promise.all([
+  const [libraryResult, setsResult, logsResult, profile] = await Promise.all([
     supabase.from("exercises").select(EXERCISE_INFO_COLUMNS).is("user_id", null).in("name", QUICK_EXERCISE_NAMES),
     user ? supabase.rpc("muscle_set_counts", { p_from: from, p_to: todayStr }) : null,
     user
@@ -249,7 +252,9 @@ export async function getPersonalQuickWorkouts(afterBreak: boolean): Promise<Per
           .gte("date", from)
           .lte("date", todayStr)
       : null,
+    getProfile(),
   ]);
+  const available = equipmentAt(profile?.training_location);
 
   const library = new Map(
     ((libraryResult.data ?? []) as unknown as ExerciseInfoRow[]).map((row) => [row.name, toExerciseInfo(row)])
@@ -285,7 +290,9 @@ export async function getPersonalQuickWorkouts(afterBreak: boolean): Promise<Per
   );
 
   return rankQuickWorkouts(
-    QUICK_WORKOUTS.map((w) => personaliseQuickWorkout(w, library, usual)),
+    QUICK_WORKOUTS.filter((w) => canDoQuickWorkout(w, library, available)).map((w) =>
+      personaliseQuickWorkout(w, library, usual, available)
+    ),
     setsByMuscle,
     afterBreak
   );

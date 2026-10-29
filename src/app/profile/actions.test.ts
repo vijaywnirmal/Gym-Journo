@@ -45,6 +45,7 @@ const baseInput = {
   targetWeightKg: 65,
   experienceLevel: "intermediate",
   trainingDaysPerWeek: 4,
+  trainingLocation: "",
 };
 
 describe("updateProfile", () => {
@@ -66,6 +67,20 @@ describe("updateProfile", () => {
   it("rejects an invalid targetWeightKg", async () => {
     const result = await updateProfile({ ...baseInput, targetWeightKg: -5 });
     expect(result.error).toBeTruthy();
+  });
+
+  it("saves where the person trains when chosen, and leaves it out otherwise", async () => {
+    await updateProfile({ ...baseInput, trainingLocation: "bodyweight" });
+    expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ training_location: "bodyweight" }));
+
+    await updateProfile(baseInput);
+    expect(update.mock.lastCall?.[0]).not.toHaveProperty("training_location");
+  });
+
+  it("rejects an unknown training location", async () => {
+    const result = await updateProfile({ ...baseInput, trainingLocation: "moon" });
+    expect(result.error).toBe("Select where you usually train.");
+    expect(update).not.toHaveBeenCalled();
   });
 
   it("round-trips new goal/training fields", async () => {

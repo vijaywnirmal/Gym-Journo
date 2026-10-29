@@ -29,6 +29,7 @@ import PageHeader from "@/components/PageHeader";
 import { dayTypeOf } from "@/lib/dayType";
 import { comebackGapDays } from "@/lib/analyze/comeback";
 import QuickWorkoutList from "@/components/QuickWorkoutList";
+import { topQuickWorkouts } from "@/lib/quickWorkouts";
 import Icon, { type IconName } from "@/components/Icon";
 import { requireMemberApp } from "@/lib/workAccount";
 
@@ -111,7 +112,7 @@ export default async function TodayPage() {
           <h2 className="text-base font-semibold">Welcome back</h2>
           <p className="mt-0.5 mb-4 text-sm text-label-2">
             Your last workout was {gapDays} days ago ({formatDate(lastWorkout.date)}). A shorter session still counts
-            {canGoLighter ? "." : " — here are a few to pick from."}
+            {canGoLighter ? "." : quickWorkouts.length === 1 ? " — here's one to try." : " — here are a few to pick from."}
           </p>
           {canGoLighter ? (
             <Link
@@ -124,7 +125,7 @@ export default async function TodayPage() {
             <>
               <QuickWorkoutList
                 date={date}
-                workouts={quickWorkouts.slice(0, COMEBACK_SUGGESTIONS)}
+                workouts={topQuickWorkouts(quickWorkouts, COMEBACK_SUGGESTIONS)}
               />
               <Link href={`/log/${date}`} className="mt-3 inline-block text-sm font-medium text-link">
                 Or log your own workout
