@@ -23,7 +23,9 @@ import {
   toSetsByMuscle,
   type ExerciseInfo,
   type PersonalQuickWorkout,
+  type UsualExercise,
 } from "@/lib/quickWorkouts";
+import { rankSwapOptions, type SwapCandidate, type SwapOption } from "@/lib/exerciseSwap";
 import { windowStart } from "@/lib/analyze/definitions";
 import { dayTypeOf, type DayType } from "@/lib/dayType";
 import {
@@ -241,18 +243,10 @@ export async function getPersonalQuickWorkouts(afterBreak: boolean): Promise<Per
   const todayStr = await getToday();
   const from = shiftDate(todayStr, -(HISTORY_WEEKS * 7 - 1));
 
-  const [libraryResult, setsResult, logsResult, profile] = await Promise.all([
+  const [libraryResult, setsResult, usual, profile] = await Promise.all([
     supabase.from("exercises").select(EXERCISE_INFO_COLUMNS).is("user_id", null).in("name", QUICK_EXERCISE_NAMES),
     user ? supabase.rpc("muscle_set_counts", { p_from: from, p_to: todayStr }) : null,
-    user
-      ? supabase
-          .from("workout_logs")
-          .select("date, logged_exercises(exercise_id, logged_sets(reps, weight, set_type))")
-          .eq("user_id", user.id)
-          .gte("date", from)
-          // Before today: what's logged today mustn't change the session being done today.
-          .lt("date", todayStr)
-      : null,
+    getUsualExercises(),
     getProfile(),
   ]);
   const available = equipmentAt(profile?.training_location);
@@ -262,12 +256,37 @@ export async function getPersonalQuickWorkouts(afterBreak: boolean): Promise<Per
   );
   const setsByMuscle = toSetsByMuscle(setsResult && !setsResult.error ? ((setsResult.data ?? []) as MuscleSetCountRow[]) : []);
 
+  return rankQuickWorkouts(
+    QUICK_WORKOUTS.filter((w) => canDoQuickWorkout(w, library, available)).map((w) =>
+      personaliseQuickWorkout(w, library, usual, available)
+    ),
+    setsByMuscle,
+    afterBreak
+  );
+}
+
+// The person's usual exercises: working sets (reps or weight, not warm-ups) on MIN_USUAL_SESSIONS
+// or more days over the last HISTORY_WEEKS up to yesterday, most done first. [] when signed out or on a read error.
+async function getUsualExercises(): Promise<UsualExercise[]> {
+  const supabase = await createClient();
+  const user = await getCurrentUser();
+  if (!user) return [];
+  const todayStr = await getToday();
+  const from = shiftDate(todayStr, -(HISTORY_WEEKS * 7 - 1));
+  const logsResult = await supabase
+    .from("workout_logs")
+    .select("date, logged_exercises(exercise_id, logged_sets(reps, weight, set_type))")
+    .eq("user_id", user.id)
+    .gte("date", from)
+    // Before today: what's logged today mustn't change the session being done today.
+    .lt("date", todayStr);
+
   // Sessions per exercise: days it has a performed working set (reps or weight, not a warm-up).
   const sessions = new Map<string, { sessions: number; lastDate: string }>();
   type SetRow = { reps: number | null; weight: number | null; set_type: string | null };
   type LogRow = { date: string; logged_exercises: { exercise_id: string; logged_sets: SetRow[] }[] };
   const isWorkingSet = (s: SetRow) => (s.reps !== null || s.weight !== null) && s.set_type !== "warmup";
-  for (const log of logsResult && !logsResult.error ? ((logsResult.data ?? []) as unknown as LogRow[]) : []) {
+  for (const log of logsResult.error ? [] : ((logsResult.data ?? []) as unknown as LogRow[])) {
     const counted = new Set<string>();
     for (const le of log.logged_exercises ?? []) {
       if (counted.has(le.exercise_id) || !le.logged_sets?.some(isWorkingSet)) continue;
@@ -283,19 +302,29 @@ export async function getPersonalQuickWorkouts(afterBreak: boolean): Promise<Per
   const usualResult = usualIds.length
     ? await supabase.from("exercises").select(EXERCISE_INFO_COLUMNS).in("id", usualIds)
     : null;
-  const usual = sortUsual(
+  return sortUsual(
     ((usualResult?.data ?? []) as unknown as ExerciseInfoRow[]).map((row) => ({
       ...toExerciseInfo(row),
       ...sessions.get(row.id)!,
     }))
   );
+}
 
-  return rankQuickWorkouts(
-    QUICK_WORKOUTS.filter((w) => canDoQuickWorkout(w, library, available)).map((w) =>
-      personaliseQuickWorkout(w, library, usual, available)
-    ),
-    setsByMuscle,
-    afterBreak
+// Exercises to swap in for `exerciseId` in the logger (lib/exerciseSwap.ts), leaving out
+// `excludeIds` (already in the workout). [] when there are none or they can't be read.
+export async function getSwapOptions(exerciseId: string, excludeIds: string[]): Promise<SwapOption[]> {
+  const supabase = await createClient();
+  const [candidatesResult, usual, profile] = await Promise.all([
+    supabase.rpc("similar_exercises", { p_exercise_id: exerciseId }),
+    getUsualExercises(),
+    getProfile(),
+  ]);
+  if (candidatesResult.error || !candidatesResult.data) return [];
+  return rankSwapOptions(
+    candidatesResult.data as SwapCandidate[],
+    usual,
+    equipmentAt(profile?.training_location),
+    new Set([exerciseId, ...excludeIds])
   );
 }
 

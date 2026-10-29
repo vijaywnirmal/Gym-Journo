@@ -29,14 +29,16 @@ vi.mock("@/lib/supabase/server", () => ({
 
 const getPreviousPerformance = vi.fn();
 const getPriorExerciseSessions = vi.fn();
+const getSwapOptions = vi.fn();
 vi.mock("@/lib/queries", () => ({
   getPreviousPerformance: (...args: unknown[]) => getPreviousPerformance(...args),
   getPriorExerciseSessions: (...args: unknown[]) => getPriorExerciseSessions(...args),
+  getSwapOptions: (...args: unknown[]) => getSwapOptions(...args),
 }));
 
 vi.mock("@/lib/userDate", () => ({ getToday: async () => "2026-01-10" }));
 
-const { saveLog, deleteLog, fetchPreviousPerformance, fetchPersonalRecords } = await import("./actions");
+const { saveLog, deleteLog, fetchPreviousPerformance, fetchPersonalRecords, fetchSwapOptions } = await import("./actions");
 
 const basicInput = {
   date: "2026-01-05",
@@ -237,6 +239,32 @@ describe("fetchPreviousPerformance", () => {
     const result = await fetchPreviousPerformance("ex-1", "2026-01-05");
     expect(getPreviousPerformance).toHaveBeenCalledWith("ex-1", "2026-01-05");
     expect(result).toEqual({ date: "2026-01-01", sets: [] });
+  });
+});
+
+describe("fetchSwapOptions", () => {
+  beforeEach(() => {
+    getSwapOptions.mockReset();
+    getUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
+  });
+
+  it("returns nothing when signed out, without querying", async () => {
+    getUser.mockResolvedValue({ data: { user: null } });
+    expect(await fetchSwapOptions("ex-1", [])).toEqual([]);
+    expect(getSwapOptions).not.toHaveBeenCalled();
+  });
+
+  it("asks for alternatives, leaving out the workout's other exercises", async () => {
+    getSwapOptions.mockResolvedValue([{ id: "ex-2", name: "Dip", equipment: "Bodyweight" }]);
+    expect(await fetchSwapOptions("ex-1", ["ex-3"])).toEqual([{ id: "ex-2", name: "Dip", equipment: "Bodyweight" }]);
+    expect(getSwapOptions).toHaveBeenCalledWith("ex-1", ["ex-3"]);
+  });
+
+  it("refuses malformed or oversized input", async () => {
+    expect(await fetchSwapOptions(42 as unknown as string, [])).toEqual([]);
+    expect(await fetchSwapOptions("ex-1", "ex-2" as unknown as string[])).toEqual([]);
+    expect(await fetchSwapOptions("ex-1", Array.from({ length: 101 }, (_, i) => `ex-${i}`))).toEqual([]);
+    expect(getSwapOptions).not.toHaveBeenCalled();
   });
 });
 

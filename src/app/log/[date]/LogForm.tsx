@@ -103,6 +103,22 @@ const AUTO_ADVANCE_NOTICE_MS = 8000;
 
 // Where the logger goes after an exercise is finished: the next exercise still to do, searching
 // forward from `from` and then wrapping round to the start. Null when everything is finished.
+// Targets for a saved log's exercises (in order): each exercise's own planned target, or for one
+// swapped in (Swap keeps its place), the target of the planned exercise missing from the log at
+// that place, without its weight (that was for the other exercise). Exercises added on top get none.
+export function loggedExerciseTargets(
+  loggedIds: string[],
+  planned: { exerciseId: string; target: ExerciseEntry["target"] }[]
+): ExerciseEntry["target"][] {
+  const byId = new Map(planned.map((p) => [p.exerciseId, p.target]));
+  const logged = new Set(loggedIds);
+  return loggedIds.map((id, i) => {
+    if (byId.has(id)) return byId.get(id) ?? null;
+    const slot = planned[i];
+    return slot && !logged.has(slot.exerciseId) && slot.target ? { ...slot.target, weight: null } : null;
+  });
+}
+
 export function nextUnfinishedIndex(entries: Pick<ExerciseEntry, "done">[], from: number): number | null {
   for (let step = 1; step < entries.length; step++) {
     const index = (from + step) % entries.length;
@@ -143,23 +159,26 @@ export default function LogForm({
     weight: qe.weight,
     weightUnit: qe.weightUnit,
   });
-  // Targets for exercises already logged: the plan's, or with no plan, the quick session's.
-  const targetByExerciseId = new Map<string, ExerciseEntry["target"]>(
-    !showTargets
-      ? []
-      : plan?.planned_exercises?.length
-        ? plan.planned_exercises.map((pe) => [pe.exercise_id, planTarget(pe)])
-        : (quickStart?.exercises.map((qe) => [qe.exerciseId, quickTarget(qe)]) ?? [])
+  // Planned targets in order: the plan's, or with no plan, the quick session's.
+  const plannedTargets: { exerciseId: string; target: ExerciseEntry["target"] }[] = !showTargets
+    ? []
+    : plan?.planned_exercises?.length
+      ? plan.planned_exercises.map((pe) => ({ exerciseId: pe.exercise_id, target: planTarget(pe) }))
+      : (quickStart?.exercises.map((qe) => ({ exerciseId: qe.exerciseId, target: quickTarget(qe) })) ?? []);
+  const targetByExerciseId = new Map(plannedTargets.map((p) => [p.exerciseId, p.target]));
+  const loggedTargets = loggedExerciseTargets(
+    existingLog?.logged_exercises?.map((le) => le.exercise_id) ?? [],
+    plannedTargets
   );
 
   // The persisted log always wins over the plan seed once it exists — reopening/resuming a
   // session must never quietly revert to the original plan and discard logged progress.
   const initialEntries: ExerciseEntry[] = existingLog?.logged_exercises?.length
-    ? existingLog.logged_exercises.map((le) => ({
+    ? existingLog.logged_exercises.map((le, i) => ({
         exerciseId: le.exercise_id,
         name: le.exercise?.name ?? "Exercise",
         notes: le.notes ?? "",
-        target: targetByExerciseId.get(le.exercise_id) ?? null,
+        target: loggedTargets[i],
         sets: le.logged_sets?.length
           ? le.logged_sets.map((s) => ({
               reps: s.reps?.toString() ?? "",
@@ -537,6 +556,34 @@ export default function LogForm({
     scheduleSave(true);
   }
 
+  // Swaps the exercise at `index` for another (Swap in ExerciseLogPanel, offered before any set is
+  // entered): same place, notes and planned sets and reps, fresh set rows. A planned weight was
+  // for the old exercise, so it's dropped.
+  async function swapExercise(index: number, exercise: Pick<ExerciseListItem, "id" | "name">) {
+    const exerciseId = exercise.id;
+    if (entries.some((e) => e.exerciseId === exerciseId)) return;
+    updateEntries((prev) =>
+      prev.map((entry, i) =>
+        i === index
+          ? {
+              ...entry,
+              exerciseId,
+              name: exercise.name,
+              target: entry.target ? { ...entry.target, weight: null } : null,
+              sets: entry.sets.map(() => emptySet()),
+              done: false,
+            }
+          : entry
+      )
+    );
+    scheduleSave(true);
+
+    if (!(exerciseId in previousPerformance)) {
+      const prev = await fetchPreviousPerformance(exerciseId, date);
+      setPreviousPerformance((p) => ({ ...p, [exerciseId]: prev }));
+    }
+  }
+
   async function addExercise(exercise: Pick<ExerciseListItem, "id" | "name">) {
     const exerciseId = exercise.id;
     if (entries.some((e) => e.exerciseId === exerciseId)) return;
@@ -763,6 +810,8 @@ export default function LogForm({
               onRemoveSet={removeSet}
               onToggleDone={toggleDone}
               onRemoveExercise={() => removeExercise(currentIndex)}
+              onSwapExercise={(option) => swapExercise(currentIndex, option)}
+              otherExerciseIds={entries.filter((_, i) => i !== currentIndex).map((e) => e.exerciseId)}
               onCopyPrevious={copyPrevious}
               onUpdateNotes={updateExerciseNotes}
               onToggleSetDone={toggleSetDone}

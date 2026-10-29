@@ -3,6 +3,7 @@ import {
   completesExercise,
   getUnloggedPlannedExercises,
   isExerciseEntryLogged,
+  loggedExerciseTargets,
   nextUnfinishedIndex,
   type PlannedExerciseRef,
 } from "./LogForm";
@@ -129,5 +130,33 @@ describe("completesExercise (auto-advance)", () => {
   it("is false for an exercise that is already finished, or has no sets", () => {
     expect(completesExercise({ done: true, sets: [set(false)] }, 0)).toBe(false);
     expect(completesExercise({ done: false, sets: [] }, 0)).toBe(false);
+  });
+});
+
+describe("loggedExerciseTargets (after a reload)", () => {
+  const target = (sets: number, weight: number | null = null) => ({ sets, reps: 10, weight, weightUnit: "kg" });
+  const planned = [
+    { exerciseId: "squat", target: target(2, 80) },
+    { exerciseId: "bench", target: target(3, 60) },
+    { exerciseId: "row", target: target(2) },
+  ];
+
+  it("gives each planned exercise its own target", () => {
+    expect(loggedExerciseTargets(["squat", "bench", "row"], planned)).toEqual([target(2, 80), target(3, 60), target(2)]);
+  });
+
+  it("gives a swapped-in exercise the target of the one it replaced, without its weight", () => {
+    expect(loggedExerciseTargets(["leg-press", "bench", "row"], planned)).toEqual([target(2), target(3, 60), target(2)]);
+  });
+
+  it("gives nothing to an exercise added on top, even where a removed one used to be", () => {
+    // Squat still in the log (moved), so the first place isn't a swap.
+    expect(loggedExerciseTargets(["curl", "squat"], planned)).toEqual([null, target(2, 80)]);
+    // Beyond the planned exercises.
+    expect(loggedExerciseTargets(["squat", "bench", "row", "curl"], planned)[3]).toBeNull();
+  });
+
+  it("gives nothing when nothing was planned", () => {
+    expect(loggedExerciseTargets(["squat"], [])).toEqual([null]);
   });
 });
