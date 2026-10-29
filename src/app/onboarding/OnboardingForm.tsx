@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import ProfileFields, { PasswordFields, type ProfileFieldsValue } from "@/components/ProfileFields";
-import { EMPTY_PROFILE_FIELDS } from "@/lib/profile-fields";
+import { EMPTY_PROFILE_FIELDS, missingFieldsMessage, missingOnboardingFields } from "@/lib/profile-fields";
 import { completeOnboarding } from "./actions";
 
 export default function OnboardingForm() {
@@ -19,6 +19,11 @@ export default function OnboardingForm() {
   function handleSubmit() {
     setError(null);
 
+    const missing = missingFieldsMessage(missingOnboardingFields(fields, confirmedAdult));
+    if (missing) {
+      setError(missing);
+      return;
+    }
     if (password && password !== confirmPassword) {
       setError("Passwords don't match.");
       return;
@@ -83,12 +88,16 @@ export default function OnboardingForm() {
         I&apos;m 18 or older
       </button>
 
-      {error && <p className="text-sm text-red">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-red">
+          {error}
+        </p>
+      )}
 
       <button
         type="button"
         onClick={handleSubmit}
-        disabled={pending || !confirmedAdult}
+        disabled={pending}
         className="h-11 rounded-[10px] bg-accent px-4 text-[15px] font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-50"
       >
         {pending ? "Saving..." : "Finish setup"}

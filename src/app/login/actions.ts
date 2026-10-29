@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getSiteUrl } from "@/lib/siteUrl";
 import { isValidEmail, validatePassword } from "@/lib/validation";
+import { friendlyAuthError } from "@/lib/authErrors";
 
 export async function registerWithPassword(_prevState: unknown, formData: FormData) {
   const email = String(formData.get("email") || "").trim();
@@ -21,7 +22,7 @@ export async function registerWithPassword(_prevState: unknown, formData: FormDa
     options: { emailRedirectTo: `${origin}/auth/callback` },
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyAuthError(error) };
 
   // Supabase returns a user with no identities for an email that's already registered,
   // without erroring — avoid revealing account existence either way.
@@ -66,7 +67,7 @@ export async function sendMagicLink(_prevState: unknown, formData: FormData) {
     },
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyAuthError(error) };
   return { success: true };
 }
 
@@ -82,7 +83,7 @@ export async function signInWithPassword(_prevState: unknown, formData: FormData
     if (error.code === "email_not_confirmed") {
       return { error: "Confirm your email before signing in.", needsConfirmation: true };
     }
-    return { error: error.message };
+    return { error: friendlyAuthError(error) };
   }
   return { success: true };
 }
