@@ -10,6 +10,18 @@ import {
   type PlanAdherence,
 } from "@/lib/analyze/weeklyInsights";
 import { getToday } from "@/lib/userDate";
+import {
+  HISTORY_WEEKS,
+  MIN_USUAL_SESSIONS,
+  personaliseQuickWorkout,
+  QUICK_EXERCISE_NAMES,
+  QUICK_WORKOUTS,
+  rankQuickWorkouts,
+  sortUsual,
+  toSetsByMuscle,
+  type ExerciseInfo,
+  type PersonalQuickWorkout,
+} from "@/lib/quickWorkouts";
 import { windowStart } from "@/lib/analyze/definitions";
 import { dayTypeOf, type DayType } from "@/lib/dayType";
 import {
@@ -198,17 +210,85 @@ export async function visibleExerciseNamed(name: string): Promise<boolean | null
   return data.length > 0;
 }
 
-// Ids of the shared-library exercises with the given names (names not found are left out). Used to
-// turn built-in sessions, which are written by name, into loggable exercises.
-export async function getLibraryExerciseIds(names: string[]): Promise<Map<string, string>> {
-  if (names.length === 0) return new Map();
+type ExerciseInfoRow = {
+  id: string;
+  name: string;
+  equipment: string | null;
+  exercise_muscle_groups: { muscle_group: { name: string } | null }[] | null;
+};
+
+const EXERCISE_INFO_COLUMNS = "id, name, equipment, exercise_muscle_groups(muscle_group:muscle_groups(name))";
+
+function toExerciseInfo(row: ExerciseInfoRow): ExerciseInfo {
+  return {
+    id: row.id,
+    name: row.name,
+    equipment: row.equipment,
+    muscles: (row.exercise_muscle_groups ?? []).map((emg) => emg.muscle_group?.name).filter((n): n is string => !!n),
+  };
+}
+
+// The built-in short sessions (lib/quickWorkouts.ts) made this person's own, in suggestion order:
+// ranked by the muscle groups they've trained least over the last HISTORY_WEEKS (after a break,
+// the most familiar first), with their usual exercises swapped in. With no history (or if it can't
+// be read) they're the plain sessions, in list order.
+export async function getPersonalQuickWorkouts(afterBreak: boolean): Promise<PersonalQuickWorkout[]> {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("exercises")
-    .select("id, name")
-    .is("user_id", null)
-    .in("name", [...new Set(names)]);
-  return new Map((data ?? []).map((row) => [row.name as string, row.id as string]));
+  const user = await getCurrentUser();
+  const todayStr = await getToday();
+  const from = shiftDate(todayStr, -(HISTORY_WEEKS * 7 - 1));
+
+  const [libraryResult, setsResult, logsResult] = await Promise.all([
+    supabase.from("exercises").select(EXERCISE_INFO_COLUMNS).is("user_id", null).in("name", QUICK_EXERCISE_NAMES),
+    user ? supabase.rpc("muscle_set_counts", { p_from: from, p_to: todayStr }) : null,
+    user
+      ? supabase
+          .from("workout_logs")
+          .select("date, logged_exercises(exercise_id, logged_sets(reps, weight, set_type))")
+          .eq("user_id", user.id)
+          .gte("date", from)
+          .lte("date", todayStr)
+      : null,
+  ]);
+
+  const library = new Map(
+    ((libraryResult.data ?? []) as unknown as ExerciseInfoRow[]).map((row) => [row.name, toExerciseInfo(row)])
+  );
+  const setsByMuscle = toSetsByMuscle(setsResult && !setsResult.error ? ((setsResult.data ?? []) as MuscleSetCountRow[]) : []);
+
+  // Sessions per exercise: days it has a performed working set (reps or weight, not a warm-up).
+  const sessions = new Map<string, { sessions: number; lastDate: string }>();
+  type SetRow = { reps: number | null; weight: number | null; set_type: string | null };
+  type LogRow = { date: string; logged_exercises: { exercise_id: string; logged_sets: SetRow[] }[] };
+  const isWorkingSet = (s: SetRow) => (s.reps !== null || s.weight !== null) && s.set_type !== "warmup";
+  for (const log of logsResult && !logsResult.error ? ((logsResult.data ?? []) as unknown as LogRow[]) : []) {
+    const counted = new Set<string>();
+    for (const le of log.logged_exercises ?? []) {
+      if (counted.has(le.exercise_id) || !le.logged_sets?.some(isWorkingSet)) continue;
+      counted.add(le.exercise_id);
+      const seen = sessions.get(le.exercise_id) ?? { sessions: 0, lastDate: log.date };
+      sessions.set(le.exercise_id, {
+        sessions: seen.sessions + 1,
+        lastDate: log.date > seen.lastDate ? log.date : seen.lastDate,
+      });
+    }
+  }
+  const usualIds = [...sessions].filter(([, s]) => s.sessions >= MIN_USUAL_SESSIONS).map(([id]) => id);
+  const usualResult = usualIds.length
+    ? await supabase.from("exercises").select(EXERCISE_INFO_COLUMNS).in("id", usualIds)
+    : null;
+  const usual = sortUsual(
+    ((usualResult?.data ?? []) as unknown as ExerciseInfoRow[]).map((row) => ({
+      ...toExerciseInfo(row),
+      ...sessions.get(row.id)!,
+    }))
+  );
+
+  return rankQuickWorkouts(
+    QUICK_WORKOUTS.map((w) => personaliseQuickWorkout(w, library, usual)),
+    setsByMuscle,
+    afterBreak
+  );
 }
 
 // Names for the given exercise ids (ids this person can't see are left out).

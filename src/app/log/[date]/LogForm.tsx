@@ -23,7 +23,7 @@ import RestTimer, { type RestTimerHandle } from "./RestTimer";
 import Icon from "@/components/Icon";
 import ShareWorkoutButton from "@/components/ShareWorkoutButton";
 import QuickWorkoutList from "@/components/QuickWorkoutList";
-import type { QuickWorkout } from "@/lib/quickWorkouts";
+import type { PersonalQuickWorkout } from "@/lib/quickWorkouts";
 
 type Props = {
   date: string;
@@ -45,12 +45,13 @@ type Props = {
   // resolved to library ids. Fills an empty, unplanned log; nothing is scheduled.
   quickStart?: QuickStart | null;
   // Short sessions to offer while the log is empty, in suggestion order.
-  quickSuggestions?: QuickWorkout[];
+  quickSuggestions?: PersonalQuickWorkout[];
 };
 
 export type QuickStart = {
   name: string;
-  exercises: { exerciseId: string; name: string; sets: number; reps: number }[];
+  // weight: a target from last time (lib/quickWorkouts.ts quickTargetWeight), or null.
+  exercises: { exerciseId: string; name: string; sets: number; reps: number; weight: number | null; weightUnit: string }[];
 };
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -174,7 +175,7 @@ export default function LogForm({
           exerciseId: qe.exerciseId,
           name: qe.name,
           notes: "",
-          target: { sets: qe.sets, reps: qe.reps },
+          target: { sets: qe.sets, reps: qe.reps, weight: qe.weight, weightUnit: qe.weightUnit },
           sets: Array.from({ length: qe.sets }, () => emptySet()),
           done: false,
         }))
