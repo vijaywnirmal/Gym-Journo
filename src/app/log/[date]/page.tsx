@@ -2,13 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
-  getLibraryExerciseIds,
+  getLastPerformedWorkoutDate,
   getLogForDate,
+  getPersonalQuickWorkouts,
   getPlanForDate,
   getPreviousPerformance,
-  getWeeklyInsights,
 } from "@/lib/queries";
-import { findQuickWorkout, rankQuickWorkouts, recentSetsByMuscle } from "@/lib/quickWorkouts";
+import { quickTargetWeight } from "@/lib/quickWorkouts";
+import { comebackGapDays } from "@/lib/analyze/comeback";
 import { formatDate, formatDateLong, isValidIsoDate } from "@/lib/date";
 import { getToday } from "@/lib/userDate";
 import { createClient } from "@/lib/supabase/server";
@@ -93,19 +94,12 @@ export default async function LogPage({
   // (?quick=<id>, lib/quickWorkouts.ts). A rest or absence day isn't nudged toward training.
   const startingEmpty =
     !isHistorical && !log?.logged_exercises?.length && !plan?.planned_exercises?.length && !plan?.is_rest_day;
-  const quickWorkout = startingEmpty ? findQuickWorkout(query.quick) : null;
-  const [quickIds, insights] = await Promise.all([
-    quickWorkout ? getLibraryExerciseIds(quickWorkout.exercises.map((e) => e.name)) : new Map<string, string>(),
-    startingEmpty && !quickWorkout ? getWeeklyInsights() : null,
-  ]);
-  const quickStart: QuickStart | null = quickWorkout && {
-    name: quickWorkout.name,
-    exercises: quickWorkout.exercises.flatMap((e) => {
-      const exerciseId = quickIds.get(e.name);
-      return exerciseId ? [{ exerciseId, name: e.name, sets: e.sets, reps: e.reps }] : [];
-    }),
-  };
-  const quickSuggestions = startingEmpty && !quickWorkout ? rankQuickWorkouts(recentSetsByMuscle(insights)) : [];
+  // A break (lib/analyze/comeback.ts) puts familiar sessions first and lightens their target weights.
+  const lastWorkout = startingEmpty ? await getLastPerformedWorkoutDate() : null;
+  const afterBreak = lastWorkout !== null && comebackGapDays(lastWorkout.date, today) !== null;
+  const quickWorkouts = startingEmpty ? await getPersonalQuickWorkouts(afterBreak) : [];
+  const quickWorkout = quickWorkouts.find((w) => w.id === query.quick) ?? null;
+  const quickSuggestions = quickWorkout ? [] : quickWorkouts;
 
   // Preload "last time" context for every exercise already on the page, so it's available the
   // moment the execution UI renders. Exercises added later in the session (unplanned) are
@@ -113,7 +107,7 @@ export default async function LogPage({
   const initialExerciseIds = new Set<string>([
     ...(log?.logged_exercises?.map((le) => le.exercise_id) ?? []),
     ...(plan?.planned_exercises?.map((pe) => pe.exercise_id) ?? []),
-    ...(quickStart?.exercises.map((e) => e.exerciseId) ?? []),
+    ...(quickWorkout?.exercises.map((e) => e.exerciseId) ?? []),
   ]);
   const previousEntries = await Promise.all(
     [...initialExerciseIds].map(
@@ -122,6 +116,16 @@ export default async function LogPage({
   );
   const initialPreviousPerformance: Record<string, PreviousPerformance | null> =
     Object.fromEntries(previousEntries);
+
+  // A quick session's target weights come from last time, lighter after a break.
+  const quickLighter = lighter || afterBreak;
+  const quickStart: QuickStart | null = quickWorkout && {
+    name: quickWorkout.name,
+    exercises: quickWorkout.exercises.map((e) => {
+      const target = quickTargetWeight(initialPreviousPerformance[e.exerciseId]?.sets ?? [], quickLighter);
+      return { ...e, weight: target?.weight ?? null, weightUnit: target?.unit ?? "kg" };
+    }),
+  };
 
   return (
     <main className="px-4 pt-6 md:px-8 md:pt-10">

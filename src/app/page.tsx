@@ -9,6 +9,7 @@ import {
   getWeeklyInsights,
   getAdaptSuggestions,
   getLastPerformedWorkoutDate,
+  getPersonalQuickWorkouts,
 } from "@/lib/queries";
 import WeeklyInsightsCard from "@/components/WeeklyInsightsCard";
 import { formatDate, formatDateLong, hourIn, todayIn } from "@/lib/date";
@@ -27,7 +28,6 @@ import {
 import PageHeader from "@/components/PageHeader";
 import { dayTypeOf } from "@/lib/dayType";
 import { comebackGapDays } from "@/lib/analyze/comeback";
-import { rankQuickWorkouts, recentSetsByMuscle } from "@/lib/quickWorkouts";
 import QuickWorkoutList from "@/components/QuickWorkoutList";
 import Icon, { type IconName } from "@/components/Icon";
 import { requireMemberApp } from "@/lib/workAccount";
@@ -82,6 +82,7 @@ export default async function TodayPage() {
   // Welcome back after a break — unless today is already under way or is a planned day off.
   const gapDays = !log && (!plan || !plan.is_rest_day) ? comebackGapDays(lastWorkout.date, date) : null;
   const canGoLighter = !!plan && !plan.is_rest_day && (plan.planned_exercises?.length ?? 0) > 0;
+  const quickWorkouts = gapDays !== null && !canGoLighter ? await getPersonalQuickWorkouts(true) : [];
 
   const hasNothingToday = !plan && !log;
   const recentActivity = hasNothingToday ? await getLastCompletedLog() : null;
@@ -123,7 +124,7 @@ export default async function TodayPage() {
             <>
               <QuickWorkoutList
                 date={date}
-                workouts={rankQuickWorkouts(recentSetsByMuscle(weeklyInsights)).slice(0, COMEBACK_SUGGESTIONS)}
+                workouts={quickWorkouts.slice(0, COMEBACK_SUGGESTIONS)}
               />
               <Link href={`/log/${date}`} className="mt-3 inline-block text-sm font-medium text-link">
                 Or log your own workout
