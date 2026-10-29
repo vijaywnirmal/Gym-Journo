@@ -27,12 +27,15 @@ import {
 import PageHeader from "@/components/PageHeader";
 import { dayTypeOf } from "@/lib/dayType";
 import { comebackGapDays } from "@/lib/analyze/comeback";
+import { rankQuickWorkouts, recentSetsByMuscle } from "@/lib/quickWorkouts";
+import QuickWorkoutList from "@/components/QuickWorkoutList";
 import Icon, { type IconName } from "@/components/Icon";
 import { requireMemberApp } from "@/lib/workAccount";
 
 export const metadata: Metadata = { title: "Today" };
 
 const TRAINING_FREQUENCY_WINDOW_DAYS = 7;
+const COMEBACK_SUGGESTIONS = 3;
 
 function ShortcutCard({ href, icon, title, text }: { href: string; icon: IconName; title: string; text: string }) {
   return (
@@ -106,14 +109,27 @@ export default async function TodayPage() {
         <section className="card mb-4 border-teal/30 bg-teal/5 p-5" role="status">
           <h2 className="text-base font-semibold">Welcome back</h2>
           <p className="mt-0.5 mb-4 text-sm text-label-2">
-            Your last workout was {gapDays} days ago ({formatDate(lastWorkout.date)}). A shorter session still counts.
+            Your last workout was {gapDays} days ago ({formatDate(lastWorkout.date)}). A shorter session still counts
+            {canGoLighter ? "." : " — here are a few to pick from."}
           </p>
-          <Link
-            href={canGoLighter ? `/log/${date}?lighter=1` : `/log/${date}`}
-            className="inline-flex h-10 items-center rounded-[10px] bg-accent px-4 text-sm font-semibold text-on-accent hover:bg-accent-hover"
-          >
-            {canGoLighter ? "Start a lighter session" : "Log a short workout"}
-          </Link>
+          {canGoLighter ? (
+            <Link
+              href={`/log/${date}?lighter=1`}
+              className="inline-flex h-10 items-center rounded-[10px] bg-accent px-4 text-sm font-semibold text-on-accent hover:bg-accent-hover"
+            >
+              Start a lighter session
+            </Link>
+          ) : (
+            <>
+              <QuickWorkoutList
+                date={date}
+                workouts={rankQuickWorkouts(recentSetsByMuscle(weeklyInsights)).slice(0, COMEBACK_SUGGESTIONS)}
+              />
+              <Link href={`/log/${date}`} className="mt-3 inline-block text-sm font-medium text-link">
+                Or log your own workout
+              </Link>
+            </>
+          )}
         </section>
       )}
 

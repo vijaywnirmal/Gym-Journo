@@ -1,12 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getLogForDate, getPlanForDate, getPreviousPerformance } from "@/lib/queries";
+import {
+  getLibraryExerciseIds,
+  getLogForDate,
+  getPlanForDate,
+  getPreviousPerformance,
+  getWeeklyInsights,
+} from "@/lib/queries";
+import { findQuickWorkout, rankQuickWorkouts, recentSetsByMuscle } from "@/lib/quickWorkouts";
 import { formatDate, formatDateLong, isValidIsoDate } from "@/lib/date";
 import { getToday } from "@/lib/userDate";
 import { createClient } from "@/lib/supabase/server";
 import type { PreviousPerformance } from "@/lib/queries";
-import LogForm from "./LogForm";
+import LogForm, { type QuickStart } from "./LogForm";
 import HistoricalLogView from "./HistoricalLogView";
 import LogModeSwitch from "./LogModeSwitch";
 import BackLink from "@/components/BackLink";
@@ -25,7 +32,7 @@ export default async function LogPage({
   searchParams,
 }: {
   params: Promise<{ date: string }>;
-  searchParams: Promise<{ lighter?: string }>;
+  searchParams: Promise<{ lighter?: string; quick?: string }>;
 }) {
   await requireMemberApp();
   const { date } = await params;
@@ -65,8 +72,9 @@ export default async function LogPage({
     );
   }
 
+  const query = await searchParams;
   // "Start a lighter session" from Today's welcome-back card (lib/analyze/comeback.ts).
-  const lighter = (await searchParams).lighter === "1";
+  const lighter = query.lighter === "1";
   const supabase = await createClient();
   const {
     data: { user },
@@ -81,12 +89,31 @@ export default async function LogPage({
   // doesn't swap the logger for the summary mid-entry.
   const isHistorical = date !== today && log !== null;
 
+  // Nothing logged and nothing planned: offer short sessions, or fill in the one picked
+  // (?quick=<id>, lib/quickWorkouts.ts). A rest or absence day isn't nudged toward training.
+  const startingEmpty =
+    !isHistorical && !log?.logged_exercises?.length && !plan?.planned_exercises?.length && !plan?.is_rest_day;
+  const quickWorkout = startingEmpty ? findQuickWorkout(query.quick) : null;
+  const [quickIds, insights] = await Promise.all([
+    quickWorkout ? getLibraryExerciseIds(quickWorkout.exercises.map((e) => e.name)) : new Map<string, string>(),
+    startingEmpty && !quickWorkout ? getWeeklyInsights() : null,
+  ]);
+  const quickStart: QuickStart | null = quickWorkout && {
+    name: quickWorkout.name,
+    exercises: quickWorkout.exercises.flatMap((e) => {
+      const exerciseId = quickIds.get(e.name);
+      return exerciseId ? [{ exerciseId, name: e.name, sets: e.sets, reps: e.reps }] : [];
+    }),
+  };
+  const quickSuggestions = startingEmpty && !quickWorkout ? rankQuickWorkouts(recentSetsByMuscle(insights)) : [];
+
   // Preload "last time" context for every exercise already on the page, so it's available the
   // moment the execution UI renders. Exercises added later in the session (unplanned) are
   // fetched on demand via fetchPreviousPerformance instead.
   const initialExerciseIds = new Set<string>([
     ...(log?.logged_exercises?.map((le) => le.exercise_id) ?? []),
     ...(plan?.planned_exercises?.map((pe) => pe.exercise_id) ?? []),
+    ...(quickStart?.exercises.map((e) => e.exerciseId) ?? []),
   ]);
   const previousEntries = await Promise.all(
     [...initialExerciseIds].map(
@@ -119,16 +146,28 @@ export default async function LogPage({
           <>
             <PageHeader
               title={date === today ? "Today's workout" : formatDate(date)}
-              subtitle={plan?.title ? `Planned: ${plan.title}` : date === today ? formatDateLong(date) : "Logging a past day"}
+              subtitle={
+                plan?.title
+                  ? `Planned: ${plan.title}`
+                  : quickStart
+                    ? `Quick session: ${quickStart.name}`
+                    : date === today
+                      ? formatDateLong(date)
+                      : "Logging a past day"
+              }
               back={{ href: date === today ? "/" : "/calendar", label: date === today ? "Today" : "Calendar" }}
             />
             <LogForm
+              // A different quick session is a fresh start, not an edit of the current one.
+              key={quickWorkout?.id ?? "log"}
               date={date}
               plan={plan}
               existingLog={log}
               initialPreviousPerformance={initialPreviousPerformance}
               backupScope={user?.id ?? null}
               lighter={lighter}
+              quickStart={quickStart}
+              quickSuggestions={quickSuggestions}
             />
           </>
         }
