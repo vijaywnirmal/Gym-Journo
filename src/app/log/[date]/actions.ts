@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { getPreviousPerformance, getPriorExerciseSessions } from "@/lib/queries";
+import { getPreviousPerformance, getPriorExerciseSessions, getSwapOptions } from "@/lib/queries";
 import { getToday } from "@/lib/userDate";
 import { detectPersonalRecords, type PersonalRecord } from "@/lib/analyze/personalRecords";
 import { WEIGHT_UNITS } from "@/lib/validation";
@@ -133,6 +133,19 @@ export async function fetchPreviousPerformance(exerciseId: string, beforeDate: s
   } = await supabase.auth.getUser();
   if (!user) return null;
   return getPreviousPerformance(exerciseId, beforeDate);
+}
+
+const MAX_EXCLUDED = 100;
+
+// Exercises to swap in for one in the workout (lib/exerciseSwap.ts), leaving out the workout's
+// other exercises. Read-only; [] when signed out or on bad input.
+export async function fetchSwapOptions(exerciseId: string, excludeIds: string[]) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user || typeof exerciseId !== "string" || !Array.isArray(excludeIds) || excludeIds.length > MAX_EXCLUDED) return [];
+  return getSwapOptions(exerciseId, excludeIds.filter((id): id is string => typeof id === "string"));
 }
 
 // New personal records in the given (unsaved or saved) sets for `date`, keyed by exercise id,

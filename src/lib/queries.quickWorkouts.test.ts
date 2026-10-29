@@ -48,7 +48,7 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({ auth: { getUser }, from, rpc }),
 }));
 
-const { getPersonalQuickWorkouts } = await import("./queries");
+const { getPersonalQuickWorkouts, getSwapOptions } = await import("./queries");
 
 const todayStr = today();
 const from8Weeks = shiftDate(todayStr, -(HISTORY_WEEKS * 7 - 1));
@@ -182,5 +182,58 @@ describe("getPersonalQuickWorkouts", () => {
     expect(rpcCalls).toEqual([]);
     expect(calls.map((c) => c.table)).toEqual(["exercises"]);
     expect(workouts[0].id).toBe("full-body-reset");
+  });
+});
+
+describe("getSwapOptions", () => {
+  const swapCandidate = (name: string, equipment: string, exact = true) => ({
+    id: `id-${name}`,
+    name,
+    equipment,
+    muscles: ["Chest", "Shoulders", "Triceps"],
+    exact,
+  });
+
+  beforeEach(() => {
+    getUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
+    calls.length = 0;
+    rpcCalls.length = 0;
+  });
+
+  it("asks the database for similar exercises and ranks them with the person's history and equipment", async () => {
+    rpcFor = (fn) =>
+      fn === "similar_exercises"
+        ? {
+            data: [
+              swapCandidate("Machine Chest Press", "Machine"),
+              swapCandidate("Dumbbell Bench Press", "Dumbbell"),
+              swapCandidate("Decline Push-Up", "Bodyweight"),
+              swapCandidate("Incline Dumbbell Press", "Dumbbell"),
+            ],
+            error: null,
+          }
+        : { data: [], error: null };
+    resultFor = (table, f) => {
+      if (table === "profiles") return { data: { id: "user-1", training_location: "home_dumbbells" }, error: null };
+      if (table === "workout_logs") {
+        const decline = { exercise_id: "id-Decline Push-Up", logged_sets: [set(10, null)] };
+        return { data: [log(shiftDate(todayStr, -9), [decline]), log(shiftDate(todayStr, -2), [decline])], error: null };
+      }
+      if (table === "exercises" && f["in:id"]) {
+        return { data: [exerciseRow("Decline Push-Up", "Bodyweight", ["Chest", "Shoulders", "Triceps"])], error: null };
+      }
+      return { data: [], error: null };
+    };
+
+    const options = await getSwapOptions("id-Barbell Bench Press", ["id-Incline Dumbbell Press"]);
+    expect(rpcCalls).toEqual([["similar_exercises", { p_exercise_id: "id-Barbell Bench Press" }]]);
+    // Usual first, no machine at home, nothing already in the workout.
+    expect(options.map((o) => o.name)).toEqual(["Decline Push-Up", "Dumbbell Bench Press"]);
+  });
+
+  it("is empty when the alternatives can't be read", async () => {
+    rpcFor = () => ({ data: null, error: { message: "boom" } });
+    resultFor = () => ({ data: [], error: null });
+    expect(await getSwapOptions("id-x", [])).toEqual([]);
   });
 });

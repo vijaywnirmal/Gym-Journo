@@ -5,6 +5,8 @@ import { useId, useState } from "react";
 import Icon from "@/components/Icon";
 import Select from "@/components/ui/Select";
 import ExerciseTutorialPanel from "@/components/exercise-library/ExerciseTutorialPanel";
+import ExerciseSwapPanel from "./ExerciseSwapPanel";
+import type { SwapOption } from "@/lib/exerciseSwap";
 import { calculatePlates, formatPlates, isPlateUnit } from "@/lib/plates";
 import {
   MAX_EXERCISE_NOTE_LENGTH,
@@ -126,6 +128,10 @@ type Props = {
   onRemoveSet: (index: number) => void;
   onToggleDone: () => void;
   onRemoveExercise: () => void;
+  // Replaces this exercise with another that does the same job; offered until a set is entered.
+  onSwapExercise: (option: SwapOption) => void;
+  // The workout's other exercises, which Swap doesn't offer.
+  otherExerciseIds: string[];
   onCopyPrevious: () => void;
   onUpdateNotes: (value: string) => void;
   onToggleSetDone: (index: number) => void;
@@ -187,12 +193,18 @@ export default function ExerciseLogPanel({
   onRemoveSet,
   onToggleDone,
   onRemoveExercise,
+  onSwapExercise,
+  otherExerciseIds,
   onCopyPrevious,
   onUpdateNotes,
   onToggleSetDone,
 }: Props) {
   const [showPlates, setShowPlates] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [showSwap, setShowSwap] = useState(false);
+  const swapPanelId = useId();
+  // Logged sets belong to the exercise they were done on, so Swap is only offered before any.
+  const canSwap = !hasEnteredData(entry.sets);
   const [confirmingRemove, setConfirmingRemove] = useState(false);
   const tutorialPanelId = useId();
   const canCopyPrevious = !!previous && previous.sets.length > 0 && countLoggedSets(entry.sets) === 0;
@@ -223,6 +235,17 @@ export default function ExerciseLogPanel({
           >
             {showTutorial ? "Hide how-to" : "How to"}
           </button>
+          {canSwap && (
+            <button
+              type="button"
+              onClick={() => setShowSwap((value) => !value)}
+              aria-expanded={showSwap}
+              aria-controls={swapPanelId}
+              className="flex h-8 items-center rounded-lg px-2.5 text-sm font-medium text-link hover:bg-fill"
+            >
+              {showSwap ? "Cancel swap" : "Swap"}
+            </button>
+          )}
           <Link
             href={exerciseHistoryHref(entry.exerciseId)}
             className="flex h-8 items-center rounded-lg px-2.5 text-sm font-medium text-link hover:bg-fill"
@@ -260,6 +283,22 @@ export default function ExerciseLogPanel({
           >
             Remove
           </button>
+        </div>
+      )}
+
+      {showSwap && canSwap && (
+        <div className="mb-3 rounded-lg border border-separator p-3">
+          <ExerciseSwapPanel
+            key={entry.exerciseId}
+            exerciseId={entry.exerciseId}
+            excludeIds={otherExerciseIds}
+            panelId={swapPanelId}
+            onChoose={(option) => {
+              setShowSwap(false);
+              setShowTutorial(false);
+              onSwapExercise(option);
+            }}
+          />
         </div>
       )}
 

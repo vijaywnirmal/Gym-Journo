@@ -164,7 +164,8 @@ export function equipmentAt(location: string | null | undefined): ReadonlySet<st
   return null;
 }
 
-function usable(equipment: string | null, available: ReadonlySet<string> | null): boolean {
+// Whether an exercise's equipment is available (null = anything is).
+export function usable(equipment: string | null, available: ReadonlySet<string> | null): boolean {
   return available === null || (equipment !== null && available.has(equipment));
 }
 
