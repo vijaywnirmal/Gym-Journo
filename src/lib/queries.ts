@@ -250,7 +250,8 @@ export async function getPersonalQuickWorkouts(afterBreak: boolean): Promise<Per
           .select("date, logged_exercises(exercise_id, logged_sets(reps, weight, set_type))")
           .eq("user_id", user.id)
           .gte("date", from)
-          .lte("date", todayStr)
+          // Before today: what's logged today mustn't change the session being done today.
+          .lt("date", todayStr)
       : null,
     getProfile(),
   ]);
@@ -690,14 +691,15 @@ export type LastPerformedWorkout = { date: string | null };
 
 // The most recent workout day — a performed, non-future log — for a purely factual "when did you
 // last work out" observation. Not "last completed workout" (that is getLastCompletedLog, which
-// keys off completed_at): a performed but never-completed session counts here.
-export async function getLastPerformedWorkoutDate(): Promise<LastPerformedWorkout> {
+// keys off completed_at): a performed but never-completed session counts here. With `before`, the
+// last one strictly before that date (what came before the workout on that day).
+export async function getLastPerformedWorkoutDate(before?: string): Promise<LastPerformedWorkout> {
   const supabase = await createClient();
   const user = await getCurrentUser();
   if (!user) return { date: null };
 
   const { data, error } = await supabase
-    .rpc("performed_workout_dates", { p_from: null, p_to: await getToday() })
+    .rpc("performed_workout_dates", { p_from: null, p_to: before ? shiftDate(before, -1) : await getToday() })
     .order("date", { ascending: false })
     .limit(1);
   if (error || !data) return { date: null };
