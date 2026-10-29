@@ -216,7 +216,8 @@ export default function ExerciseLogPanel({
 
   return (
     <div className="card p-4">
-      <div className="mb-3 flex items-start justify-between gap-3">
+      {/* The actions sit under the name, so a long name and its target keep the full width. */}
+      <div className="mb-3 flex flex-col gap-1">
         <div className="min-w-0">
           <p className="text-xs font-medium text-label-3">{positionLabel}</p>
           <h2 className="text-lg font-semibold break-words">{entry.name}</h2>
@@ -225,7 +226,7 @@ export default function ExerciseLogPanel({
             {remainingPlannedSets && <span className="text-label-3"> · {remainingPlannedSets}</span>}
           </p>
         </div>
-        <div className="flex shrink-0 items-center">
+        <div className="-ml-2.5 flex items-center">
           <button
             type="button"
             onClick={() => setShowTutorial((value) => !value)}
