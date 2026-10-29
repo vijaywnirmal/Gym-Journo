@@ -62,6 +62,15 @@ begin
     raise exception 'due at 21:01 UTC: the 3-hour window should have closed';
   end if;
 
+  -- With the window the reminder job passes (8 hours, lib/push/reminders.ts), a run 5 hours late
+  -- still reminds A, and yesterday's reminder never goes out after local midnight.
+  if not exists (select 1 from due_workout_reminders('2026-10-01 23:00:00+00', interval '8 hours') where user_id = a) then
+    raise exception 'a run 5 hours late should still remind A';
+  end if;
+  if exists (select 1 from due_workout_reminders('2026-10-02 00:30:00+00', interval '8 hours') where user_id = a) then
+    raise exception 'yesterday''s reminder must not be sent after midnight';
+  end if;
+
   -- B's 07:00 in India is 01:30 UTC; B's "today" is their local date.
   select array_agg(user_id) into got from due_workout_reminders('2026-10-01 01:45:00+00');
   if got is distinct from array[b] then raise exception 'due at 07:15 IST: expected B, got %', got; end if;
