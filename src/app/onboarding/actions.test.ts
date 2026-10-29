@@ -27,6 +27,7 @@ const validInput = {
   targetWeightKg: null,
   experienceLevel: "beginner",
   trainingDaysPerWeek: 3,
+  trainingLocation: "",
   confirmedAdult: true,
 };
 
@@ -105,6 +106,20 @@ describe("completeOnboarding", () => {
     const result = await completeOnboarding({ ...validInput, lastName: "" });
     expect(result.error).toBeUndefined();
     expect(upsert).toHaveBeenCalledWith(expect.objectContaining({ last_name: null, full_name: "Test" }));
+  });
+
+  it("saves where the person trains when they answer, and leaves it out when they don't", async () => {
+    await completeOnboarding({ ...validInput, trainingLocation: "home_dumbbells" });
+    expect(upsert).toHaveBeenLastCalledWith(expect.objectContaining({ training_location: "home_dumbbells" }));
+
+    await completeOnboarding(validInput);
+    expect(upsert.mock.lastCall?.[0]).not.toHaveProperty("training_location");
+  });
+
+  it("rejects an unknown training location", async () => {
+    const result = await completeOnboarding({ ...validInput, trainingLocation: "moon" });
+    expect(result.error).toBe("Select where you usually train.");
+    expect(upsert).not.toHaveBeenCalled();
   });
 
   it("completes onboarding and sets onboarded: true with valid Phase 2 data", async () => {

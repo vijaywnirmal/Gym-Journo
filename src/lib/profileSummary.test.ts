@@ -14,6 +14,7 @@ const full: ProfileFieldsValue = {
   targetWeightKg: "75.5",
   experienceLevel: "intermediate",
   trainingDaysPerWeek: "5",
+  trainingLocation: "home_dumbbells",
 };
 
 const rows = (fields: ProfileFieldsValue) =>
@@ -29,6 +30,7 @@ describe("summarizeProfile", () => {
       "Primary goal": "Build muscle",
       Experience: "Intermediate",
       "Training days": "5 per week",
+      Trains: "At home with dumbbells",
       "Target weight": "75.5 kg",
     });
   });

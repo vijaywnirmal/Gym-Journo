@@ -15,6 +15,7 @@ import {
   validateTargetWeightKg,
   validateWeightKg,
   validateTrainingDaysPerWeek,
+  validateTrainingLocation,
 } from "@/lib/validation";
 
 export type CompleteOnboardingInput = {
@@ -28,6 +29,8 @@ export type CompleteOnboardingInput = {
   targetWeightKg: number | null;
   experienceLevel: string;
   trainingDaysPerWeek: number | null;
+  // Optional; "" = not answered.
+  trainingLocation: string;
   password?: string;
   // The person ticked "I'm 18 or older"; date of birth is optional, so this is the age check.
   confirmedAdult: boolean;
@@ -72,6 +75,11 @@ export async function completeOnboarding(input: CompleteOnboardingInput) {
   const trainingDaysError = validateTrainingDaysPerWeek(input.trainingDaysPerWeek);
   if (trainingDaysError) return { error: trainingDaysError };
 
+  if (input.trainingLocation) {
+    const trainingLocationError = validateTrainingLocation(input.trainingLocation);
+    if (trainingLocationError) return { error: trainingLocationError };
+  }
+
   if (input.heightCm !== null) {
     const heightError = validateHeightCm(input.heightCm);
     if (heightError) return { error: heightError };
@@ -114,6 +122,8 @@ export async function completeOnboarding(input: CompleteOnboardingInput) {
     target_weight_kg: input.targetWeightKg,
     experience_level: input.experienceLevel,
     training_days_per_week: input.trainingDaysPerWeek,
+    // Only sent once chosen, so onboarding still works before migration 0041 reaches the database.
+    ...(input.trainingLocation ? { training_location: input.trainingLocation } : {}),
     onboarded: true,
     updated_at: new Date().toISOString(),
   });

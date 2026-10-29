@@ -12,6 +12,7 @@ export type ProfileFieldsValue = {
   targetWeightKg: string;
   experienceLevel: string;
   trainingDaysPerWeek: string;
+  trainingLocation: string;
 };
 
 export const EMPTY_PROFILE_FIELDS: ProfileFieldsValue = {
@@ -25,6 +26,7 @@ export const EMPTY_PROFILE_FIELDS: ProfileFieldsValue = {
   targetWeightKg: "",
   experienceLevel: "",
   trainingDaysPerWeek: "",
+  trainingLocation: "",
 };
 
 export function profileFieldsFromProfile(profile: Profile | null): ProfileFieldsValue {
@@ -40,5 +42,6 @@ export function profileFieldsFromProfile(profile: Profile | null): ProfileFields
     targetWeightKg: profile?.target_weight_kg?.toString() ?? "",
     experienceLevel: profile?.experience_level ?? "",
     trainingDaysPerWeek: profile?.training_days_per_week?.toString() ?? "",
+    trainingLocation: profile?.training_location ?? "",
   };
 }

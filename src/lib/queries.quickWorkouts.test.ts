@@ -22,6 +22,10 @@ function makeBuilder(table: string) {
       return builder;
     };
   }
+  builder.maybeSingle = () => {
+    calls.push({ table, filters });
+    return Promise.resolve(resultFor(table, filters));
+  };
   builder.then = (resolve: (v: QueryResult) => unknown) => {
     calls.push({ table, filters });
     return Promise.resolve(resultFor(table, filters)).then(resolve);
@@ -61,6 +65,17 @@ const LIBRARY = [
   exerciseRow("Single-Arm Dumbbell Row", "Dumbbell", ["Back", "Biceps"]),
   exerciseRow("Glute Bridge", "Bodyweight", ["Glutes", "Hamstrings"]),
   exerciseRow("Dead Bug", "Bodyweight", ["Core"]),
+];
+// Every exercise the sessions use, for checks that need all four sessions resolvable.
+const LIBRARY_ALL = [
+  ...LIBRARY,
+  exerciseRow("Push-Up", "Bodyweight", ["Chest", "Triceps"]),
+  exerciseRow("Mountain Climber", "Bodyweight", ["Core", "Cardio"]),
+  exerciseRow("Standing Calf Raise", "Bodyweight", ["Calves"]),
+  exerciseRow("Dumbbell Shoulder Press", "Dumbbell", ["Shoulders", "Triceps"]),
+  exerciseRow("Incline Dumbbell Press", "Dumbbell", ["Chest", "Shoulders"]),
+  exerciseRow("Lateral Raise", "Dumbbell", ["Shoulders"]),
+  exerciseRow("Walking Lunge", "Dumbbell", ["Quads", "Glutes"]),
 ];
 const BENCH = exerciseRow("Barbell Bench Press", "Barbell", ["Chest", "Triceps", "Shoulders"]);
 
@@ -147,6 +162,16 @@ describe("getPersonalQuickWorkouts", () => {
     const workouts = await getPersonalQuickWorkouts(true);
     expect(workouts.map((w) => w.id)).toEqual(QUICK_WORKOUTS.map((w) => w.id));
     expect(workouts.every((w) => w.usualCount === 0)).toBe(true);
+  });
+
+  it("only offers what can be done where the person trains", async () => {
+    resultFor = (table, f) => {
+      if (table === "exercises" && f["in:name"]) return { data: LIBRARY_ALL, error: null };
+      if (table === "profiles") return { data: { id: "user-1", training_location: "bodyweight" }, error: null };
+      return { data: [], error: null };
+    };
+    const workouts = await getPersonalQuickWorkouts(false);
+    expect(workouts.map((w) => w.id)).toEqual(["no-equipment"]);
   });
 
   it("only reads the shared library when signed out", async () => {

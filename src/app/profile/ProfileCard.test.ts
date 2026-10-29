@@ -20,6 +20,7 @@ const fields: ProfileFieldsValue = {
   targetWeightKg: "",
   experienceLevel: "intermediate",
   trainingDaysPerWeek: "5",
+  trainingLocation: "",
 };
 
 const render = (initial: ProfileFieldsValue, email: string | null = "v@example.com") =>

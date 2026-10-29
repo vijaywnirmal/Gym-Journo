@@ -2,7 +2,15 @@
 
 import { useId, useState, type ReactNode } from "react";
 import type { ProfileFieldsValue } from "@/lib/profile-fields";
-import { GENDER_LABELS, GENDERS, MIN_PASSWORD_LENGTH, MAX_AGE_YEARS, MIN_AGE_YEARS } from "@/lib/validation";
+import {
+  GENDER_LABELS,
+  GENDERS,
+  MIN_PASSWORD_LENGTH,
+  MAX_AGE_YEARS,
+  MIN_AGE_YEARS,
+  TRAINING_LOCATION_LABELS,
+  TRAINING_LOCATIONS,
+} from "@/lib/validation";
 import Select, { type SelectOption } from "@/components/ui/Select";
 import DateField from "@/components/ui/DateField";
 import { DATE_FMT } from "@/lib/date";
@@ -24,6 +32,8 @@ const EXPERIENCE_LEVEL_OPTIONS = [
   { value: "intermediate", label: "Intermediate" },
   { value: "advanced", label: "Advanced" },
 ];
+
+const TRAINING_LOCATION_OPTIONS = TRAINING_LOCATIONS.map((l) => ({ value: l, label: TRAINING_LOCATION_LABELS[l] }));
 
 export type { ProfileFieldsValue };
 
@@ -202,6 +212,16 @@ export default function ProfileFields({
             onChange={(v) => set("trainingDaysPerWeek", v)}
             placeholder="Select days per week"
             options={[1, 2, 3, 4, 5, 6, 7].map((n) => ({ value: String(n), label: `${n} day${n === 1 ? "" : "s"}` }))}
+          />
+        </Field>
+
+        <Field label="Where you usually train (optional)" hint="Quick workouts only suggest what you can do there.">
+          <FieldSelect
+            label="Where you usually train"
+            value={value.trainingLocation}
+            onChange={(v) => set("trainingLocation", v)}
+            placeholder="Select where you train"
+            options={TRAINING_LOCATION_OPTIONS}
           />
         </Field>
 

@@ -121,6 +121,16 @@ export function rankQuickWorkouts<W extends Pick<QuickWorkout, "focus"> & { usua
     .map(({ w }) => w);
 }
 
+export const NO_EQUIPMENT_ID = "no-equipment";
+
+// The first `count` suggestions, plus the no-equipment circuit at the end when it isn't among
+// them, so anyone can always pick a session they can do at home.
+export function topQuickWorkouts<W extends { id: string }>(ranked: W[], count: number): W[] {
+  const top = ranked.slice(0, count);
+  const noEquipment = ranked.find((w) => w.id === NO_EQUIPMENT_ID);
+  return noEquipment && !top.includes(noEquipment) ? [...top, noEquipment] : top;
+}
+
 export type ExerciseInfo = { id: string; name: string; equipment: string | null; muscles: string[] };
 // An exercise the person has done in at least MIN_USUAL_SESSIONS sessions over HISTORY_WEEKS.
 export type UsualExercise = ExerciseInfo & { sessions: number; lastDate: string };
@@ -144,22 +154,50 @@ export function sortUsual(usual: UsualExercise[]): UsualExercise[] {
   return [...usual].sort((a, b) => b.sessions - a.sessions || b.lastDate.localeCompare(a.lastDate));
 }
 
+const BODYWEIGHT: ReadonlySet<string> = new Set(["Bodyweight"]);
+
+// The library equipment someone can use where they usually train (profiles.training_location,
+// migration 0041). Null means anything: at a gym, or not answered.
+export function equipmentAt(location: string | null | undefined): ReadonlySet<string> | null {
+  if (location === "bodyweight") return BODYWEIGHT;
+  if (location === "home_dumbbells") return new Set(["Dumbbell", "Bodyweight"]);
+  return null;
+}
+
+function usable(equipment: string | null, available: ReadonlySet<string> | null): boolean {
+  return available === null || (equipment !== null && available.has(equipment));
+}
+
+// Whether every exercise in the session can be done with the equipment available.
+export function canDoQuickWorkout(
+  workout: QuickWorkout,
+  library: ReadonlyMap<string, ExerciseInfo>,
+  available: ReadonlySet<string> | null
+): boolean {
+  return workout.exercises.every((e) => {
+    const base = library.get(e.name);
+    return !base || usable(base.equipment, available);
+  });
+}
+
 // A usual exercise does the same job as a slot's exercise when it trains the slot's main muscle and
-// nothing the slot's exercise doesn't (so a deadlift can't stand in for a row). A bodyweight-only
-// session only takes bodyweight exercises.
-function canStandIn(usual: UsualExercise, slot: QuickExercise, base: ExerciseInfo, bodyweightOnly: boolean): boolean {
-  if (bodyweightOnly && usual.equipment !== "Bodyweight") return false;
+// nothing the slot's exercise doesn't (so a deadlift can't stand in for a row), and it uses
+// equipment that's available (only bodyweight in a bodyweight-only session).
+function canStandIn(usual: UsualExercise, slot: QuickExercise, base: ExerciseInfo, available: ReadonlySet<string> | null): boolean {
+  if (!usable(usual.equipment, available)) return false;
   return usual.muscles.includes(slot.muscle) && usual.muscles.every((m) => base.muscles.includes(m));
 }
 
 // The session with the person's usual exercises swapped in where one does the same job, each used
 // at most once. Slots whose exercise isn't in the library are left out. `usual` must be sorted by
-// sortUsual.
+// sortUsual; `available` is equipmentAt(where they train).
 export function personaliseQuickWorkout(
   workout: QuickWorkout,
   library: ReadonlyMap<string, ExerciseInfo>,
-  usual: UsualExercise[]
+  usual: UsualExercise[],
+  available: ReadonlySet<string> | null = null
 ): PersonalQuickWorkout {
+  const slotEquipment = workout.equipment === "None" ? BODYWEIGHT : available;
   const usualIds = new Set(usual.map((u) => u.id));
   const taken = new Set(workout.exercises.map((e) => library.get(e.name)?.id).filter((id): id is string => !!id));
   const equipment = new Set<string>();
@@ -170,7 +208,7 @@ export function personaliseQuickWorkout(
     if (!base) continue;
     const swap = usualIds.has(base.id)
       ? null
-      : usual.find((u) => !taken.has(u.id) && canStandIn(u, slot, base, workout.equipment === "None"));
+      : usual.find((u) => !taken.has(u.id) && canStandIn(u, slot, base, slotEquipment));
     const chosen = swap ?? base;
     if (swap) taken.add(swap.id);
     if (chosen.equipment && chosen.equipment !== "Bodyweight") equipment.add(chosen.equipment);
