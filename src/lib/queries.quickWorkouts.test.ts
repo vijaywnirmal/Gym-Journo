@@ -16,7 +16,7 @@ const rpcCalls: [string, Record<string, string>][] = [];
 function makeBuilder(table: string) {
   const filters: Record<string, unknown> = {};
   const builder: Record<string, unknown> = {};
-  for (const name of ["eq", "gte", "lte", "in", "is"]) {
+  for (const name of ["eq", "gte", "lte", "lt", "in", "is"]) {
     builder[name] = (column: string, value: unknown) => {
       filters[`${name}:${column}`] = value;
       return builder;
@@ -93,13 +93,14 @@ describe("getPersonalQuickWorkouts", () => {
     rpcFor = () => ({ data: [], error: null });
   });
 
-  it("reads the last 8 weeks of the person's own logs and set counts", async () => {
+  it("reads the person's own logs from the last 8 weeks up to yesterday, and set counts", async () => {
     resultFor = (table, f) => (table === "exercises" && f["in:name"] ? { data: LIBRARY, error: null } : { data: [], error: null });
     await getPersonalQuickWorkouts(false);
 
     expect(rpcCalls).toEqual([["muscle_set_counts", { p_from: from8Weeks, p_to: todayStr }]]);
     const logs = calls.find((c) => c.table === "workout_logs");
-    expect(logs?.filters).toEqual({ "eq:user_id": "user-1", "gte:date": from8Weeks, "lte:date": todayStr });
+    // Not today: what's logged today mustn't change the session being done today.
+    expect(logs?.filters).toEqual({ "eq:user_id": "user-1", "gte:date": from8Weeks, "lt:date": todayStr });
     const library = calls.find((c) => c.table === "exercises" && c.filters["in:name"]);
     expect(library?.filters["is:user_id"]).toBeNull();
   });

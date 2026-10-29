@@ -136,6 +136,12 @@ describe("getLastPerformedWorkoutDate", () => {
     expect(rpcBuilders[0].calls.limit).toEqual([[1]]);
   });
 
+  it("asks for the day before when given a date, so a workout on that day doesn't count", async () => {
+    setRpcResult(dates("2026-09-10"));
+    await getLastPerformedWorkoutDate("2026-09-20");
+    expect(rpc).toHaveBeenCalledWith("performed_workout_dates", { p_from: null, p_to: "2026-09-19" });
+  });
+
   it("returns the date the database returns", async () => {
     setRpcResult(dates("2026-09-10"));
     expect(await getLastPerformedWorkoutDate()).toEqual({ date: "2026-09-10" });

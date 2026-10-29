@@ -90,16 +90,19 @@ export default async function LogPage({
   // doesn't swap the logger for the summary mid-entry.
   const isHistorical = date !== today && log !== null;
 
-  // Nothing logged and nothing planned: offer short sessions, or fill in the one picked
-  // (?quick=<id>, lib/quickWorkouts.ts). A rest or absence day isn't nudged toward training.
-  const startingEmpty =
-    !isHistorical && !log?.logged_exercises?.length && !plan?.planned_exercises?.length && !plan?.is_rest_day;
-  // A break (lib/analyze/comeback.ts) puts familiar sessions first and lightens their target weights.
-  const lastWorkout = startingEmpty ? await getLastPerformedWorkoutDate() : null;
-  const afterBreak = lastWorkout !== null && comebackGapDays(lastWorkout.date, today) !== null;
-  const quickWorkouts = startingEmpty ? await getPersonalQuickWorkouts(afterBreak) : [];
-  const quickWorkout = quickWorkouts.find((w) => w.id === query.quick) ?? null;
-  const quickSuggestions = quickWorkout ? [] : quickWorkouts;
+  // Nothing planned: offer short sessions while nothing is logged, or fill in the one picked
+  // (?quick=<id>, lib/quickWorkouts.ts). The picked one stays after the first save (and a reload),
+  // so its targets don't disappear mid-workout. A rest or absence day isn't nudged toward training.
+  const canDoQuick = !isHistorical && !plan?.planned_exercises?.length && !plan?.is_rest_day;
+  const startingEmpty = canDoQuick && !log?.logged_exercises?.length;
+  const wantsQuick = canDoQuick && !!query.quick;
+  // A break before this day (lib/analyze/comeback.ts) puts familiar sessions first and lightens
+  // their target weights.
+  const lastWorkout = startingEmpty || wantsQuick ? await getLastPerformedWorkoutDate(date) : null;
+  const afterBreak = lastWorkout !== null && comebackGapDays(lastWorkout.date, date) !== null;
+  const quickWorkouts = startingEmpty || wantsQuick ? await getPersonalQuickWorkouts(afterBreak) : [];
+  const quickWorkout = wantsQuick ? (quickWorkouts.find((w) => w.id === query.quick) ?? null) : null;
+  const quickSuggestions = startingEmpty && !quickWorkout ? quickWorkouts : [];
 
   // Preload "last time" context for every exercise already on the page, so it's available the
   // moment the execution UI renders. Exercises added later in the session (unplanned) are

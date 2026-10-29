@@ -137,13 +137,19 @@ export default function LogForm({
     weight: lighter ? null : (pe.target_weight ?? null),
     weightUnit: pe.target_weight_unit ?? "kg",
   });
-  const targetByExerciseId = new Map(
-    showTargets
-      ? plan?.planned_exercises?.map((pe) => [
-          pe.exercise_id,
-          planTarget(pe),
-        ]) ?? []
-      : []
+  const quickTarget = (qe: QuickStart["exercises"][number]): ExerciseEntry["target"] => ({
+    sets: qe.sets,
+    reps: qe.reps,
+    weight: qe.weight,
+    weightUnit: qe.weightUnit,
+  });
+  // Targets for exercises already logged: the plan's, or with no plan, the quick session's.
+  const targetByExerciseId = new Map<string, ExerciseEntry["target"]>(
+    !showTargets
+      ? []
+      : plan?.planned_exercises?.length
+        ? plan.planned_exercises.map((pe) => [pe.exercise_id, planTarget(pe)])
+        : (quickStart?.exercises.map((qe) => [qe.exerciseId, quickTarget(qe)]) ?? [])
   );
 
   // The persisted log always wins over the plan seed once it exists — reopening/resuming a
@@ -175,7 +181,7 @@ export default function LogForm({
           exerciseId: qe.exerciseId,
           name: qe.name,
           notes: "",
-          target: { sets: qe.sets, reps: qe.reps, weight: qe.weight, weightUnit: qe.weightUnit },
+          target: quickTarget(qe),
           sets: Array.from({ length: qe.sets }, () => emptySet()),
           done: false,
         }))
