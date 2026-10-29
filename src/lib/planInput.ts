@@ -29,3 +29,18 @@ export function validatePlannedExercises(exercises: PlannedTargets[]): string | 
   }
   return null;
 }
+
+export const EMPTY_WORKOUT_ERROR = "Add an exercise, pick a muscle group or give the day a name first.";
+
+// A workout day with nothing in it (no name, muscle group or exercise) would count as planned for
+// reminders and adherence while saying nothing about what to do. Days off need none of these.
+export function validateWorkoutNotEmpty(input: {
+  offKind: string | null;
+  title: string | null | undefined;
+  muscleGroupIds: unknown[];
+  exercises: unknown[];
+}): string | null {
+  if (input.offKind) return null;
+  if (input.title?.trim() || input.muscleGroupIds.length > 0 || input.exercises.length > 0) return null;
+  return EMPTY_WORKOUT_ERROR;
+}

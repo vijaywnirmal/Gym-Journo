@@ -65,6 +65,12 @@ describe("saveClientPlan", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
+  it("refuses an empty workout day for the client", async () => {
+    const result = await saveClientPlan("c1", { ...planInput, title: "", muscleGroupIds: [], exercises: [] });
+    expect(result.error).toBe("Add an exercise, pick a muscle group or give the day a name first.");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
   it("tells the client about plans from their today onwards, after responding", async () => {
     notifyUser.mockClear();
     afterCallbacks.length = 0;
