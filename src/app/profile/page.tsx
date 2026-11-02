@@ -6,7 +6,7 @@ import { getClientOverview, getMyTrainer, getMyTrainerProfile } from "@/lib/trai
 import RemoveButton from "@/components/RemoveButton";
 import { stopTraining } from "./trainerActions";
 import { getAdminGym, getMyGymMembership, getMyGymTrainerOffer, getMyTrainerGyms, getTrainerLinkGymId } from "@/lib/gyms";
-import { getMyFees } from "@/lib/feeQueries";
+import { getMyFees, getMyPastFees } from "@/lib/feeQueries";
 import { profileFieldsFromProfile } from "@/lib/profile-fields";
 import { joinName, namePartsOf } from "@/lib/names";
 import { formatDateLong, todayIn } from "@/lib/date";
@@ -21,6 +21,7 @@ import YourTrainerSection from "./YourTrainerSection";
 import YourGymSection from "./YourGymSection";
 import GymOfferCard from "./GymOfferCard";
 import MyFee from "./MyFee";
+import PastFees from "./PastFees";
 
 export const metadata: Metadata = { title: "Profile" };
 
@@ -120,9 +121,10 @@ export default async function ProfilePage() {
   }
 
   // The trainer the member's gym arranged stops training them if they leave it.
-  const [gymLinkId, myFees] = await Promise.all([
+  const [gymLinkId, myFees, pastFees] = await Promise.all([
     myTrainer && membership ? getTrainerLinkGymId(myTrainer.linkId) : null,
     getMyFees(),
+    getMyPastFees(),
   ]);
   const gymArrangedTrainer = myTrainer && membership && gymLinkId === membership.gym.id ? myTrainer.trainer.display_name : null;
   const today = todayIn(profile?.timezone);
@@ -163,6 +165,8 @@ export default async function ProfilePage() {
         gymTrainer={gymArrangedTrainer}
         fee={gymFee && <MyFee fee={gymFee.fee} payments={gymFee.payments} today={today} />}
       />
+
+      <PastFees fees={pastFees} />
 
       <h2 className="section-title mt-8">Tracking</h2>
       <Link href="/body" className="card flex items-center gap-3 px-4 py-3 hover:bg-fill">
@@ -221,8 +225,8 @@ function LinkRow({ href, title, text }: { href: string; title: string; text: str
 function workDeleteSummary(isTrainer: boolean, gym: { name: string; isOwner: boolean } | null): string {
   const parts = [
     gym?.isOwner ? `Removes your account and your gym, ${gym.name}: its member list, trainers and links.` : "Removes your account.",
-    isTrainer && "Your clients keep their accounts and the plans you made them.",
-    gym?.isOwner && "Members and trainers keep their own accounts.",
+    isTrainer && "Your clients keep their accounts, the plans you made them and their record of fees.",
+    gym?.isOwner && "Members and trainers keep their own accounts, and members their record of fees.",
     gym && !gym.isOwner && `${gym.name} stays as it is.`,
   ];
   return parts.filter(Boolean).join(" ");

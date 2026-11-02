@@ -16,6 +16,12 @@ export type Fee = {
   status: "active" | "ended";
 };
 
+// A fee that has ended. The gym or trainer may have left since, so it carries their name.
+export type PastFee = Pick<Fee, "id" | "amount" | "period_months" | "paid_until"> & {
+  payee_name: string | null;
+  ended_at: string | null;
+};
+
 export type FeePayment = {
   id: string;
   fee_id: string;
