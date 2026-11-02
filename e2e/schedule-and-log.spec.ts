@@ -19,6 +19,8 @@ test("a day scheduled as rest shows on the calendar without a Log button", { tag
   await page.goto(`/schedule/${date}`);
   await page.getByRole("button", { name: "Remove this day's plan" }).click();
   await page.getByRole("button", { name: "Remove plan" }).click();
+  // Wait for it: leaving the page straight away can beat the removal to the calendar.
+  await expect(page.getByText("Plan removed.")).toBeVisible();
   await page.goto(`/calendar?week=${date}`);
   await expect(page.getByRole("listitem").filter({ hasText: "Rest day · Deload" })).toHaveCount(0);
 });
