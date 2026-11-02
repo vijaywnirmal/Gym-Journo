@@ -111,7 +111,8 @@ export default async function PrivacyPage() {
               </>,
               <>
                 <strong>Fees:</strong> the gym or trainer who records your fee, and you, in Profile. Nobody else. They
-                keep their record of what you paid if you leave.
+                keep their record of what you paid if you leave, and you keep yours if they leave Gym Journal, until
+                you delete your account.
               </>,
               <>
                 <strong>A trainer&apos;s details</strong> (name, gym, city, WhatsApp) are shown to people who open

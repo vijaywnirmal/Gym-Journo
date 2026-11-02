@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/currentUser";
-import type { Fee, FeePayment } from "@/lib/fees";
+import type { Fee, FeePayment, PastFee } from "@/lib/fees";
 
 const FEE_COLUMNS = "id, gym_id, trainer_id, payer_id, amount, period_months, starts_on, paid_until, status";
 const PAYMENT_COLUMNS = "id, fee_id, amount, paid_on, method, covers_from, covers_until";
@@ -67,3 +67,18 @@ export const getMyFees = cache(async (): Promise<{ fee: Fee; payments: FeePaymen
   if (error || !data) return [];
   return Promise.all((data as Fee[]).map(async (fee) => ({ fee, payments: await getPayments(fee.id) })));
 });
+
+// The signed-in person's own ended fees, newest first, with their latest payments.
+export async function getMyPastFees(): Promise<{ fee: PastFee; payments: FeePayment[] }[]> {
+  const user = await getCurrentUser();
+  if (!user) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("fees")
+    .select("id, amount, period_months, paid_until, payee_name, ended_at")
+    .eq("payer_id", user.id)
+    .eq("status", "ended")
+    .order("ended_at", { ascending: false });
+  if (error || !data) return [];
+  return Promise.all((data as PastFee[]).map(async (fee) => ({ fee, payments: await getPayments(fee.id) })));
+}
