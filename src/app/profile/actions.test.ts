@@ -32,6 +32,9 @@ vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => createAdminClient(),
 }));
 
+const ownedGymMemberCount = vi.fn().mockResolvedValue(0);
+vi.mock("@/lib/gyms", () => ({ ownedGymMemberCount: () => ownedGymMemberCount() }));
+
 const { updateProfile, deleteAccount } = await import("./actions");
 
 const baseInput = {
@@ -138,6 +141,28 @@ describe("updateProfile", () => {
     const result = await updateProfile({ ...baseInput, targetWeightKg: null });
     expect(result.error).toBeUndefined();
     expect(update).toHaveBeenCalledWith(expect.objectContaining({ target_weight_kg: null }));
+  });
+});
+
+describe("deleteAccount for a gym owner", () => {
+  beforeEach(() => {
+    deleteOrder = [];
+    createAdminClient.mockReturnValue(null);
+    getUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
+  });
+
+  it("refuses while the gym has members, deleting nothing", async () => {
+    ownedGymMemberCount.mockResolvedValueOnce(3);
+    const result = await deleteAccount("DELETE");
+    expect(result.error).toBe("Your gym still has members. Remove them first, or disable your account instead.");
+    expect(deleteOrder).toEqual([]);
+    expect(signOut).not.toHaveBeenCalled();
+  });
+
+  it("refuses when the member count can't be read, deleting nothing", async () => {
+    ownedGymMemberCount.mockResolvedValueOnce(null);
+    expect((await deleteAccount("DELETE")).error).toBeTruthy();
+    expect(deleteOrder).toEqual([]);
   });
 });
 

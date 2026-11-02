@@ -165,7 +165,8 @@ export default async function PrivacyPage() {
               <>
                 <strong>Delete your account</strong> in Profile: your account and everything in it are deleted for
                 good. A copy can stay in our database host&apos;s backups for a short while, until they&apos;re
-                replaced.
+                replaced. If you own a gym with members, remove them first, because deleting your account deletes
+                the gym. Or disable your account, which pauses it and deletes nothing.
               </>,
               <>
                 For a copy of your data, a correction, or a complaint, email {email}. We&apos;ll reply within 30 days.

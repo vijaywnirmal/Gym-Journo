@@ -7,12 +7,25 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({ auth: { verifyOtp, exchangeCodeForSession } }),
 }));
 
+const deleteCookie = vi.fn();
+vi.mock("next/headers", () => ({ cookies: async () => ({ delete: deleteCookie }) }));
+
 const { GET } = await import("./route");
 
 const callback = (query: string) => GET(new Request(`https://gym.example.com/auth/callback?${query}`));
 const location = (response: Response) => response.headers.get("location");
 
 describe("auth callback", () => {
+  it("forgets the remembered profile check on signing in, and only then", async () => {
+    deleteCookie.mockClear();
+    verifyOtp.mockResolvedValue({ error: { message: "expired" } });
+    await callback("token_hash=abc&type=email");
+    expect(deleteCookie).not.toHaveBeenCalled();
+    verifyOtp.mockResolvedValue({ error: null });
+    await callback("token_hash=abc&type=email");
+    expect(deleteCookie).toHaveBeenCalledWith("gj-onboarded");
+  });
+
   beforeEach(() => {
     verifyOtp.mockReset().mockResolvedValue({ error: null });
     exchangeCodeForSession.mockReset().mockResolvedValue({ error: null });

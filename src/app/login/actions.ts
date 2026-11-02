@@ -1,6 +1,8 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { ONBOARDED_COOKIE } from "@/lib/accountStatus";
 import { getSiteUrl } from "@/lib/siteUrl";
 import { isValidEmail, validatePassword } from "@/lib/validation";
 import { friendlyAuthError } from "@/lib/authErrors";
@@ -85,5 +87,6 @@ export async function signInWithPassword(_prevState: unknown, formData: FormData
     }
     return { error: friendlyAuthError(error) };
   }
+  (await cookies()).delete(ONBOARDED_COOKIE);
   return { success: true };
 }

@@ -5,7 +5,14 @@ import { getProfile } from "@/lib/queries";
 import { getClientOverview, getMyTrainer, getMyTrainerProfile } from "@/lib/trainers";
 import RemoveButton from "@/components/RemoveButton";
 import { stopTraining } from "./trainerActions";
-import { getAdminGym, getMyGymMembership, getMyGymTrainerOffer, getMyTrainerGyms, getTrainerLinkGymId } from "@/lib/gyms";
+import {
+  getAdminGym,
+  getMyGymMembership,
+  getMyGymTrainerOffer,
+  getMyTrainerGyms,
+  getTrainerLinkGymId,
+  ownedGymMemberCount,
+} from "@/lib/gyms";
 import { getMyFees, getMyPastFees } from "@/lib/feeQueries";
 import { profileFieldsFromProfile } from "@/lib/profile-fields";
 import { joinName, namePartsOf } from "@/lib/names";
@@ -15,6 +22,7 @@ import PageHeader from "@/components/PageHeader";
 import { createClient } from "@/lib/supabase/server";
 import ProfileCard from "./ProfileCard";
 import DeleteAccountSection from "./DeleteAccountSection";
+import DisableAccountSection from "./DisableAccountSection";
 import CoachConsentSection from "./CoachConsentSection";
 import RemindersSection from "./RemindersSection";
 import YourTrainerSection from "./YourTrainerSection";
@@ -41,6 +49,7 @@ export default async function ProfilePage() {
   } = await supabase.auth.getUser();
   // Trainers and gym staff have no journal here (src/lib/workAccount.ts): just their account and work.
   if (trainerProfile || adminGym) {
+    const gymMemberCount = adminGym?.isOwner ? await ownedGymMemberCount() : 0;
     const { firstName, lastName } = namePartsOf(profile);
     const clients = trainerProfile ? (await getClientOverview()).length : 0;
     return (
@@ -114,7 +123,11 @@ export default async function ProfilePage() {
             </div>
             <SignOutButton />
           </div>
-          <DeleteAccountSection summary={workDeleteSummary(trainerProfile !== null, adminGym)} />
+          {adminGym?.isOwner && gymMemberCount ? (
+            <DisableAccountSection gymName={adminGym.name} memberCount={gymMemberCount} />
+          ) : (
+            <DeleteAccountSection summary={workDeleteSummary(trainerProfile !== null, adminGym)} />
+          )}
         </section>
       </main>
     );

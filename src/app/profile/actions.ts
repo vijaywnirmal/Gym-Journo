@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { ownedGymMemberCount } from "@/lib/gyms";
 import { cleanName, joinName, validateName } from "@/lib/names";
 import {
   validateDateOfBirth,
@@ -172,6 +173,12 @@ export async function deleteAccount(confirmation: string) {
   if (!user) return { error: "Not signed in" };
 
   const genericError = { error: "Something went wrong deleting your account. Please try again." };
+
+  // Deleting the account deletes the gym it owns, so members must leave first (the form offers
+  // disabling instead). Checked here too, not only in the form.
+  const members = await ownedGymMemberCount();
+  if (members === null) return genericError;
+  if (members > 0) return { error: "Your gym still has members. Remove them first, or disable your account instead." };
 
   const { error: plansError } = await supabase
     .from("workout_plans")

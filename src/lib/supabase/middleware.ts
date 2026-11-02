@@ -11,11 +11,7 @@ import {
   pendingRedirect,
   setupPathFor,
 } from "@/lib/trainerInvites";
-
-// Set once this browser's signed-in person is known to be onboarded, holding their user id, so the
-// proxy doesn't query the profile on every request (each query was a round trip to the database,
-// prefetches included). Only ever skips the onboarding redirect for that same user.
-const ONBOARDED_COOKIE = "gj-onboarded";
+import { ACCOUNT_DISABLED_PATH, ONBOARDED_COOKIE } from "@/lib/accountStatus";
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -100,13 +96,24 @@ export async function updateSession(request: NextRequest) {
     return response;
   }
 
-  if (userId && !isAuthRoute && !isOnboardingRoute && !isApiRoute && request.cookies.get(ONBOARDED_COOKIE)?.value !== userId) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("onboarded")
-      .eq("id", userId)
-      .maybeSingle();
+  if (
+    userId &&
+    !isAuthRoute &&
+    !isOnboardingRoute &&
+    !isApiRoute &&
+    pathname !== ACCOUNT_DISABLED_PATH &&
+    request.cookies.get(ONBOARDED_COOKIE)?.value !== userId
+  ) {
+    // All columns: naming disabled_at would send everyone to onboarding for the minute the app can
+    // be live before its migration (README).
+    const { data: profile } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
 
+    if (profile?.disabled_at) {
+      const url = request.nextUrl.clone();
+      url.pathname = ACCOUNT_DISABLED_PATH;
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
     if (!profile?.onboarded) {
       const url = request.nextUrl.clone();
       const role = request.cookies.get(SIGNUP_COOKIE)?.value;
