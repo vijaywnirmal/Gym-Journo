@@ -112,3 +112,20 @@ export const getMyGymTrainerOffer = cache(async (): Promise<GymTrainerOffer | nu
   const { data, error } = await supabase.rpc("my_gym_trainer_offer");
   return error ? null : ((data as GymTrainerOffer[] | null)?.[0] ?? null);
 });
+
+// How many members are in the gyms the signed-in person owns. Deleting the account deletes those
+// gyms, so it's refused while there are any. Null if it can't be read.
+export async function ownedGymMemberCount(): Promise<number | null> {
+  const user = await getCurrentUser();
+  if (!user) return 0;
+  const supabase = await createClient();
+  const { data: gyms, error } = await supabase.from("gyms").select("id").eq("owner_id", user.id);
+  if (error) return null;
+  if (!gyms?.length) return 0;
+  const { count, error: countError } = await supabase
+    .from("gym_members")
+    .select("id", { count: "exact", head: true })
+    .in("gym_id", gyms.map((g) => g.id))
+    .eq("status", "active");
+  return countError ? null : (count ?? 0);
+}

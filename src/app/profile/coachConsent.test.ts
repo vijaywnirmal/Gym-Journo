@@ -33,6 +33,7 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => null }));
+vi.mock("@/lib/gyms", () => ({ ownedGymMemberCount: async () => 0 }));
 
 const { setCoachConsent, deleteAccount } = await import("./actions");
 

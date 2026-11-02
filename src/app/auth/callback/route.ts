@@ -1,7 +1,9 @@
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { safeRedirectPath } from "@/lib/validation";
+import { ONBOARDED_COOKIE } from "@/lib/accountStatus";
 
 // Where every auth email lands: sign-up confirmation, magic link and password reset.
 // - `token_hash` + `type` (the links in supabase/templates) are verified on their own, so they work
@@ -18,11 +20,17 @@ export async function GET(request: Request) {
   const supabase = await createClient();
   if (tokenHash && type) {
     const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
-    if (!error) return NextResponse.redirect(`${origin}${next}`);
+    if (!error) return signedIn(`${origin}${next}`);
   } else if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) return NextResponse.redirect(`${origin}${next}`);
+    if (!error) return signedIn(`${origin}${next}`);
   }
 
   return NextResponse.redirect(`${origin}/login?error=invalid_link`);
+}
+
+// Forgets what this browser knew about the previous sign-in, so the proxy checks the profile again.
+async function signedIn(url: string) {
+  (await cookies()).delete(ONBOARDED_COOKIE);
+  return NextResponse.redirect(url);
 }
