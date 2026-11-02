@@ -259,6 +259,7 @@ export default function LogForm({
   // overwrite a newer one.
   const recordsRequestRef = useRef(0);
   const restTimerRef = useRef<RestTimerHandle>(null);
+  const [confirmingEmptyFinish, setConfirmingEmptyFinish] = useState(false);
 
   // Rest only applies to live logging, not to editing a past day (showTargets is false there).
   function startRest(entry: ExerciseEntry | undefined) {
@@ -620,8 +621,17 @@ export default function LogForm({
   }
 
   function finishWorkout() {
+    setConfirmingEmptyFinish(false);
+    restTimerRef.current?.stop();
     updateCompleted(true);
     scheduleSave(true);
+    // The button is at the bottom of the page; the result (and any new records) is at the top.
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function requestFinish() {
+    if (entries.some(isExerciseEntryLogged)) finishWorkout();
+    else setConfirmingEmptyFinish(true);
   }
 
   function reopenWorkout() {
@@ -898,10 +908,30 @@ export default function LogForm({
         >
           Reopen workout
         </button>
+      ) : confirmingEmptyFinish && !entries.some(isExerciseEntryLogged) ? (
+        <div className="card flex flex-col gap-3 px-4 py-3" role="alert">
+          <p className="text-sm">Nothing is logged yet, so this won&apos;t count as a training day. Finish anyway?</p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirmingEmptyFinish(false)}
+              className="h-10 flex-1 rounded-lg bg-accent text-sm font-semibold text-on-accent hover:bg-accent-hover"
+            >
+              Keep logging
+            </button>
+            <button
+              type="button"
+              onClick={finishWorkout}
+              className="h-10 flex-1 rounded-lg border border-separator text-sm font-semibold hover:bg-fill"
+            >
+              Finish anyway
+            </button>
+          </div>
+        </div>
       ) : (
         <button
           type="button"
-          onClick={finishWorkout}
+          onClick={requestFinish}
           className="h-12 rounded-[10px] bg-accent text-[15px] font-semibold text-on-accent hover:bg-accent-hover"
         >
           Finish workout

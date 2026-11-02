@@ -6,8 +6,10 @@ import {
   isValidRestSeconds,
   MAX_REST_SEC,
   readRestSeconds,
+  readRunningRest,
   remainingSeconds,
   writeRestSeconds,
+  writeRunningRest,
 } from "./restTimer";
 
 function memoryStorage(initial: Record<string, string> = {}) {
@@ -101,5 +103,38 @@ describe("rest preference storage", () => {
     };
     expect(() => writeRestSeconds(throwing, "ex-1", 90)).not.toThrow();
     expect(readRestSeconds(throwing, "ex-1")).toBe(DEFAULT_REST_SEC);
+  });
+});
+
+describe("the rest in progress", () => {
+  function memoryStorage() {
+    const data = new Map<string, string>();
+    return { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v) };
+  }
+  const rest = { endAt: 100_000, exerciseId: "e1", exerciseName: "Bench" };
+
+  it("comes back while it's still running", () => {
+    const storage = memoryStorage();
+    writeRunningRest(storage, rest);
+    expect(readRunningRest(storage, 90_000)).toEqual(rest);
+  });
+
+  it("doesn't come back once it has ended or been skipped", () => {
+    const storage = memoryStorage();
+    writeRunningRest(storage, rest);
+    expect(readRunningRest(storage, 100_000)).toBeNull();
+    writeRunningRest(storage, null);
+    expect(readRunningRest(storage, 90_000)).toBeNull();
+  });
+
+  it("ignores anything it can't trust", () => {
+    const storage = memoryStorage();
+    storage.setItem("gym-journo:rest-running", "not json");
+    expect(readRunningRest(storage, 0)).toBeNull();
+    storage.setItem("gym-journo:rest-running", JSON.stringify({ endAt: "soon" }));
+    expect(readRunningRest(storage, 0)).toBeNull();
+    writeRunningRest(storage, { ...rest, endAt: 10_000_000_000 });
+    expect(readRunningRest(storage, 0)).toBeNull();
+    expect(readRunningRest(null)).toBeNull();
   });
 });

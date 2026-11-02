@@ -61,6 +61,38 @@ export function writeRestSeconds(storage: StorageLike | null, exerciseId: string
   }
 }
 
+// The rest in progress, remembered in this browser so it survives a reload, or a look at another
+// page mid-rest. A rest that has already ended isn't brought back.
+const RUNNING_KEY = "gym-journo:rest-running";
+
+export type RunningRest = { endAt: number; exerciseId: string; exerciseName: string };
+
+export function readRunningRest(storage: StorageLike | null, now = Date.now()): RunningRest | null {
+  try {
+    const parsed = JSON.parse(storage?.getItem(RUNNING_KEY) ?? "null") as Partial<RunningRest> | null;
+    if (
+      typeof parsed?.endAt !== "number" ||
+      typeof parsed.exerciseId !== "string" ||
+      typeof parsed.exerciseName !== "string" ||
+      parsed.endAt <= now ||
+      parsed.endAt > now + MAX_REST_SEC * 1000
+    ) {
+      return null;
+    }
+    return parsed as RunningRest;
+  } catch {
+    return null;
+  }
+}
+
+export function writeRunningRest(storage: StorageLike | null, running: RunningRest | null): void {
+  try {
+    storage?.setItem(RUNNING_KEY, JSON.stringify(running));
+  } catch {
+    // Storage full or blocked — the rest just doesn't survive a reload.
+  }
+}
+
 export function browserStorage(): StorageLike | null {
   try {
     return typeof window === "undefined" ? null : window.localStorage;

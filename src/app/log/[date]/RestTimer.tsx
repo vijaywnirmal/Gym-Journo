@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useImperativeHandle, useRef, useState, useSyncExternalStore, type Ref } from "react";
+import { useEffect, useImperativeHandle, useMemo, useRef, useState, useSyncExternalStore, type Ref } from "react";
 import {
   adjustEndAt,
   ADJUST_STEP_SEC,
@@ -8,17 +8,19 @@ import {
   DEFAULT_REST_SEC,
   formatClock,
   readRestSeconds,
+  readRunningRest,
   remainingSeconds,
   REST_PRESETS_SEC,
   writeRestSeconds,
+  writeRunningRest,
+  type RunningRest,
 } from "@/lib/restTimer";
 
 export type RestTimerHandle = {
   // Starts (or restarts) a rest using that exercise's remembered duration.
   start: (exerciseId: string, exerciseName: string) => void;
+  stop: () => void;
 };
-
-type Running = { endAt: number; exerciseId: string; exerciseName: string };
 
 type Props = {
   ref?: Ref<RestTimerHandle>;
@@ -62,7 +64,9 @@ function beep(ctx: AudioContext | null) {
 }
 
 export default function RestTimer({ ref, current }: Props) {
-  const [running, setRunning] = useState<Running | null>(null);
+  // Undefined until this visit starts or stops a rest: until then, any rest left running by an
+  // earlier visit shows.
+  const [localRunning, setLocalRunning] = useState<RunningRest | null | undefined>(undefined);
   const [now, setNow] = useState(() => Date.now());
   const [presets, setPresets] = useState<Record<string, number>>({});
   const audioRef = useRef<AudioContext | null>(null);
@@ -70,6 +74,13 @@ export default function RestTimer({ ref, current }: Props) {
   // False during server render and hydration, so the stored preference (browser-only) never makes
   // the first client render differ from the server's.
   const isClient = useSyncExternalStore(noopSubscribe, () => true, () => false);
+  const restored = useMemo(() => (isClient ? readRunningRest(browserStorage()) : null), [isClient]);
+  const running = localRunning === undefined ? restored : localRunning;
+
+  function setRunning(next: RunningRest | null) {
+    setLocalRunning(next);
+    writeRunningRest(browserStorage(), next);
+  }
 
   function presetFor(exerciseId: string): number {
     if (!isClient) return DEFAULT_REST_SEC;
@@ -83,7 +94,7 @@ export default function RestTimer({ ref, current }: Props) {
     setRunning({ endAt: startedAt + presetFor(exerciseId) * 1000, exerciseId, exerciseName });
   }
 
-  useImperativeHandle(ref, () => ({ start }));
+  useImperativeHandle(ref, () => ({ start, stop: () => setRunning(null) }));
 
   const endAt = running?.endAt ?? null;
   useEffect(() => {
@@ -110,7 +121,7 @@ export default function RestTimer({ ref, current }: Props) {
   function adjust(deltaSec: number) {
     const t = Date.now();
     setNow(t);
-    setRunning((r) => (r ? { ...r, endAt: adjustEndAt(Math.max(r.endAt, t), t, deltaSec) } : r));
+    if (running) setRunning({ ...running, endAt: adjustEndAt(Math.max(running.endAt, t), t, deltaSec) });
   }
 
   function choosePreset(seconds: number) {

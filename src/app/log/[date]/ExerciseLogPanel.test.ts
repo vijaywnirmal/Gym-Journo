@@ -8,6 +8,7 @@ import {
   formatRemainingPlannedSets,
   formatSetComparison,
   getRemainingPlannedSetCount,
+  setValueProblem,
   type SetRow,
 } from "./ExerciseLogPanel";
 import type { PreviousPerformance } from "@/lib/queries";
@@ -367,5 +368,21 @@ describe("plateText (M3)", () => {
     const [first, second] = compareSets([{ ...set("80", "5"), setType: "working" }, { ...set("80", "5"), setType: "working" }], previous);
     expect(first).toBeNull();
     expect(formatSetComparison(second)).toBe("same weight as last time · same reps as last time");
+  });
+});
+
+describe("setValueProblem", () => {
+  it("accepts blank and in-range numbers", () => {
+    expect(setValueProblem({ weight: "", reps: "" })).toBeNull();
+    expect(setValueProblem({ weight: "0", reps: "0" })).toBeNull();
+    expect(setValueProblem({ weight: "1000", reps: "1000" })).toBeNull();
+    expect(setValueProblem({ weight: "52.5", reps: "8" })).toBeNull();
+  });
+
+  it("names the number the server would refuse", () => {
+    expect(setValueProblem({ weight: "-5", reps: "8" })).toContain("weight");
+    expect(setValueProblem({ weight: "1000.5", reps: "8" })).toContain("weight");
+    expect(setValueProblem({ weight: "60", reps: "-1" })).toContain("reps");
+    expect(setValueProblem({ weight: "60", reps: "1001" })).toContain("reps");
   });
 });
