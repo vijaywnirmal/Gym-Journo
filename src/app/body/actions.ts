@@ -11,6 +11,35 @@ export type SaveMeasurementInput = {
   notes: string;
 };
 
+// The profile's weight (shown on Profile, used by AI plans) follows the newest logged entry. It only
+// changes when the entry at changedDate is, or was, the newest: an older entry added later leaves
+// it alone, and deleting the newest falls back to the one before. Deleting the only entry leaves
+// it too. Best-effort: the entry itself is already saved, so a failure here doesn't undo that.
+async function syncProfileWeight(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  changedDate: string
+) {
+  const { data: newest, error } = await supabase
+    .from("body_measurements")
+    .select("date, weight_kg")
+    .eq("user_id", userId)
+    .order("date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    console.error("Reading the newest weight failed:", error.message);
+    return;
+  }
+  if (!newest || newest.date > changedDate) return;
+
+  const { error: profileError } = await supabase
+    .from("profiles")
+    .update({ weight_kg: newest.weight_kg, updated_at: new Date().toISOString() })
+    .eq("id", userId);
+  if (profileError) console.error("Updating the profile weight failed:", profileError.message);
+}
+
 export async function saveMeasurement(input: SaveMeasurementInput) {
   const supabase = await createClient();
   const {
@@ -45,7 +74,9 @@ export async function saveMeasurement(input: SaveMeasurementInput) {
     return { error: "Something went wrong saving this entry. Please try again." };
   }
 
+  await syncProfileWeight(supabase, user.id, input.date);
   revalidatePath("/body");
+  revalidatePath("/profile");
   return { success: true };
 }
 
@@ -56,18 +87,21 @@ export async function deleteMeasurement(id: string) {
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not signed in" };
 
-  const { error, count } = await supabase
+  const { data: deleted, error } = await supabase
     .from("body_measurements")
-    .delete({ count: "exact" })
-    .eq("id", id);
+    .delete()
+    .eq("id", id)
+    .select("date");
 
   if (error) {
     return { error: "Something went wrong deleting this entry. Please try again." };
   }
-  if (!count) {
+  if (!deleted?.length) {
     return { error: "Unable to delete this entry." };
   }
 
+  await syncProfileWeight(supabase, user.id, deleted[0].date);
   revalidatePath("/body");
+  revalidatePath("/profile");
   return { success: true };
 }
