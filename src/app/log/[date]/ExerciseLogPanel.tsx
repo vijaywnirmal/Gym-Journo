@@ -151,6 +151,20 @@ function targetLabel(target: ExerciseEntry["target"]): string | null {
   return `${sets} × ${reps}${weight}`;
 }
 
+// What's wrong with a set's numbers, in the same limits the server saves by. One bad number stops
+// the whole workout saving, so it's said beside the set rather than only at the top of the page.
+export function setValueProblem(set: Pick<SetRow, "weight" | "reps">): string | null {
+  if (set.weight.trim()) {
+    const weight = parseFloat(set.weight);
+    if (!(weight >= 0 && weight <= 1000)) return "Enter a weight between 0 and 1000. This set isn't saved yet.";
+  }
+  if (set.reps.trim()) {
+    const reps = parseInt(set.reps, 10);
+    if (!(reps >= 0 && reps <= 1000)) return "Enter reps between 0 and 1000. This set isn't saved yet.";
+  }
+  return null;
+}
+
 // Removing an exercise deletes its sets too, so it asks first once anything has been entered.
 function hasEnteredData(sets: SetRow[]): boolean {
   return sets.some((set) => set.weight.trim() || set.reps.trim() || set.rpe.trim() || set.done);
@@ -206,6 +220,8 @@ export default function ExerciseLogPanel({
   // Logged sets belong to the exercise they were done on, so Swap is only offered before any.
   const canSwap = !hasEnteredData(entry.sets);
   const [confirmingRemove, setConfirmingRemove] = useState(false);
+  // The set whose tick was tapped with nothing in it: only filled-in sets are saved.
+  const [blankTick, setBlankTick] = useState<string | null>(null);
   const tutorialPanelId = useId();
   const canCopyPrevious = !!previous && previous.sets.length > 0 && countLoggedSets(entry.sets) === 0;
   const target = targetLabel(entry.target);
@@ -345,6 +361,8 @@ export default function ExerciseLogPanel({
         {entry.sets.map((set, i) => {
           const comparisonText = formatSetComparison(comparisons[i]);
           const plates = showPlates ? plateText(set) : null;
+          const problem = setValueProblem(set);
+          const blank = !set.weight.trim() && !set.reps.trim();
           return (
             <div
               key={i}
@@ -366,6 +384,7 @@ export default function ExerciseLogPanel({
                 <div className="field flex h-10 items-center rounded-lg focus-within:border-accent focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--accent)_22%,transparent)]">
                   <input
                     type="number"
+                    min="0"
                     inputMode="decimal"
                     placeholder="0"
                     value={set.weight}
@@ -384,6 +403,7 @@ export default function ExerciseLogPanel({
                 </div>
                 <input
                   type="number"
+                  min="0"
                   inputMode="numeric"
                   placeholder="0"
                   value={set.reps}
@@ -393,7 +413,14 @@ export default function ExerciseLogPanel({
                 />
                 <button
                   type="button"
-                  onClick={() => onToggleSetDone(i)}
+                  onClick={(e) => {
+                    if (blank && !set.done) {
+                      setBlankTick(`${entry.exerciseId}:${i}`);
+                      e.currentTarget.parentElement?.querySelector("input")?.focus();
+                      return;
+                    }
+                    onToggleSetDone(i);
+                  }}
                   aria-pressed={!!set.done}
                   aria-label={set.done ? `Set ${i + 1} done. Undo` : `Mark set ${i + 1} done and start rest`}
                   className={`grid size-10 place-items-center rounded-lg border ${
@@ -417,7 +444,9 @@ export default function ExerciseLogPanel({
                     ...RPE_OPTIONS.map((r) => ({ value: String(r), label: `RPE ${r}` })),
                   ]}
                 />
-                {comparisonText && <p className="min-w-0 flex-1 truncate text-xs text-label-2">{comparisonText}</p>}
+                {comparisonText && !problem && (
+                  <p className="min-w-0 flex-1 truncate text-xs text-label-2">{comparisonText}</p>
+                )}
                 <button
                   type="button"
                   onClick={() => onRemoveSet(i)}
@@ -428,6 +457,16 @@ export default function ExerciseLogPanel({
                 </button>
               </div>
               {plates && <p className="pl-10 text-xs text-orange">{plates}</p>}
+              {problem && (
+                <p role="alert" className="pl-10 text-xs text-red">
+                  {problem}
+                </p>
+              )}
+              {blank && !set.done && blankTick === `${entry.exerciseId}:${i}` && (
+                <p role="alert" className="pl-10 text-xs text-red">
+                  Enter the weight or reps first, so this set is saved.
+                </p>
+              )}
             </div>
           );
         })}
