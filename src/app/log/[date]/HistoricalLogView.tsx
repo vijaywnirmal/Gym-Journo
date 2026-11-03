@@ -176,7 +176,7 @@ export default function HistoricalLogView({
           Delete this workout
         </button>
       )}
-      {deleteError && <p className="text-center text-sm text-red">{deleteError}</p>}
+      {deleteError && <p role="alert" className="text-center text-sm text-red">{deleteError}</p>}
     </div>
   );
 }

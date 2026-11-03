@@ -637,6 +637,10 @@ export default function LogForm({
     scheduleSave(true);
     // The button is at the bottom of the page; the result (and any new records) is at the top.
     window.scrollTo({ top: 0, behavior: "smooth" });
+    // The button that had focus is gone too. Its heading, not the whole page, or it all gets read out.
+    const title = document.querySelector<HTMLElement>("#content h1");
+    title?.setAttribute("tabindex", "-1");
+    title?.focus({ preventScroll: true });
   }
 
   function requestFinish() {
@@ -667,6 +671,13 @@ export default function LogForm({
 
   return (
     <div className="flex flex-col gap-4 pb-6">
+      <p role="status" className="sr-only">
+        {autoAdvance
+          ? `${autoAdvance.finishedName} done. Up next: ${autoAdvance.nextName}`
+          : workoutCompleted
+            ? `Workout finished.${recordEntries.length > 0 ? ` New personal record: ${recordEntries.map((e) => e.name).join(", ")}.` : ""}`
+            : ""}
+      </p>
       <SaveStatus state={saveState} error={saveError} onRetry={() => scheduleSave(true)} />
 
       {lighter && (
@@ -705,7 +716,7 @@ export default function LogForm({
       )}
 
       {recordEntries.length > 0 && (
-        <section className="card flex gap-3 border-orange/30 bg-orange/5 px-4 py-3" role="status">
+        <section className="card flex gap-3 border-orange/30 bg-orange/5 px-4 py-3">
           <span className="grid size-8 shrink-0 place-items-center rounded-full bg-orange/15 text-orange">
             <Icon name="progress" className="size-4" strokeWidth={2.25} />
           </span>
@@ -782,7 +793,7 @@ export default function LogForm({
                       {e.done ? <Icon name="checkmark" className="size-3" strokeWidth={3} /> : i + 1}
                     </span>
                     <span className="min-w-0 flex-1 truncate">{e.name}</span>
-                    {e.done && <span className="text-xs font-normal text-label-3">{setCountLabel(countLoggedSets(e.sets))}</span>}
+                    {e.done && <span className="text-xs font-normal text-label-3"><span className="sr-only">, </span>{setCountLabel(countLoggedSets(e.sets))}</span>}
                   </button>
                 </li>
               ))}
@@ -801,10 +812,7 @@ export default function LogForm({
           )}
 
           {autoAdvance && (
-            <div
-              role="status"
-              className="card flex items-center gap-3 border-green/30 bg-green/5 px-4 py-2.5"
-            >
+            <div className="card flex items-center gap-3 border-green/30 bg-green/5 px-4 py-2.5">
               <Icon name="checkmark" className="size-4 shrink-0 text-green" strokeWidth={2.5} />
               <p className="min-w-0 flex-1 truncate text-sm">
                 <span className="font-medium">{autoAdvance.finishedName}</span> done. Up next:{" "}
@@ -1004,7 +1012,14 @@ function SaveStatus({
   onRetry: () => void;
 }) {
   const offline = useOffline();
-  if (state === "idle") return null;
+  const offlineSave = state === "saving" && offline;
+  // Routine saves aren't announced: they'd talk over someone typing a weight. Only trouble is.
+  const announced = (
+    <p role="status" className="sr-only">
+      {offlineSave ? "Offline. Kept on this device, will sync when you're back online" : ""}
+    </p>
+  );
+  if (state === "idle") return announced;
 
   if (state === "error") {
     return (
@@ -1022,12 +1037,15 @@ function SaveStatus({
   }
 
   return (
-    <p role="status" aria-live="polite" className="text-xs text-label-2">
-      {state === "saving"
-        ? offline
-          ? "Offline — kept on this device, will sync when you're back online"
-          : "Saving…"
-        : "Saved"}
-    </p>
+    <>
+      {announced}
+      <p className="text-xs text-label-2">
+        {state === "saving"
+          ? offline
+            ? "Offline — kept on this device, will sync when you're back online"
+            : "Saving…"
+          : "Saved"}
+      </p>
+    </>
   );
 }

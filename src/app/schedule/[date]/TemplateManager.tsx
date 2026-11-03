@@ -182,7 +182,7 @@ export default function TemplateManager({
             />
           </label>
           <ExerciseTargetEditor selected={selected} onChange={setSelected} />
-          {error && <p className="text-sm text-red">{error}</p>}
+          {error && <p role="alert" className="text-sm text-red">{error}</p>}
           <div className="flex gap-2">
             <button
               type="button"

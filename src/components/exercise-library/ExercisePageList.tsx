@@ -26,6 +26,11 @@ export default function ExercisePageList({ muscleGroupId, term, equipment, rende
       )}
 
       <div aria-live="polite">
+        {status === "ready" && items.length > 0 && (
+          <p className="sr-only">
+            {hasMore ? `More than ${items.length} exercises found` : items.length === 1 ? "1 exercise found" : `${items.length} exercises found`}
+          </p>
+        )}
         {loadingFirstPage && (
           <div className="flex flex-col gap-2 p-3" aria-label="Loading exercises">
             <div className="skeleton h-9" />
@@ -37,7 +42,7 @@ export default function ExercisePageList({ muscleGroupId, term, equipment, rende
           <p className="px-4 py-6 text-center text-sm text-label-2">No exercises match.</p>
         )}
         {status === "error" && (
-          <p className="px-4 py-4 text-sm text-red">
+          <p role="alert" className="px-4 py-4 text-sm text-red">
             Couldn&apos;t load exercises.{" "}
             <button type="button" onClick={retry} className="font-medium text-link">
               Try again

@@ -54,7 +54,7 @@ export default function SuggestionCard(props: Props) {
       <p className="mt-2 text-xl font-semibold text-label">{props.change}</p>
       <p className="mt-1 text-sm text-label">{props.reason}</p>
 
-      {error && <p className="mt-2 text-sm text-red">{error}</p>}
+      {error && <p role="alert" className="mt-2 text-sm text-red">{error}</p>}
       {decided ? (
         <p className="mt-3 text-sm text-label-2" role="status">
           {decided === "accepted" ? "Accepted — the plan's target weight is updated." : "Rejected — the plan is unchanged."}
