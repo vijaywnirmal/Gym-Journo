@@ -237,7 +237,7 @@ describe("getTrainingEvidence", () => {
     expect(evidence.asOf).toBe("2026-09-21");
 
     // Goal
-    expect(evidence.goal).toMatchObject({ primaryGoal: "build_muscle", trainingDaysPerWeek: 4, targetWeightKg: 75 });
+    expect(evidence.goal).toMatchObject({ primaryGoal: "Build muscle", trainingDaysPerWeek: 4, targetWeightKg: 75 });
 
     // Training: blank Sep 17 and future Sep 25 are not workout days.
     expect(evidence.training.recent.rolling[0]).toMatchObject({ windowDays: 7, daysPerformed: 2 }); // Sep 15, Sep 20

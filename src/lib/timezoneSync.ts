@@ -2,18 +2,25 @@
 
 export type SyncOutcome = "updated" | "no_profile" | "failed";
 
-// The same zone can have several names (Asia/Calcutta and Asia/Kolkata); the browser's Intl data
-// maps each to one canonical name, so two names count as one zone when they resolve alike.
-export function canonicalTimeZone(zone: string): string {
+// The zone's clock through the coming year, sampled twice a month. Null for a zone this browser
+// doesn't know.
+function clockOverAYear(zone: string): string | null {
   try {
-    return new Intl.DateTimeFormat("en-US", { timeZone: zone }).resolvedOptions().timeZone;
+    const format = new Intl.DateTimeFormat("en-US", { timeZone: zone, timeZoneName: "longOffset" });
+    const year = new Date().getUTCFullYear();
+    return Array.from({ length: 24 }, (_, i) => format.format(Date.UTC(year, i / 2, i % 2 ? 15 : 1))).join();
   } catch {
-    return zone;
+    return null;
   }
 }
 
+// The same zone can have several names (Asia/Calcutta and Asia/Kolkata), and browsers disagree on
+// which they report: Safari no longer maps them to one name. So zones are compared by their clocks.
+// Zones that keep the same time (Paris and Berlin) count as one too, which is all "today" depends on.
 export function sameTimeZone(a: string, b: string): boolean {
-  return a === b || canonicalTimeZone(a) === canonicalTimeZone(b);
+  if (a === b) return true;
+  const clock = clockOverAYear(a);
+  return clock !== null && clock === clockOverAYear(b);
 }
 
 // What to do about this device's timezone:

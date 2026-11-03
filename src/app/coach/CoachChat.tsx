@@ -68,7 +68,7 @@ export default function CoachChat({ lastAnswer = null }: { lastAnswer?: LastCoac
           {pending ? "Checking your records…" : "Ask Coach"}
         </button>
         {pending && (
-          <p className="text-xs text-label-2">
+          <p role="status" className="text-xs text-label-2">
             Coach checks every statement against your records, so this can take up to about 30 seconds.
           </p>
         )}

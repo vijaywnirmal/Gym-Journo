@@ -1,3 +1,4 @@
+import { PRIMARY_GOAL_LABELS } from "@/lib/ai-plan-prompt";
 import { getTargetWeightKg } from "@/lib/home";
 import { distanceToTargetKg, summarizeBodyWeight } from "./bodyWeight";
 import { weightVersusEarliest, weightVersusTarget, workoutDaysVersusTarget } from "./differenceWording";
@@ -23,7 +24,7 @@ export const LIMITATIONS = {
   records_are_editable:
     "Workout logs and body measurements can be edited after the fact and no audit history is kept, so these facts describe the records as they currently stand.",
   no_effort_data:
-    "Effort ratings (RPE), duration, recovery and pain are not included here, so nothing here says how hard a set was or how the person felt.",
+    "Effort ratings (RPE), duration and recovery are not included here, so nothing here says how hard a set was or how the person felt.",
   today_uses_stored_timezone:
     "\"Today\" and calendar weeks follow the person's saved timezone, or the server's if none is saved yet.",
   goal_is_current_state_only:
@@ -238,7 +239,8 @@ export function buildTrainingEvidence(input: TrainingEvidenceInput): TrainingEvi
       basis: "The person's current profile settings.",
       sourceDates: [],
       limitations: ["goal_is_current_state_only"],
-      primaryGoal: profile?.primary_goal ?? null,
+      // In words: the model repeats this to the person, and the stored code ("build_muscle") reads badly.
+      primaryGoal: profile?.primary_goal ? (PRIMARY_GOAL_LABELS[profile.primary_goal] ?? profile.primary_goal) : null,
       experienceLevel: profile?.experience_level ?? null,
       trainingDaysPerWeek: target,
       targetWeightKg,

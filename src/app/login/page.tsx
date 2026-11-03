@@ -165,7 +165,7 @@ function LoginForm() {
           {resent ? (
             <p className="text-center text-sm text-green">Confirmation email sent.</p>
           ) : (
-            <button type="button" onClick={handleResend} disabled={pending} className="text-center text-sm text-link">
+            <button type="button" onClick={handleResend} disabled={pending} className="py-0.5 text-center text-sm text-link">
               Didn&apos;t get it? Resend confirmation email
             </button>
           )}
@@ -206,7 +206,7 @@ function LoginForm() {
           )}
 
           {mode === "password" && (
-            <Link href="/forgot-password" className="-mt-1 text-right text-xs text-link">
+            <Link href="/forgot-password" className="-mt-1 py-1 text-right text-xs text-link">
               Forgot password?
             </Link>
           )}
@@ -252,7 +252,7 @@ function LoginForm() {
                   setError(null);
                   setMode("magic-link");
                 }}
-                className="text-center text-sm text-link"
+                className="py-0.5 text-center text-sm text-link"
               >
                 Sign in with a magic link instead
               </button>
@@ -264,7 +264,7 @@ function LoginForm() {
                   setError(null);
                   setMode("password");
                 }}
-                className="text-center text-sm text-link"
+                className="py-0.5 text-center text-sm text-link"
               >
                 Sign in with a password instead
               </button>
@@ -276,21 +276,21 @@ function LoginForm() {
                   setError(null);
                   setMode("register");
                 }}
-                className="text-center text-sm text-link"
+                className="py-0.5 text-center text-sm text-link"
               >
                 Create a new account
               </button>
             )}
             {!asTrainer && !asGym && !fromInvite && (
               // A full page load, so the proxy remembers the choice through sign-up.
-              <a href="/login?role=trainer" className="text-center text-sm text-link">
+              <a href="/login?role=trainer" className="py-0.5 text-center text-sm text-link">
                 I&apos;m a trainer
               </a>
             )}
           </div>
         </form>
       )}
-      <Link href="/privacy" className="mt-8 text-center text-xs text-label-2 hover:text-label">
+      <Link href="/privacy" className="mt-8 py-1 text-center text-xs text-label-2 hover:text-label">
         Privacy
       </Link>
     </main>

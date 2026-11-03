@@ -17,7 +17,14 @@ import { describePersonalRecord, type PersonalRecord } from "@/lib/analyze/perso
 import { saveLog, fetchPreviousPerformance, fetchPersonalRecords } from "./actions";
 import { toSetType } from "@/lib/setData";
 import { lighterSets, lighterSetCount } from "@/lib/analyze/comeback";
-import ExerciseLogPanel, { countLoggedSets, setsFromPrevious, type ExerciseEntry, type SetRow } from "./ExerciseLogPanel";
+import ExerciseLogPanel, {
+  countLoggedSets,
+  CURRENT_EXERCISE_TITLE_ID,
+  setCountLabel,
+  setsFromPrevious,
+  type ExerciseEntry,
+  type SetRow,
+} from "./ExerciseLogPanel";
 import LogExercisePicker from "./LogExercisePicker";
 import RestTimer, { type RestTimerHandle } from "./RestTimer";
 import Icon from "@/components/Icon";
@@ -218,6 +225,7 @@ export default function LogForm({
   const [workoutCompleted, setWorkoutCompleted] = useState(!!existingLog?.completed_at);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const addExerciseButtonRef = useRef<HTMLButtonElement>(null);
   // Set when ticking the last set moved the logger on by itself, so the move can be undone. The
   // notice clears itself after a few seconds; the step list still allows going back any time.
   const [autoAdvance, setAutoAdvance] = useState<{
@@ -601,6 +609,8 @@ export default function LogForm({
     ]);
     setCurrentIndex(entries.length);
     setPickerOpen(false);
+    // The picker that had focus is gone: carry on at the new exercise, not the top of the page.
+    requestAnimationFrame(() => document.getElementById(CURRENT_EXERCISE_TITLE_ID)?.focus());
     scheduleSave(true);
 
     if (!(exerciseId in previousPerformance)) {
@@ -772,7 +782,7 @@ export default function LogForm({
                       {e.done ? <Icon name="checkmark" className="size-3" strokeWidth={3} /> : i + 1}
                     </span>
                     <span className="min-w-0 flex-1 truncate">{e.name}</span>
-                    {e.done && <span className="text-xs font-normal text-label-3">{countLoggedSets(e.sets)} sets</span>}
+                    {e.done && <span className="text-xs font-normal text-label-3">{setCountLabel(countLoggedSets(e.sets))}</span>}
                   </button>
                 </li>
               ))}
@@ -873,10 +883,14 @@ export default function LogForm({
         <LogExercisePicker
           alreadyAdded={new Set(entries.map((e) => e.exerciseId))}
           onAdd={addExercise}
-          onCancel={() => setPickerOpen(false)}
+          onCancel={() => {
+            setPickerOpen(false);
+            requestAnimationFrame(() => addExerciseButtonRef.current?.focus());
+          }}
         />
       ) : (
         <button
+          ref={addExerciseButtonRef}
           type="button"
           onClick={() => setPickerOpen(true)}
           className="flex h-11 items-center justify-center gap-1.5 rounded-[10px] border border-dashed border-separator text-sm font-semibold text-link hover:bg-fill"

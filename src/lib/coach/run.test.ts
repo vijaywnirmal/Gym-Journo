@@ -174,3 +174,39 @@ describe("runCoach", () => {
     expect(generate.mock.calls[0][0].endsWith('"What changed?"')).toBe(true);
   });
 });
+
+describe("runCoach - one more try after a refused reply", () => {
+  const refused = JSON.stringify({
+    statements: [{ kind: "fact", text: "The records do not show a 300 kg press.", cites: [BENCH_ID] }],
+    questions: [],
+  });
+
+  it("asks again, saying what was refused, and keeps both attempts on the record", async () => {
+    const generate = vi.fn().mockResolvedValueOnce(refused).mockResolvedValueOnce(goodReply);
+    const result = await run(generate);
+
+    expect(result.status).toBe("accepted");
+    expect(generate).toHaveBeenCalledTimes(2);
+    expect(generate.mock.calls[0][0]).not.toContain("REFUSED");
+    expect(generate.mock.calls[1][0]).toContain("not in the cited evidence: 300");
+    expect(result.record.rawReply).toBe(goodReply);
+    expect(result.record.issues.map((i) => i.code)).toEqual(["ungrounded_number"]);
+  });
+
+  it("gives up after the second refusal", async () => {
+    const generate = vi.fn().mockResolvedValue(refused);
+    const result = await run(generate);
+
+    expect(result).toMatchObject({ status: "rejected", reply: null, message: REJECTED_MESSAGE });
+    expect(generate).toHaveBeenCalledTimes(2);
+  });
+
+  it("says it couldn't verify, not that the model is down, when only the second call fails", async () => {
+    const generate = vi.fn().mockResolvedValueOnce(refused).mockRejectedValueOnce(new Error("Gemini request failed (503)"));
+    const result = await run(generate);
+
+    expect(result).toMatchObject({ status: "rejected", message: REJECTED_MESSAGE });
+    expect(result.record.rawReply).toBe(refused);
+    expect(result.record.issues.map((i) => i.code)).toEqual(["ungrounded_number"]);
+  });
+});

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildTrainingEvidence } from "@/lib/analyze/evidence";
 import type { CoachReply, CoachStatement } from "./contract";
-import { evidenceSections, validateCoachReply } from "./validate";
+import { evidenceSections, NOT_IN_RECORDS, validateCoachReply } from "./validate";
 import { citationLabels, replySources } from "./presentation";
 import { BENCH_ID, coachEvidence } from "./testFixtures";
 
@@ -91,7 +91,7 @@ describe("absences can be cited and are checked", () => {
     const keys = [...evidenceSections(noWeight()).keys()];
     expect(keys).toContain("absent:body.weight");
     expect(keys).toContain("absent:exercises.recent");
-    expect([...evidenceSections(evidence).keys()].some((k) => k.startsWith("absent:"))).toBe(false);
+    expect([...evidenceSections(evidence).keys()].filter((k) => k.startsWith("absent:"))).toEqual([NOT_IN_RECORDS]);
   });
 
   it("accepts 'no body weight is recorded' citing the absence", () => {
@@ -104,6 +104,18 @@ describe("absences can be cited and are checked", () => {
     const result = validateCoachReply(r, evidence);
     expect(result.status).toBe("rejected");
     expect(result.issues.map((i) => i.code)).toContain("unknown_citation");
+  });
+
+  it("says what isn't in the records, and labels it as that", () => {
+    const r = reply(fact("The records don't show any deadlifts.", NOT_IN_RECORDS));
+    expect(validateCoachReply(r, evidence).status).toBe("accepted");
+    expect(replySources(r, evidence)).toEqual([{ id: NOT_IN_RECORDS, label: "Not in your records" }]);
+  });
+
+  it("can't say a logged exercise or body weight isn't in the records", () => {
+    const bench = evidence.exercises[0].name;
+    expect(codes(reply(fact(`The records don't show any ${bench}.`, NOT_IN_RECORDS)), evidence)).toContain("unknown_citation");
+    expect(codes(reply(fact("The records don't show body weight.", NOT_IN_RECORDS)), evidence)).toContain("unknown_citation");
   });
 
   it("an absence citation can't back up a number", () => {

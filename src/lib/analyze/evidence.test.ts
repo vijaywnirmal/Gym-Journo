@@ -123,7 +123,7 @@ describe("buildTrainingEvidence — goal", () => {
   it("carries the current profile settings and marks them as current-state only", () => {
     const { goal } = build();
     expect(goal).toMatchObject({
-      primaryGoal: "build_muscle",
+      primaryGoal: "Build muscle",
       experienceLevel: "intermediate",
       trainingDaysPerWeek: 4,
       targetWeightKg: 75,
@@ -355,5 +355,14 @@ describe("buildTrainingEvidence — limitations", () => {
     for (const text of Object.values(LIMITATIONS)) {
       expect(text.toLowerCase()).not.toMatch(/progress|improv|should|recommend|plateau/);
     }
+  });
+});
+
+describe("what the model is told", () => {
+  // Coach rejects a whole answer that mentions these, and models repeat what the evidence says it
+  // leaves out, so saying "pain isn't included" here made sound answers fail now and then.
+  it("mentions nothing Coach's medical check refuses", () => {
+    const limitations = JSON.stringify([EVIDENCE_DEFINITIONS, LIMITATIONS]);
+    expect(limitations).not.toMatch(/\b(pain|injur|hurt|strain|sprain|doctor|physio)/i);
   });
 });

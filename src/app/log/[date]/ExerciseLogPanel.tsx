@@ -151,6 +151,12 @@ function targetLabel(target: ExerciseEntry["target"]): string | null {
   return `${sets} × ${reps}${weight}`;
 }
 
+export const CURRENT_EXERCISE_TITLE_ID = "current-exercise-title";
+
+export function setCountLabel(count: number): string {
+  return count === 1 ? "1 set" : `${count} sets`;
+}
+
 // What's wrong with a set's numbers, in the same limits the server saves by. One bad number stops
 // the whole workout saving, so it's said beside the set rather than only at the top of the page.
 export function setValueProblem(set: Pick<SetRow, "weight" | "reps">): string | null {
@@ -236,7 +242,9 @@ export default function ExerciseLogPanel({
       <div className="mb-3 flex flex-col gap-1">
         <div className="min-w-0">
           <p className="text-xs font-medium text-label-3">{positionLabel}</p>
-          <h2 className="text-lg font-semibold break-words">{entry.name}</h2>
+          <h2 id={CURRENT_EXERCISE_TITLE_ID} tabIndex={-1} className="text-lg font-semibold break-words outline-none">
+            {entry.name}
+          </h2>
           <p className="text-sm text-label-2">
             {target ? <>Target {target}</> : "No target set"}
             {remainingPlannedSets && <span className="text-label-3"> · {remainingPlannedSets}</span>}

@@ -42,6 +42,16 @@ describe("sameTimeZone", () => {
     expect(sameTimeZone("Asia/Calcutta", "Asia/Kolkata")).toBe(true);
     expect(sameTimeZone("Asia/Kolkata", "Asia/Dhaka")).toBe(false);
     expect(sameTimeZone("Not/AZone", "Not/AZone")).toBe(true);
+    expect(sameTimeZone("Not/AZone", "Other/Zone")).toBe(false);
+    expect(sameTimeZone("Not/AZone", "Asia/Kolkata")).toBe(false);
+  });
+
+  it("compares clocks, so it doesn't depend on the browser mapping names to one", () => {
+    expect(sameTimeZone("Europe/Kiev", "Europe/Kyiv")).toBe(true);
+    expect(sameTimeZone("Europe/Paris", "Europe/Berlin")).toBe(true);
+    // The same time for part of the year still isn't the same "today" all year.
+    expect(sameTimeZone("America/Phoenix", "America/Denver")).toBe(false);
+    expect(sameTimeZone("America/New_York", "America/Chicago")).toBe(false);
   });
 });
 

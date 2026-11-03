@@ -127,7 +127,7 @@ export default async function TodayPage() {
                 date={date}
                 workouts={topQuickWorkouts(quickWorkouts, COMEBACK_SUGGESTIONS)}
               />
-              <Link href={`/log/${date}`} className="mt-3 inline-block text-sm font-medium text-link">
+              <Link href={`/log/${date}`} className="mt-3 inline-block py-0.5 text-sm font-medium text-link">
                 Or log your own workout
               </Link>
             </>

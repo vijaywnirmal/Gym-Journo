@@ -136,7 +136,7 @@ export default function RestTimer({ ref, current }: Props) {
     if (!current) return null;
     return (
       <div className="flex items-center gap-2 card px-3 py-2">
-        <span className="text-xs text-label-2">Rest</span>
+        <span className="hidden text-xs text-label-2 min-[360px]:inline">Rest</span>
         <div className="flex rounded-lg bg-fill p-0.5" role="group" aria-label={`Rest time for ${current.name}`}>
           {REST_PRESETS_SEC.map((s) => (
             <button
@@ -155,7 +155,7 @@ export default function RestTimer({ ref, current }: Props) {
         <button
           type="button"
           onClick={() => start(current.exerciseId, current.name)}
-          className="ml-auto h-8 rounded-lg bg-accent px-3 text-xs font-semibold text-on-accent hover:bg-accent-hover"
+          className="ml-auto h-8 shrink-0 rounded-lg bg-accent px-3 text-xs font-semibold whitespace-nowrap text-on-accent hover:bg-accent-hover"
         >
           Start rest
         </button>
