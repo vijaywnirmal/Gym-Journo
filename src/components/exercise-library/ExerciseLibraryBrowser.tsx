@@ -36,7 +36,7 @@ export default function ExerciseLibraryBrowser({ renderExercise, version = 0, au
     <div className="flex flex-col gap-3">
       {/* Stacked on phones, so neither the search hint nor the equipment choice gets cut off. */}
       <div className="flex flex-col gap-2 sm:flex-row">
-        <label className="field flex h-10 min-w-0 flex-1 items-center gap-2 rounded-[10px] px-3 focus-within:border-accent">
+        <label className="field flex h-10 min-w-0 items-center gap-2 sm:flex-1 rounded-[10px] px-3 focus-within:border-accent">
           <Icon name="search" className="size-4 shrink-0 text-label-3" />
           <input
             type="text"
