@@ -60,7 +60,7 @@ export default function DeleteAccountSection({ summary = MEMBER_SUMMARY }: { sum
             autoComplete="off"
             className="field h-10 rounded-lg px-3 text-sm"
           />
-          {error && <p className="text-sm text-red">{error}</p>}
+          {error && <p role="alert" className="text-sm text-red">{error}</p>}
           <div className="flex gap-2">
             <button
               type="button"

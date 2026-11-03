@@ -47,7 +47,7 @@ export default function ExerciseSwapPanel({
     <div id={panelId} aria-live="polite" aria-busy={!options && !failed}>
       <p className="mb-2 text-sm font-medium">Swap for an exercise that works the same muscles</p>
       {failed ? (
-        <p className="text-sm text-red">
+        <p role="alert" className="text-sm text-red">
           Couldn&apos;t load alternatives.{" "}
           <button type="button" onClick={retry} className="font-medium text-link">
             Try again

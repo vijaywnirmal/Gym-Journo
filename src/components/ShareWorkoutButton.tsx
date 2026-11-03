@@ -48,7 +48,7 @@ export default function ShareWorkoutButton({ date }: { date: string }) {
         {state === "working" ? "Preparing image…" : "Share workout"}
       </button>
       {state === "error" && (
-        <p className="text-center text-xs text-red">Couldn&apos;t create the image. Check your connection and try again.</p>
+        <p role="alert" className="text-center text-xs text-red">Couldn&apos;t create the image. Check your connection and try again.</p>
       )}
     </div>
   );

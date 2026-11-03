@@ -296,7 +296,7 @@ export default function RemindersSection({
             </div>
           )}
           {notice && <p className="text-sm text-green">{notice}</p>}
-          {error && <p className="text-sm text-red">{error}</p>}
+          {error && <p role="alert" className="text-sm text-red">{error}</p>}
         </div>
       </section>
     </>

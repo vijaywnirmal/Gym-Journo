@@ -105,7 +105,7 @@ function MuscleGroupAccordion({
 
   if (status === "error")
     return (
-      <p className="px-1 text-sm text-red">
+      <p role="alert" className="px-1 text-sm text-red">
         Couldn&apos;t load muscle groups.{" "}
         <button type="button" onClick={retry} className="font-medium text-link">
           Try again

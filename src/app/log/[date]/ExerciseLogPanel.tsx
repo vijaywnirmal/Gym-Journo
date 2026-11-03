@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import Icon from "@/components/Icon";
 import Select from "@/components/ui/Select";
 import ExerciseTutorialPanel from "@/components/exercise-library/ExerciseTutorialPanel";
@@ -226,6 +226,9 @@ export default function ExerciseLogPanel({
   // Logged sets belong to the exercise they were done on, so Swap is only offered before any.
   const canSwap = !hasEnteredData(entry.sets);
   const [confirmingRemove, setConfirmingRemove] = useState(false);
+  // Adding or removing a set is otherwise silent, and removing one takes the focused button with it.
+  const [setsAnnouncement, setSetsAnnouncement] = useState("");
+  const addSetButtonRef = useRef<HTMLButtonElement>(null);
   // The set whose tick was tapped with nothing in it: only filled-in sets are saved.
   const [blankTick, setBlankTick] = useState<string | null>(null);
   const tutorialPanelId = useId();
@@ -457,7 +460,11 @@ export default function ExerciseLogPanel({
                 )}
                 <button
                   type="button"
-                  onClick={() => onRemoveSet(i)}
+                  onClick={() => {
+                    onRemoveSet(i);
+                    setSetsAnnouncement(`Set ${i + 1} removed`);
+                    requestAnimationFrame(() => addSetButtonRef.current?.focus());
+                  }}
                   aria-label={`Remove set ${i + 1}`}
                   className="ml-auto grid size-7 shrink-0 place-items-center rounded-md text-label-3 hover:bg-fill hover:text-red"
                 >
@@ -479,10 +486,17 @@ export default function ExerciseLogPanel({
           );
         })}
 
+        <p role="status" className="sr-only">
+          {setsAnnouncement}
+        </p>
         <div className="flex items-center gap-2">
           <button
+            ref={addSetButtonRef}
             type="button"
-            onClick={onAddSet}
+            onClick={() => {
+              onAddSet();
+              setSetsAnnouncement(`Set ${entry.sets.length + 1} added`);
+            }}
             className="flex h-9 items-center gap-1.5 rounded-lg border border-dashed border-separator px-3 text-sm font-medium text-label-2 hover:bg-fill hover:text-label"
           >
             <Icon name="plus" className="size-4" strokeWidth={2.25} />

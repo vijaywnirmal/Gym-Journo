@@ -18,7 +18,7 @@ export default function ExerciseTutorialPanel({ exerciseId, panelId }: { exercis
       )}
 
       {status === "error" && (
-        <p className="text-sm text-red">
+        <p role="alert" className="text-sm text-red">
           Couldn&apos;t load the tutorial.{" "}
           <button type="button" onClick={retry} className="font-medium text-link">
             Try again

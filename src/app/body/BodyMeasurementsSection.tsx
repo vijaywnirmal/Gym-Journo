@@ -153,6 +153,9 @@ export default function BodyMeasurementsSection({
                   step="0.1"
                   value={weightKg}
                   onChange={(e) => setWeightKg(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !pending) handleSave();
+                  }}
                   placeholder="70"
                   autoFocus
                   className="h-full w-full min-w-0 bg-transparent pl-3.5 text-base tabular-nums outline-none placeholder:text-label-3"
@@ -178,7 +181,7 @@ export default function BodyMeasurementsSection({
               {replacing.notes ? " with a note" : ""}. Saving replaces it.
             </p>
           )}
-          {error && <p className="text-sm text-red">{error}</p>}
+          {error && <p role="alert" className="text-sm text-red">{error}</p>}
           <div className="flex gap-2">
             <button
               type="button"

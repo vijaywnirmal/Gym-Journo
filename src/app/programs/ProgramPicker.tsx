@@ -231,7 +231,7 @@ function ProgramForm({ program, today, target }: { program: Program; today: stri
         <p className="text-sm text-label-2">Pick at least one training day.</p>
       )}
 
-      {result && "error" in result && <p className="text-sm text-red">{result.error}</p>}
+      {result && "error" in result && <p role="alert" className="text-sm text-red">{result.error}</p>}
       {result && "success" in result && (
         <div className="flex items-start gap-2 rounded-[10px] bg-green/10 px-3 py-2.5 text-sm" role="status">
           <Icon name="checkmark" className="mt-0.5 size-4 shrink-0 text-green" strokeWidth={2.5} />

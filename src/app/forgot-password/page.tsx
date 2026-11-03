@@ -56,7 +56,7 @@ export default function ForgotPasswordPage() {
             className="field rounded-xl px-4 py-3 text-base"
           />
 
-          {error && <p className="text-sm text-red">{error}</p>}
+          {error && <p role="alert" className="text-sm text-red">{error}</p>}
 
           <button
             type="submit"

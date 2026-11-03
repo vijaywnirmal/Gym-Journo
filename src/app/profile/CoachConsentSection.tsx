@@ -140,7 +140,7 @@ export default function CoachConsentSection({
             </button>
           )}
         </div>
-        {error && <p className="mt-2 text-sm text-red">{error}</p>}
+        {error && <p role="alert" className="mt-2 text-sm text-red">{error}</p>}
       </div>
     </section>
   );
@@ -173,7 +173,7 @@ export function CoachConsentPrompt() {
         </button>
         <p className="text-xs text-label-3">You can turn this off any time in Profile.</p>
       </div>
-      {error && <p className="mt-2 text-sm text-red">{error}</p>}
+      {error && <p role="alert" className="mt-2 text-sm text-red">{error}</p>}
     </section>
   );
 }

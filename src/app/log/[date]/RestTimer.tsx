@@ -15,6 +15,7 @@ import {
   writeRunningRest,
   type RunningRest,
 } from "@/lib/restTimer";
+import { CURRENT_EXERCISE_TITLE_ID } from "./ExerciseLogPanel";
 
 export type RestTimerHandle = {
   // Starts (or restarts) a rest using that exercise's remembered duration.
@@ -76,6 +77,8 @@ export default function RestTimer({ ref, current }: Props) {
   const isClient = useSyncExternalStore(noopSubscribe, () => true, () => false);
   const restored = useMemo(() => (isClient ? readRunningRest(browserStorage()) : null), [isClient]);
   const running = localRunning === undefined ? restored : localRunning;
+  const [announcement, setAnnouncement] = useState("");
+  const startRestRef = useRef<HTMLButtonElement>(null);
 
   function setRunning(next: RunningRest | null) {
     setLocalRunning(next);
@@ -92,6 +95,7 @@ export default function RestTimer({ ref, current }: Props) {
     const startedAt = Date.now();
     setNow(startedAt);
     setRunning({ endAt: startedAt + presetFor(exerciseId) * 1000, exerciseId, exerciseName });
+    setAnnouncement(`Rest started: ${formatClock(presetFor(exerciseId))}`);
   }
 
   useImperativeHandle(ref, () => ({ start, stop: () => setRunning(null) }));
@@ -132,77 +136,96 @@ export default function RestTimer({ ref, current }: Props) {
 
   const currentPreset = current ? presetFor(current.exerciseId) : null;
 
+  // The clock itself stays quiet. Always there, so screen readers announce what changes in it.
+  const status = (
+    <p role="status" className="sr-only">
+      {finished ? "Rest over" : announcement}
+    </p>
+  );
+
   if (!running) {
-    if (!current) return null;
+    if (!current) return status;
     return (
-      <div className="flex items-center gap-2 card px-3 py-2">
-        <span className="hidden text-xs text-label-2 min-[360px]:inline">Rest</span>
-        <div className="flex rounded-lg bg-fill p-0.5" role="group" aria-label={`Rest time for ${current.name}`}>
-          {REST_PRESETS_SEC.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => choosePreset(s)}
-              aria-pressed={currentPreset === s}
-              className={`rounded-md px-2 py-1 text-xs font-medium tabular-nums ${
-                currentPreset === s ? "bg-surface-raised text-label shadow-sm" : "text-label-2"
-              }`}
-            >
-              {formatClock(s)}
-            </button>
-          ))}
+      <>
+        {status}
+        <div className="flex items-center gap-2 card px-3 py-2">
+          <span className="hidden text-xs text-label-2 min-[360px]:inline">Rest</span>
+          <div className="flex rounded-lg bg-fill p-0.5" role="group" aria-label={`Rest time for ${current.name}`}>
+            {REST_PRESETS_SEC.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => choosePreset(s)}
+                aria-pressed={currentPreset === s}
+                className={`rounded-md px-2 py-1 text-xs font-medium tabular-nums ${
+                  currentPreset === s ? "bg-surface-raised text-label shadow-sm" : "text-label-2"
+                }`}
+              >
+                {formatClock(s)}
+              </button>
+            ))}
+          </div>
+          <button
+            ref={startRestRef}
+            type="button"
+            onClick={() => start(current.exerciseId, current.name)}
+            className="ml-auto h-8 shrink-0 rounded-lg bg-accent px-3 text-xs font-semibold whitespace-nowrap text-on-accent hover:bg-accent-hover"
+          >
+            Start rest
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => start(current.exerciseId, current.name)}
-          className="ml-auto h-8 shrink-0 rounded-lg bg-accent px-3 text-xs font-semibold whitespace-nowrap text-on-accent hover:bg-accent-hover"
-        >
-          Start rest
-        </button>
-      </div>
+      </>
     );
   }
 
   return (
-    <div
-      className={`material sticky top-2 z-20 flex items-center gap-2 rounded-xl border border-separator px-4 py-2.5 shadow-sm ${
-        finished ? "ring-2 ring-green" : ""
-      }`}
-      role="timer"
-      aria-live={finished ? "assertive" : "off"}
-    >
-      <div className="min-w-0">
-        <p className={`text-3xl font-semibold tabular-nums ${finished ? "text-green" : "text-link"}`}>
-          {finished ? "Go!" : formatClock(remaining ?? 0)}
-        </p>
-        <p className="truncate text-xs text-label-2">
-          {finished ? "Rest over" : "Resting"} · {running.exerciseName}
-        </p>
+    <>
+      {status}
+      <div
+        className={`material sticky top-2 z-20 flex items-center gap-2 rounded-xl border border-separator px-4 py-2.5 shadow-sm ${
+          finished ? "ring-2 ring-green" : ""
+        }`}
+        role="timer"
+        aria-live="off"
+      >
+        <div className="min-w-0">
+          <p className={`text-3xl font-semibold tabular-nums ${finished ? "text-green" : "text-link"}`}>
+            {finished ? "Go!" : formatClock(remaining ?? 0)}
+          </p>
+          <p className="truncate text-xs text-label-2">
+            {finished ? "Rest over" : "Resting"} · {running.exerciseName}
+          </p>
+        </div>
+        <div className="ml-auto flex gap-1">
+          <button
+            type="button"
+            onClick={() => adjust(-ADJUST_STEP_SEC)}
+            disabled={finished}
+            className="h-8 rounded-lg border border-separator px-2.5 text-xs font-medium tabular-nums hover:bg-fill disabled:opacity-40"
+          >
+            −{ADJUST_STEP_SEC}s
+          </button>
+          <button
+            type="button"
+            onClick={() => adjust(ADJUST_STEP_SEC)}
+            className="h-8 rounded-lg border border-separator px-2.5 text-xs font-medium tabular-nums hover:bg-fill"
+          >
+            +{ADJUST_STEP_SEC}s
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setRunning(null);
+              setAnnouncement(finished ? "" : "Rest skipped");
+              // The button is gone: carry on where the next set is, not at the top of the page.
+              requestAnimationFrame(() => (startRestRef.current ?? document.getElementById(CURRENT_EXERCISE_TITLE_ID))?.focus());
+            }}
+            className="h-8 rounded-lg border border-separator px-2.5 text-xs font-medium tabular-nums hover:bg-fill"
+          >
+            {finished ? "Dismiss" : "Skip"}
+          </button>
+        </div>
       </div>
-      <div className="ml-auto flex gap-1">
-        <button
-          type="button"
-          onClick={() => adjust(-ADJUST_STEP_SEC)}
-          disabled={finished}
-          className="h-8 rounded-lg border border-separator px-2.5 text-xs font-medium tabular-nums hover:bg-fill disabled:opacity-40"
-        >
-          −{ADJUST_STEP_SEC}s
-        </button>
-        <button
-          type="button"
-          onClick={() => adjust(ADJUST_STEP_SEC)}
-          className="h-8 rounded-lg border border-separator px-2.5 text-xs font-medium tabular-nums hover:bg-fill"
-        >
-          +{ADJUST_STEP_SEC}s
-        </button>
-        <button
-          type="button"
-          onClick={() => setRunning(null)}
-          className="h-8 rounded-lg border border-separator px-2.5 text-xs font-medium tabular-nums hover:bg-fill"
-        >
-          {finished ? "Dismiss" : "Skip"}
-        </button>
-      </div>
-    </div>
+    </>
   );
 }
