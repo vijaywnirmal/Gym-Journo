@@ -54,7 +54,7 @@ export default function WeeklyInsightsCard({
                 <div
                   className="relative mt-1 h-2 overflow-hidden rounded-full bg-fill"
                   role="img"
-                  aria-label={`${m.name}: ${m.sets} sets this week, ${style.label}`}
+                  aria-label={`${m.name}: ${m.sets === 1 ? "1 set" : `${m.sets} sets`} this week, ${style.label}`}
                 >
                   <div
                     className="absolute inset-y-0 bg-fill-strong"

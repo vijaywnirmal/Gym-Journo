@@ -24,7 +24,7 @@
 
   --label: #18181b;
   --label-2: #5c5c66;
-  --label-3: #70707a; /* 4.9:1 on surface, 4.5:1 on background (WCAG AA) */
+  --label-3: #676771; /* 5.6:1 on surface, 4.9:1 on fill (WCAG AA) */
   --separator: #e5e5e9;
 
   --accent: #4f46e5;
@@ -32,7 +32,7 @@
   --on-accent: #ffffff;
   --link: #4338ca;
 
-  --green: #15803d;
+  --green: #137337; /* 5:1 on its own 12% tint (WCAG AA) */
   --red: #dc2626;
   --orange: #c2410c;
   --teal: #0e7490;
@@ -320,5 +320,14 @@
   .exercise-demo-end {
     position: static;
     animation: none;
+  }
+}
+
+/* iPhones zoom the whole page into any field under 16px when it's tapped. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"], [type="radio"], [type="range"]),
+  textarea,
+  select {
+    font-size: 16px;
   }
 }

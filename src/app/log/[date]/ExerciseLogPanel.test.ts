@@ -8,6 +8,7 @@ import {
   formatRemainingPlannedSets,
   formatSetComparison,
   getRemainingPlannedSetCount,
+  setCountLabel,
   setValueProblem,
   type SetRow,
 } from "./ExerciseLogPanel";
@@ -384,5 +385,12 @@ describe("setValueProblem", () => {
     expect(setValueProblem({ weight: "1000.5", reps: "8" })).toContain("weight");
     expect(setValueProblem({ weight: "60", reps: "-1" })).toContain("reps");
     expect(setValueProblem({ weight: "60", reps: "1001" })).toContain("reps");
+  });
+});
+
+describe("setCountLabel", () => {
+  it("says 1 set, not 1 sets", () => {
+    expect(setCountLabel(1)).toBe("1 set");
+    expect(setCountLabel(3)).toBe("3 sets");
   });
 });

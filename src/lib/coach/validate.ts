@@ -28,6 +28,8 @@ export type ValidationResult = {
   issues: CoachIssue[];
 };
 
+export const NOT_IN_RECORDS = "absent:other";
+
 // Every citable section of the evidence, by id.
 export function evidenceSections(evidence: TrainingEvidence): Map<string, unknown> {
   const sections = new Map<string, unknown>();
@@ -38,6 +40,8 @@ export function evidenceSections(evidence: TrainingEvidence): Map<string, unknow
   for (const exercise of evidence.exercises) sections.set(exercise.id, exercise);
   // An absence can be cited too: `absent:<id>` is valid only for sections the evidence lists as not recorded.
   for (const id of evidence.notRecorded) sections.set(`absent:${id}`, { notRecorded: id });
+  // Anything else the records don't hold (an exercise never logged, a question off the subject).
+  sections.set(NOT_IN_RECORDS, { notRecorded: "anything else" });
   return sections;
 }
 
@@ -166,6 +170,16 @@ function checkStatement(
   return issues;
 }
 
+// "Not in your records" can't be said about something that is: a logged exercise or body weight.
+function deniesRecordedData(statement: CoachStatement, evidence: TrainingEvidence): boolean {
+  if (!statement.cites.includes(NOT_IN_RECORDS)) return false;
+  const text = statement.text.toLowerCase();
+  return (
+    evidence.exercises.some((exercise) => text.includes(exercise.name.toLowerCase())) ||
+    (evidence.bodyWeight !== null && text.includes("body weight"))
+  );
+}
+
 // Statement-level problems drop that statement; medical content anywhere rejects the whole reply.
 export function validateCoachReply(reply: CoachReply, evidence: TrainingEvidence): ValidationResult {
   const sections = evidenceSections(evidence);
@@ -174,6 +188,9 @@ export function validateCoachReply(reply: CoachReply, evidence: TrainingEvidence
 
   reply.statements.forEach((statement, index) => {
     const found = checkStatement(statement, index, sections);
+    if (deniesRecordedData(statement, evidence)) {
+      found.push({ code: "unknown_citation", statementIndex: index, detail: "says recorded data isn't in the records" });
+    }
     issues.push(...found);
     if (found.length === 0) kept.push(statement);
   });

@@ -56,7 +56,7 @@ describe("Coach prompt — wording rules", () => {
   });
 
   it("lists no absent ids when everything is recorded", () => {
-    expect(buildCoachPrompt(coachEvidence(), "q")).not.toContain("\nabsent:");
+    expect(buildCoachPrompt(coachEvidence(), "q")).not.toContain("\nabsent:body");
   });
 });
 

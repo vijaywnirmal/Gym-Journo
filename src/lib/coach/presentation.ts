@@ -1,6 +1,6 @@
 import type { TrainingEvidence } from "@/lib/analyze/evidence";
 import type { CoachReply } from "./contract";
-import { evidenceSections } from "./validate";
+import { evidenceSections, NOT_IN_RECORDS } from "./validate";
 
 // Human labels for the evidence section ids a reply cites — what the person sees as "Based on".
 export function citationLabels(evidence: TrainingEvidence): Map<string, string> {
@@ -12,6 +12,7 @@ export function citationLabels(evidence: TrainingEvidence): Map<string, string> 
     else if (id === "body.weight") labels.set(id, "Body weight");
     else if (id === "absent:body.weight") labels.set(id, "No body-weight records");
     else if (id === "absent:exercises.recent") labels.set(id, "No recent exercises");
+    else if (id === NOT_IN_RECORDS) labels.set(id, "Not in your records");
   }
   for (const exercise of evidence.exercises) labels.set(exercise.id, exercise.name);
   return labels;

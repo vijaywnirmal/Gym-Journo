@@ -13,7 +13,7 @@ const codes = (r: CoachReply) => validate(r).issues.map((i) => i.code);
 describe("evidenceSections", () => {
   it("exposes every citable section by id", () => {
     expect([...evidenceSections(evidence).keys()].sort()).toEqual(
-      ["body.weight", BENCH_ID, "goal", "training.recent", "training.weekly"].sort()
+      ["absent:other", "body.weight", BENCH_ID, "goal", "training.recent", "training.weekly"].sort()
     );
   });
 });

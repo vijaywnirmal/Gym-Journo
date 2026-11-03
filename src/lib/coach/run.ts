@@ -1,8 +1,8 @@
 import type { TrainingEvidence } from "@/lib/analyze/evidence";
 import { parseCoachReply, type CoachReply } from "./contract";
-import { buildCoachPrompt } from "./prompt";
+import { buildCoachPrompt, buildCoachRetryNote } from "./prompt";
 import { screenQuestion } from "./screen";
-import { validateCoachReply, type CoachIssue } from "./validate";
+import { validateCoachReply, type CoachIssue, type ValidationResult } from "./validate";
 
 // One Coach exchange, end to end: screen the question, build the prompt from the evidence, call
 // the injected model, parse against the strict contract, verify against the evidence. The model
@@ -119,13 +119,29 @@ export async function runCoach(args: {
     );
   }
 
-  const parsed = parseCoachReply(raw);
-  if (!parsed.ok) {
-    return rejected(raw, [{ code: "unparseable", statementIndex: null, detail: parsed.error }]);
-  }
+  const check = (reply: string): ValidationResult => {
+    const parsed = parseCoachReply(reply);
+    return parsed.ok
+      ? validateCoachReply(parsed.reply, evidence)
+      : { status: "rejected", reply: null, issues: [{ code: "unparseable", statementIndex: null, detail: parsed.error }] };
+  };
 
-  const validation = validateCoachReply(parsed.reply, evidence);
-  if (validation.status === "rejected") return rejected(raw, validation.issues);
+  let validation = check(raw);
+  if (validation.status === "rejected") {
+    // One more try, told what failed: a sound answer can trip a check by repeating a word or a figure
+    // from the question. It passes the same checks, and the first failure stays on the record.
+    const firstIssues = validation.issues;
+    let retryRaw: string;
+    try {
+      retryRaw = await generate(buildCoachPrompt(evidence, screened.question) + buildCoachRetryNote(firstIssues));
+    } catch {
+      return rejected(raw, firstIssues);
+    }
+    const retried = check(retryRaw);
+    raw = retryRaw;
+    validation = { ...retried, issues: [...firstIssues, ...retried.issues] };
+    if (validation.status === "rejected") return rejected(raw, validation.issues);
+  }
 
   return {
     status: "accepted",

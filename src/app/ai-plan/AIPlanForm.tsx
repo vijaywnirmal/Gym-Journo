@@ -48,29 +48,39 @@ export default function AIPlanForm({
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(pastPlans[0]?.plan_markdown ?? null);
   const [formOpen, setFormOpen] = useState(pastPlans.length === 0);
+  // For screen readers: the skeleton and the plan appearing are otherwise silent.
+  const [announcement, setAnnouncement] = useState("");
 
   function handleSubmit() {
     setError(null);
+    setAnnouncement("Writing your plan. This can take a little while.");
     startTransition(async () => {
       const res = await generatePlan({ activityLevel, dietaryPreference, notes, mealsToday, shareConsent });
       if (res.error) {
         setError(res.error);
+        setAnnouncement("");
         return;
       }
       setResult(res.planMarkdown ?? null);
       setFormOpen(false);
+      // The tick says "for this plan", so the next plan asks again.
+      setShareConsent(false);
+      setAnnouncement("Your plan is ready.");
       router.refresh();
     });
   }
 
   return (
     <div className="flex flex-col gap-4 pb-6">
+      <p role="status" className="sr-only">
+        {announcement}
+      </p>
       {missingProfile.length > 0 && (
         <div className="card flex items-center gap-3 border-orange/30 bg-orange/5 px-4 py-3 text-sm">
           <p className="flex-1">
             Add your {missingProfile.join(", ").replace(/, ([^,]*)$/, " and $1")} in your profile for a more accurate plan.
           </p>
-          <Link href="/profile" className="shrink-0 font-semibold text-link">
+          <Link href="/profile" className="shrink-0 py-1 font-semibold text-link">
             Profile
           </Link>
         </div>

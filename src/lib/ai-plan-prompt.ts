@@ -74,7 +74,7 @@ ${trainingSummary}
 ${scheduleSummary}
 
 ## What they've eaten today (self-reported, estimate calories/macros yourself from this)
-${input.mealsToday || "Nothing logged yet today."}
+${input.mealsToday || "Not entered. They may have eaten; don't assume they haven't."}
 
 Based on ALL of the above — not just the profile — write a response in markdown with exactly three top-level sections:
 
