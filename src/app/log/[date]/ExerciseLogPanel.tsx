@@ -456,7 +456,7 @@ export default function ExerciseLogPanel({
                   ]}
                 />
                 {comparisonText && !problem && (
-                  <p className="min-w-0 flex-1 truncate text-xs text-label-2">{comparisonText}</p>
+                  <p className="min-w-0 flex-1 text-xs text-label-2">{comparisonText}</p>
                 )}
                 <button
                   type="button"
