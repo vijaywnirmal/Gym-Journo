@@ -171,6 +171,11 @@ export function setValueProblem(set: Pick<SetRow, "weight" | "reps">): string | 
   return null;
 }
 
+// Where to look when a workout can't save because of a number: the first exercise holding one.
+export function firstEntryWithSetProblem(entries: { sets: Pick<SetRow, "weight" | "reps">[] }[]): number {
+  return entries.findIndex((entry) => entry.sets.some((set) => setValueProblem(set)));
+}
+
 // Removing an exercise deletes its sets too, so it asks first once anything has been entered.
 function hasEnteredData(sets: SetRow[]): boolean {
   return sets.some((set) => set.weight.trim() || set.reps.trim() || set.rpe.trim() || set.done);

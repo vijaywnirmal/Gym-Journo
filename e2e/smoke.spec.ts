@@ -34,3 +34,11 @@ for (const path of PAGES) {
     expect(failures).toEqual([]);
   });
 }
+
+for (const path of ["/history", "/progress"]) {
+  test(`${path} opens normally from a link to an exercise that isn't there`, { tag: PROD_SAFE }, async ({ page }) => {
+    await page.goto(`${path}?exercise=00000000-0000-0000-0000-000000000000`);
+    await expect(page).toHaveURL(new RegExp(`${path}$`));
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  });
+}
