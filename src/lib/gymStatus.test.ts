@@ -26,6 +26,14 @@ describe("gym member status", () => {
     expect(isQuiet(row({ days_since_last_workout: null }))).toBe(true);
   });
 
+  it("gives someone who hasn't logged anything a week from joining", () => {
+    const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+    expect(isQuiet(row({ days_since_last_workout: null, joined_at: daysAgo(0) }))).toBe(false);
+    expect(isQuiet(row({ days_since_last_workout: null, joined_at: daysAgo(6) }))).toBe(false);
+    expect(isQuiet(row({ days_since_last_workout: null, joined_at: daysAgo(8) }))).toBe(true);
+    expect(isQuiet(row({ days_since_last_workout: 9, joined_at: daysAgo(0) }))).toBe(true);
+  });
+
   it("needs a trainer only without the gym's, a suggested one, or their own", () => {
     expect(needsTrainer(row({}))).toBe(true);
     expect(needsTrainer(row({ trainer_id: "t", trainer_name: "Tara" }))).toBe(false);

@@ -287,6 +287,11 @@ function LoginForm() {
                 I&apos;m a trainer
               </a>
             )}
+            {!asTrainer && !asGym && !fromInvite && (
+              <a href="/login?role=gym" className="py-0.5 text-center text-sm text-link">
+                I run a gym
+              </a>
+            )}
           </div>
         </form>
       )}

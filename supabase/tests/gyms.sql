@@ -555,8 +555,20 @@ begin
     raise exception 'Tomas''s row is wrong: %', row_to_json(v_row);
   end if;
   select * into v_row from gym_trainer_overview(current_setting('test.gym')::uuid) where trainer_id = '00000000-0000-0000-0000-0000000090b1';
-  if v_row.members_assigned <> 1 or v_row.members_inactive_7_days <> 1 then
-    raise exception 'Tara''s row is wrong (M2 hasn''t trained): %', row_to_json(v_row);
+  if v_row.members_assigned <> 1 or v_row.members_inactive_7_days <> 0 then
+    raise exception 'Tara''s row is wrong (M2 only just started): %', row_to_json(v_row);
+  end if;
+end $$;
+reset role;
+update trainer_clients set started_at = now() - interval '8 days' where trainer_id = '00000000-0000-0000-0000-0000000090b1' and status = 'active';
+set local role authenticated;
+do $$
+declare
+  v_row record;
+begin
+  select * into v_row from gym_trainer_overview(current_setting('test.gym')::uuid) where trainer_id = '00000000-0000-0000-0000-0000000090b1';
+  if v_row.members_inactive_7_days <> 1 then
+    raise exception 'Tara''s row is wrong (M2 hasn''t trained in over a week): %', row_to_json(v_row);
   end if;
 end $$;
 do $$

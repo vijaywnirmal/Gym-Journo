@@ -62,7 +62,7 @@ export default async function GymInvitePage() {
         {gym.isOwner && (
           <>
             <h2 className="section-title mt-8">Admins</h2>
-            <p className="mb-2 text-sm text-label-2">Admins can invite people and suggest trainers to members.</p>
+            <p className="mb-2 text-sm text-label-2">Admins can invite and remove people, suggest trainers, record fees and edit gym details.</p>
             <InviteLinkCard
               invite={invite("admin")}
               makeLink={createGymInviteLink.bind(null, gym.id, "admin")}

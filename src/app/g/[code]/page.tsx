@@ -126,7 +126,9 @@ export default async function GymJoinPage({ params }: { params: Promise<{ code: 
             <h2 className="font-semibold">You&apos;ll be able to</h2>
             <ul className="mt-1.5 list-disc space-y-1 pl-5 text-label-2">
               <li>Invite trainers and members</li>
+              <li>Remove members and trainers, and edit the gym&apos;s details</li>
               <li>Suggest trainers to members</li>
+              <li>Set members&apos; fees and record their payments</li>
               <li>See members&apos; names, workouts each week and last workout</li>
             </ul>
           </section>
@@ -177,7 +179,7 @@ function Message({ title, text, link = { href: "/", label: "Go to Today" } }: {
   return (
     <main className="px-4 pt-6 pb-10 md:px-8 md:pt-10">
       <PageHeader title={title} subtitle={text} />
-      <Link href={link.href} className="text-sm font-semibold text-link">
+      <Link href={link.href} className="inline-block py-1 text-sm font-semibold text-link">
         {link.label}
       </Link>
     </main>

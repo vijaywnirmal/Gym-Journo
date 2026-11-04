@@ -7,8 +7,10 @@ export const QUIET_AFTER_DAYS = 7;
 
 export type MemberFilter = "all" | "needs-trainer" | "quiet" | "fees-due";
 
-export function isQuiet(row: Pick<GymMemberRow, "days_since_last_workout">): boolean {
-  return row.days_since_last_workout === null || row.days_since_last_workout >= QUIET_AFTER_DAYS;
+// No workout in 7 days. Someone who has never logged one gets those 7 days from joining.
+export function isQuiet(row: Pick<GymMemberRow, "days_since_last_workout" | "joined_at">): boolean {
+  if (row.days_since_last_workout !== null) return row.days_since_last_workout >= QUIET_AFTER_DAYS;
+  return Date.now() - new Date(row.joined_at).getTime() >= QUIET_AFTER_DAYS * 24 * 60 * 60 * 1000;
 }
 
 // No trainer yet, and none suggested that the member is still deciding on.

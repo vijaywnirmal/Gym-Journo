@@ -19,7 +19,7 @@ export default async function AdminSetupPage() {
       <div className="max-w-md">
         <AdminSetupForm initialName={joinName(firstName, lastName)} />
         <p className="pb-8 text-center text-sm">
-          <Link href="/onboarding" className="text-link">
+          <Link href="/onboarding" className="inline-block py-1 text-link">
             Want to log your own workouts? Set up a full account
           </Link>
         </p>
