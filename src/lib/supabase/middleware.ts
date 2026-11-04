@@ -5,6 +5,7 @@ import {
   INTENT_COOKIE_MAX_AGE,
   JOIN_COOKIE,
   SIGNUP_COOKIE,
+  endedInvitePath,
   gymJoinCodeOf,
   isSignupRole,
   joinCodeOf,
@@ -49,7 +50,8 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/forgot-password") ||
     pathname.startsWith("/reset-password") ||
     // Readable before signing up.
-    pathname === "/privacy";
+    pathname === "/privacy" ||
+    pathname === "/invite-ended";
   // Trainer, gym and gym-admin setup are those accounts' onboarding, so they're open before regular onboarding.
   const isOnboardingRoute =
     pathname.startsWith("/onboarding") ||
@@ -83,6 +85,14 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (!userId && !isAuthRoute) {
+    const inviteCode = joinCode ?? gymJoinCode;
+    if (inviteCode) {
+      const from = joinCode ? "trainer" : "gym";
+      const { data: state } = await supabase.rpc("invite_link_state", { p_kind: from, p_code: inviteCode });
+      // A dead link says so now, not after they've made an account and been through setup.
+      const ended = endedInvitePath(state, from);
+      if (ended) return NextResponse.redirect(new URL(ended, request.url));
+    }
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     // A gym's trainer or admin link carries its ?role= through to sign-up.

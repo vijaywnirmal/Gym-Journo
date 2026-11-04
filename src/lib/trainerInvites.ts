@@ -44,6 +44,13 @@ export function gymJoinCodeOf(pathname: string): string | null {
   return isInviteCode(code) ? code : null;
 }
 
+// Where someone not signed in goes from a link that no longer works, given invite_link_state's
+// answer. Null for one that works, or when the check itself failed: joining checks again anyway.
+export function endedInvitePath(state: unknown, from: "trainer" | "gym"): string | null {
+  if (state !== "expired" && state !== "not_found") return null;
+  return `/invite-ended?from=${from}&state=${state}`;
+}
+
 // Trainer and admin links say so, so someone new is sent to the right setup after signing up
 // (trainer setup, or just a name for a gym's admin) instead of regular onboarding.
 export function gymInviteUrl(siteUrl: string, code: string, role?: "admin" | "trainer" | "member"): string {

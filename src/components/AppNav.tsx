@@ -65,6 +65,7 @@ const HIDDEN_ON = [
   "/forgot-password",
   "/reset-password",
   "/privacy",
+  "/invite-ended",
 ];
 
 // The tab a page belongs to: its section, else the tab with the longest path it sits under (so
