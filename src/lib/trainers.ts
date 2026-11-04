@@ -87,3 +87,13 @@ export async function getClientBodyWeights(clientId: string, from: string, to: s
   const { data, error } = await supabase.rpc("client_body_weights", { p_client_id: clientId, p_from: from, p_to: to });
   return error || !data ? [] : (data as { date: string; weight_kg: number }[]).map((r) => ({ ...r, weight_kg: Number(r.weight_kg) }));
 }
+
+// The clients the signed-in trainer has now, or only those through one gym.
+export async function getMyActiveClientIds(gymId?: string): Promise<string[]> {
+  const user = await getCurrentUser();
+  if (!user) return [];
+  const supabase = await createClient();
+  const query = supabase.from("trainer_clients").select("client_id").eq("trainer_id", user.id).eq("status", "active");
+  const { data } = await (gymId ? query.eq("gym_id", gymId) : query);
+  return (data ?? []).map((row) => row.client_id);
+}

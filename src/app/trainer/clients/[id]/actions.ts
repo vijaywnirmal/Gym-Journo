@@ -11,6 +11,7 @@ import { programPlans, type ApplyProgramInput } from "@/lib/programPlans";
 import { getClient, getClientPlans, getMyTrainerProfile } from "@/lib/trainers";
 import { notifyUser } from "@/lib/push/notifyUser";
 import { trainerEndedMessage, trainerPlanMessage, trainerProgramMessage } from "@/lib/push/trainerMessage";
+import { tellPeople } from "@/lib/tellPeople";
 import type { SavePlanInput } from "@/app/schedule/[date]/actions";
 import type { ApplyProgramResult } from "@/app/programs/actions";
 
@@ -180,7 +181,7 @@ export async function endCoaching(linkId: string) {
       getMyTrainerProfile(),
       supabase.from("trainer_clients").select("client_id").eq("id", linkId).maybeSingle(),
     ]);
-    if (trainer && link) await notifyUser(link.client_id, trainerEndedMessage({ trainerName: trainer.display_name }));
+    if (trainer && link) await tellPeople([link.client_id], trainerEndedMessage({ trainerName: trainer.display_name }));
   });
   return { success: true };
 }

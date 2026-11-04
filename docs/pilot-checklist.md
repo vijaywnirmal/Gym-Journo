@@ -13,6 +13,9 @@
 - [ ] Sign-up emails go out: Supabase → Authentication → SMTP has a custom sender (set: "Gym
       Journal", 30 emails an hour, enough for a session of 10). Supabase's built-in sender only
       mails the project's own team.
+- [ ] Emails about someone's gym or trainer go out: `RESEND_API_KEY` and `EMAIL_FROM` (an address
+      on a domain verified in Resend) are set in Vercel → Settings → Environment Variables
+      (Production), then redeploy. Without them nothing breaks, but no such email goes out.
 - [ ] Push notification keys are set in Vercel → Settings → Environment Variables (Production):
       `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `CRON_SECRET`,
       `SUPABASE_SERVICE_ROLE_KEY`, then redeploy. GitHub has the variable `APP_URL` and the secret

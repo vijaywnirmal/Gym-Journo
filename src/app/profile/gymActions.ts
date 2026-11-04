@@ -1,8 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/currentUser";
+import { trainerEndedMessage } from "@/lib/push/trainerMessage";
+import { tellPeople } from "@/lib/tellPeople";
+import { getMyActiveClientIds, getMyTrainerProfile } from "@/lib/trainers";
 
 // The signed-in person leaves a gym they're a member of; the trainer the gym arranged stops
 // training them.
@@ -22,9 +26,14 @@ export async function leaveGymStaff(gymId: string, role: "admin" | "trainer") {
   const user = await getCurrentUser();
   if (!user) return { error: "Not signed in" };
   const supabase = await createClient();
+  // Read first: the clients they stop training by leaving.
+  const [clientIds, trainer] = role === "trainer" ? await Promise.all([getMyActiveClientIds(gymId), getMyTrainerProfile()]) : [[], null];
   const { error } = await supabase.rpc("end_gym_staff", { p_gym_id: gymId, p_user_id: user.id, p_role: role });
   if (error) return { error: "Couldn't leave the gym. Please try again." };
   revalidatePath("/", "layout");
+  if (trainer && clientIds.length > 0) {
+    after(() => tellPeople(clientIds, trainerEndedMessage({ trainerName: trainer.display_name })));
+  }
   return { success: true };
 }
 

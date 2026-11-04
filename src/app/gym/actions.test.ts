@@ -8,6 +8,8 @@ const runAfter = async () => {
 };
 const notifyUser = vi.fn();
 vi.mock("@/lib/push/notifyUser", () => ({ notifyUser: (...args: unknown[]) => notifyUser(...args) }));
+const emailUsers = vi.fn();
+vi.mock("@/lib/email/emailUsers", () => ({ emailUsers: (...args: unknown[]) => emailUsers(...args) }));
 vi.mock("@/lib/gyms", () => ({
   getGymTrainers: async () => [{ trainer_id: "t-1", display_name: "Ravi" }],
   getGymMembers: async () => [
@@ -27,6 +29,7 @@ describe("gym actions", () => {
   beforeEach(() => {
     rpc.mockReset();
     notifyUser.mockClear();
+    emailUsers.mockClear();
     afterCallbacks.length = 0;
   });
 
@@ -63,11 +66,17 @@ describe("gym actions", () => {
     await removeMember("gym-1", "m-1");
     await runAfter();
     expect(notifyUser).toHaveBeenCalledWith("m-1", expect.objectContaining({ title: "You're no longer a member of Iron Gym", url: "/profile" }));
+    expect(emailUsers).toHaveBeenCalledWith(
+      ["m-1"],
+      expect.objectContaining({ body: expect.stringContaining("Ravi is no longer your trainer.") })
+    );
     notifyUser.mockClear();
+    emailUsers.mockClear();
     rpc.mockResolvedValue({ data: false, error: null });
     await removeMember("gym-1", "m-1");
     await runAfter();
     expect(notifyUser).not.toHaveBeenCalled();
+    expect(emailUsers).not.toHaveBeenCalled();
   });
 
   it("tells a member their trainer was taken away, but not a suggestion taken back", async () => {
@@ -81,19 +90,25 @@ describe("gym actions", () => {
     expect(notifyUser).not.toHaveBeenCalled();
   });
 
-  it("tells each of a removed trainer's members, and nobody for an admin", async () => {
+  it("tells a removed trainer and each of their members", async () => {
     rpc.mockResolvedValue({ data: true, error: null });
     await removeStaff("gym-1", "t-1", "trainer");
     await runAfter();
-    expect(notifyUser.mock.calls.map(([id]) => id)).toEqual(["m-1", "m-2"]);
-    notifyUser.mockClear();
+    expect(emailUsers).toHaveBeenCalledWith(["t-1"], expect.objectContaining({ title: "You're no longer a trainer at Iron Gym" }));
+    expect(emailUsers).toHaveBeenCalledWith(["m-1", "m-2"], expect.objectContaining({ title: "Ravi is no longer your trainer" }));
+    expect(notifyUser.mock.calls.map(([id]) => id).sort()).toEqual(["m-1", "m-2", "t-1"]);
+  });
+
+  it("tells a removed admin, and nobody when nothing changed", async () => {
+    rpc.mockResolvedValue({ data: true, error: null });
     await removeStaff("gym-1", "a-1", "admin");
     await runAfter();
-    expect(notifyUser).not.toHaveBeenCalled();
+    expect(emailUsers.mock.calls).toEqual([[["a-1"], expect.objectContaining({ title: "You're no longer an admin at Iron Gym" })]]);
+    emailUsers.mockClear();
     rpc.mockResolvedValue({ data: false, error: null });
     await removeStaff("gym-1", "t-1", "trainer");
     await runAfter();
-    expect(notifyUser).not.toHaveBeenCalled();
+    expect(emailUsers).not.toHaveBeenCalled();
   });
 
   it("removes staff by role, and only those roles", async () => {

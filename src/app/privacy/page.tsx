@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Privacy" };
 
 // Keep this true to the app: it states what's stored, who sees it, which services handle it, and
 // how to leave. The Gemini lists themselves live in lib/ai-plan-prompt.ts and lib/coach/consent.ts.
-const UPDATED = "24 October 2026";
+const UPDATED = "4 November 2026";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -133,7 +133,7 @@ export default async function PrivacyPage() {
                 <strong>Vercel</strong> runs the website.
               </>,
               <>
-                <strong>Resend</strong> sends sign-in and confirmation emails.
+                <strong>Resend</strong> sends sign-in and confirmation emails, and tells you when your gym or trainer ends things.
               </>,
               <>
                 <strong>Google Gemini</strong> writes AI plans and Coach answers, only when you ask for one, and Coach

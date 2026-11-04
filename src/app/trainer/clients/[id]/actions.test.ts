@@ -9,6 +9,8 @@ const runAfter = async () => {
 };
 const notifyUser = vi.fn();
 vi.mock("@/lib/push/notifyUser", () => ({ notifyUser: (...args: unknown[]) => notifyUser(...args) }));
+const emailUsers = vi.fn();
+vi.mock("@/lib/email/emailUsers", () => ({ emailUsers: (...args: unknown[]) => emailUsers(...args) }));
 
 const rpc = vi.fn();
 const libraryQuery = {
@@ -213,6 +215,7 @@ describe("endCoaching", () => {
     expect(rpc).toHaveBeenCalledWith("end_trainer_link", { p_link_id: "link-1" });
     await runAfter();
     expect(notifyUser).toHaveBeenCalledWith("c1", expect.objectContaining({ title: "Ravi is no longer your trainer" }));
+    expect(emailUsers).toHaveBeenCalledWith(["c1"], expect.objectContaining({ title: "Ravi is no longer your trainer" }));
   });
 
   it("doesn't tell the client anything when coaching had already ended", async () => {
