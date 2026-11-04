@@ -17,10 +17,13 @@ test.describe("signed out", () => {
     await expect(page.getByRole("heading", { name: "Create your trainer account" })).toBeVisible();
   });
 
-  test("an invite link asks for an account first", { tag: PROD_SAFE }, async ({ page }) => {
+  test("a link that doesn't work says so before asking for an account", { tag: PROD_SAFE }, async ({ page }) => {
     await page.goto(`/join/${UNKNOWN_CODE}`);
-    await expect(page).toHaveURL(/\/login\?invite=1$/);
-    await expect(page.getByText("Create an account to join your trainer.")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "This invite link doesn't work" })).toBeVisible();
+    await expect(page.getByText("Ask your trainer to send you a new one.")).toBeVisible();
+    await page.goto(`/g/${UNKNOWN_CODE}`);
+    await expect(page.getByRole("heading", { name: "This invite link doesn't work" })).toBeVisible();
+    await expect(page.getByText("Ask the gym for a new one.")).toBeVisible();
   });
 });
 
