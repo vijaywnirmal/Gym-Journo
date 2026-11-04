@@ -14,6 +14,8 @@ const rpc = vi.fn();
 const libraryQuery = {
   select: () => libraryQuery,
   is: () => libraryQuery,
+  eq: () => libraryQuery,
+  maybeSingle: async () => ({ data: { client_id: "c1" } }),
   in: (_column: string, names: string[]) =>
     Promise.resolve({
       data: names.map((name, i) => ({ id: `ex-${i}`, name, exercise_muscle_groups: [{ muscle_group_id: "mg-1" }] })),
@@ -209,5 +211,15 @@ describe("endCoaching", () => {
     rpc.mockResolvedValue({ data: true, error: null });
     expect(await endCoaching("link-1")).toEqual({ success: true });
     expect(rpc).toHaveBeenCalledWith("end_trainer_link", { p_link_id: "link-1" });
+    await runAfter();
+    expect(notifyUser).toHaveBeenCalledWith("c1", expect.objectContaining({ title: "Ravi is no longer your trainer" }));
+  });
+
+  it("doesn't tell the client anything when coaching had already ended", async () => {
+    notifyUser.mockClear();
+    rpc.mockResolvedValue({ data: false, error: null });
+    expect((await endCoaching("link-1")).error).toBe("Coaching had already ended.");
+    await runAfter();
+    expect(notifyUser).not.toHaveBeenCalled();
   });
 });
