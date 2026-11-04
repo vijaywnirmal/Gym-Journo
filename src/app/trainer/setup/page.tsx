@@ -46,7 +46,7 @@ export default async function TrainerSetupPage({ searchParams }: PageProps<"/tra
         />
         {!onboarded && (
           <p className="pb-8 text-center text-sm">
-            <Link href="/onboarding" className="text-link">
+            <Link href="/onboarding" className="inline-block py-1 text-link">
               Not a trainer? Set up a regular account
             </Link>
           </p>

@@ -87,7 +87,7 @@ function Message({ title, text, link = { href: "/", label: "Go to Today" } }: {
   return (
     <main className="px-4 pt-6 pb-10 md:px-8 md:pt-10">
       <PageHeader title={title} subtitle={text} />
-      <Link href={link.href} className="text-sm font-semibold text-link">
+      <Link href={link.href} className="inline-block py-1 text-sm font-semibold text-link">
         {link.label}
       </Link>
     </main>

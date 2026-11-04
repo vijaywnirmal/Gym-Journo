@@ -23,6 +23,7 @@ export default function TemplateManager({
   const [pending, startTransition] = useTransition();
   const [editingId, setEditingId] = useState<string | "new" | null>(null);
   const [name, setName] = useState("");
+  const [picking, setPicking] = useState(false);
   const [selected, setSelected] = useState<ExerciseTargets>(new Map());
   const [error, setError] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -181,17 +182,19 @@ export default function TemplateManager({
               className="field h-11 w-full rounded-[10px] px-3.5 text-base"
             />
           </label>
-          <ExerciseTargetEditor selected={selected} onChange={setSelected} />
+          <ExerciseTargetEditor selected={selected} onChange={setSelected} onPickingChange={setPicking} />
           {error && <p role="alert" className="text-sm text-red">{error}</p>}
           <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={pending}
-              className="h-10 rounded-[10px] bg-accent px-4 text-sm font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-50"
-            >
-              {pending ? "Saving…" : "Save template"}
-            </button>
+            {!picking && (
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={pending}
+                className="h-10 rounded-[10px] bg-accent px-4 text-sm font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-50"
+              >
+                {pending ? "Saving…" : "Save template"}
+              </button>
+            )}
             <button
               type="button"
               onClick={cancel}

@@ -68,7 +68,7 @@ export default async function TrainerPlansPage({ searchParams }: PageProps<"/tra
       {clients.length === 0 ? (
         <section className="card p-4">
           <p className="text-sm text-label-2">Your clients&apos; plans show up here once they accept your invite.</p>
-          <Link href="/trainer/invite" className="mt-2 inline-block text-sm font-semibold text-link">
+          <Link href="/trainer/invite" className="mt-1 inline-block py-1 text-sm font-semibold text-link">
             Invite a client
           </Link>
         </section>

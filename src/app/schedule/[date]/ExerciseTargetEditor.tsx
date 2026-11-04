@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Icon from "@/components/Icon";
 import ExercisePicker, { type PickedExercise } from "./ExercisePicker";
 
@@ -19,11 +19,20 @@ const inputClass = "field h-9 w-full min-w-0 rounded-lg px-2.5 text-sm tabular-n
 export default function ExerciseTargetEditor({
   selected,
   onChange,
+  onPickingChange,
 }: {
   selected: ExerciseTargets;
   onChange: (next: ExerciseTargets) => void;
+  // Exercises ticked in the open picker aren't part of selected yet, so the form holds its Save
+  // until they're confirmed or cancelled. Also says false if this editor goes away mid-pick.
+  onPickingChange: (picking: boolean) => void;
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
+
+  useEffect(() => {
+    onPickingChange(pickerOpen);
+    return () => onPickingChange(false);
+  }, [pickerOpen, onPickingChange]);
 
   function applyPicker(picked: PickedExercise[]) {
     const next: ExerciseTargets = new Map();

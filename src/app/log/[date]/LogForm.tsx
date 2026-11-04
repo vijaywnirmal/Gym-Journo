@@ -658,7 +658,8 @@ export default function LogForm({
   const current = entries[currentIndex];
   const backupNeedsFixing = !!pendingBackup && firstEntryWithSetProblem(pendingBackup.entries) >= 0;
   const recordEntries = entries.filter((e) => personalRecords[e.exerciseId]?.length);
-  const completedCount = entries.filter((e) => e.done).length;
+  // Everything counts as done in a finished workout, as it does when one is reopened from the server.
+  const completedCount = workoutCompleted ? entries.length : entries.filter((e) => e.done).length;
 
   // Live-only: showTargets is false for HistoricalLogView's edit mode, where the plan may have
   // changed or been deleted since the workout actually happened — this feature must never present

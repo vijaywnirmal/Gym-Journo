@@ -1,6 +1,7 @@
 // How a trainer's screens describe a client's days. Pure, so the rules are tested in one place.
 
 import { addDays, format, parseISO } from "date-fns";
+import { isPerformedSet } from "@/lib/analyze/definitions";
 import { DATE_FMT, daysSince } from "@/lib/date";
 import { joinName } from "@/lib/names";
 import { PRIMARY_GOAL_LABELS } from "@/lib/ai-plan-prompt";
@@ -41,11 +42,19 @@ export function todayStatus(row: Pick<ClientOverview, "today_plan" | "today_done
   return row.today_plan === "workout" ? "today" : "none";
 }
 
-// No workout in a week, or ever (the same 7 days as a gym's "Not training").
+// No workout in a week (the same 7 days as a gym's "Not training"). Someone who has only just joined
+// gets that week to start, counted from the day they joined.
 export const QUIET_CLIENT_DAYS = 7;
 
-export function isQuietClient(row: Pick<ClientOverview, "last_workout_on" | "client_today">): boolean {
-  return !row.last_workout_on || daysSince(row.last_workout_on, row.client_today) >= QUIET_CLIENT_DAYS;
+export function isQuietClient(row: Pick<ClientOverview, "last_workout_on" | "client_today" | "started_at">): boolean {
+  return daysSince(row.last_workout_on ?? row.started_at.slice(0, 10), row.client_today) >= QUIET_CLIENT_DAYS;
+}
+
+// What a client did in a workout, leaving out the rows they left blank.
+export function performedExercises(log: Pick<ClientLog, "exercises">): ClientLog["exercises"] {
+  return log.exercises
+    .map((exercise) => ({ ...exercise, sets: exercise.sets.filter(isPerformedSet) }))
+    .filter((exercise) => exercise.sets.length > 0);
 }
 
 export function lastWorkoutLine(row: Pick<ClientOverview, "last_workout_on" | "client_today">): string {

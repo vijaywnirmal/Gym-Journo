@@ -8,7 +8,7 @@ import PageHeader from "@/components/PageHeader";
 import TrendChart from "@/components/TrendChart";
 import { getCurrentUser } from "@/lib/currentUser";
 import { isValidIsoDate, shiftDate, todayIn } from "@/lib/date";
-import { clientName, clientSummary, dayStatus, mondayOf, weekFrom } from "@/lib/clientStatus";
+import { clientName, clientSummary, dayStatus, mondayOf, performedExercises, weekFrom } from "@/lib/clientStatus";
 import { getFeeFor } from "@/lib/feeQueries";
 import { formatSetCompact } from "@/lib/setData";
 import { editedByClient } from "@/lib/planAuthors";
@@ -35,19 +35,17 @@ function planLine(plan: ClientPlan | undefined): string | null {
 function LoggedWorkout({ log }: { log: ClientLog }) {
   return (
     <div className="mt-1.5 flex flex-col gap-0.5 text-xs text-label-2">
-      {log.exercises
-        .filter((ex) => ex.sets.length > 0)
-        .map((ex) => {
-          const sets = ex.sets.map(formatSetCompact);
-          const extra = sets.length - SETS_SHOWN;
-          return (
-            <p key={`${ex.position}-${ex.exercise_id}`}>
-              <span className="font-medium text-label">{ex.name}</span> {sets.slice(0, SETS_SHOWN).join(", ")}
-              {extra > 0 && ` +${extra}`}
-              {ex.notes && <span className="italic"> · {ex.notes}</span>}
-            </p>
-          );
-        })}
+      {performedExercises(log).map((ex) => {
+        const sets = ex.sets.map(formatSetCompact);
+        const extra = sets.length - SETS_SHOWN;
+        return (
+          <p key={`${ex.position}-${ex.exercise_id}`}>
+            <span className="font-medium text-label">{ex.name}</span> {sets.slice(0, SETS_SHOWN).join(", ")}
+            {extra > 0 && ` +${extra}`}
+            {ex.notes && <span className="italic"> · {ex.notes}</span>}
+          </p>
+        );
+      })}
       {log.notes && <p className="italic">“{log.notes}”</p>}
     </div>
   );

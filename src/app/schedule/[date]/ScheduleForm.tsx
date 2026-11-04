@@ -42,6 +42,7 @@ export default function ScheduleForm({
   // Separate, so removing doesn't show "Saving…" on the save button while the page refreshes.
   const [removing, startRemoving] = useTransition();
   const [title, setTitle] = useState(existingPlan?.title ?? "");
+  const [picking, setPicking] = useState(false);
   const [dayType, setDayType] = useState<DayType>(existingPlan ? dayTypeOf(existingPlan) : "workout");
   const isWorkout = dayType === "workout";
   const [selectedMuscles, setSelectedMuscles] = useState<Set<string>>(
@@ -180,7 +181,7 @@ export default function ScheduleForm({
               )}
             </div>
           )}
-          <ExerciseTargetEditor selected={selectedExercises} onChange={setSelectedExercises} />
+          <ExerciseTargetEditor selected={selectedExercises} onChange={setSelectedExercises} onPickingChange={setPicking} />
         </section>
       )}
 
@@ -196,14 +197,16 @@ export default function ScheduleForm({
       )}
 
       <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={pending}
-          className="h-11 flex-1 rounded-[10px] bg-accent px-4 text-[15px] font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-50"
-        >
-          {pending ? "Saving…" : "Save plan"}
-        </button>
+        {!picking && (
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={pending}
+            className="h-11 flex-1 rounded-[10px] bg-accent px-4 text-[15px] font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-50"
+          >
+            {pending ? "Saving…" : "Save plan"}
+          </button>
+        )}
         {saved && !pending && (
           <span className="flex items-center gap-1 text-sm font-medium text-green" role="status">
             <Icon name="checkmark" className="size-4" strokeWidth={2.5} />
