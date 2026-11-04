@@ -73,3 +73,23 @@ export function gymOfferMessage({ gymName, trainerName }: { gymName: string; tra
     tag: "gym-trainer-offer",
   };
 }
+
+// What a member sees when their gym removes them.
+export function gymRemovedMessage({ gymName }: { gymName: string }): PushPayload {
+  return {
+    title: `You're no longer a member of ${gymName}`,
+    body: "Your workouts and history are still here.",
+    url: "/profile",
+    tag: "gym-removed",
+  };
+}
+
+// What a member sees when someone else ends their trainer: the gym, or the trainer.
+export function trainerEndedMessage({ trainerName }: { trainerName: string }): PushPayload {
+  return {
+    title: `${trainerName} is no longer your trainer`,
+    body: "Your workouts and plans are still here.",
+    url: "/profile",
+    tag: "trainer-ended",
+  };
+}

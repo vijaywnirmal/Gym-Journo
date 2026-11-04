@@ -129,3 +129,10 @@ export async function ownedGymMemberCount(): Promise<number | null> {
     .eq("status", "active");
   return countError ? null : (count ?? 0);
 }
+
+// A gym or trainer someone else ended for the signed-in person lately, to tell them on Profile.
+export async function getMyRecentRemovals(): Promise<{ kind: "gym" | "trainer"; name: string; ended_at: string }[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("my_recent_removals");
+  return error || !data ? [] : data;
+}

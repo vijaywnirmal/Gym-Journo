@@ -10,7 +10,7 @@ import { findProgram } from "@/lib/programs";
 import { programPlans, type ApplyProgramInput } from "@/lib/programPlans";
 import { getClient, getClientPlans, getMyTrainerProfile } from "@/lib/trainers";
 import { notifyUser } from "@/lib/push/notifyUser";
-import { trainerPlanMessage, trainerProgramMessage } from "@/lib/push/trainerMessage";
+import { trainerEndedMessage, trainerPlanMessage, trainerProgramMessage } from "@/lib/push/trainerMessage";
 import type { SavePlanInput } from "@/app/schedule/[date]/actions";
 import type { ApplyProgramResult } from "@/app/programs/actions";
 
@@ -175,5 +175,12 @@ export async function endCoaching(linkId: string) {
   if (error) return { error: "Couldn't end coaching. Please try again." };
   revalidatePath("/trainer", "layout");
   if (!data) return { error: "Coaching had already ended." };
+  after(async () => {
+    const [trainer, { data: link }] = await Promise.all([
+      getMyTrainerProfile(),
+      supabase.from("trainer_clients").select("client_id").eq("id", linkId).maybeSingle(),
+    ]);
+    if (trainer && link) await notifyUser(link.client_id, trainerEndedMessage({ trainerName: trainer.display_name }));
+  });
   return { success: true };
 }

@@ -9,6 +9,7 @@ import {
   getAdminGym,
   getMyGymMembership,
   getMyGymTrainerOffer,
+  getMyRecentRemovals,
   getMyTrainerGyms,
   getTrainerLinkGymId,
   ownedGymMemberCount,
@@ -27,6 +28,7 @@ import CoachConsentSection from "./CoachConsentSection";
 import RemindersSection from "./RemindersSection";
 import YourTrainerSection from "./YourTrainerSection";
 import YourGymSection from "./YourGymSection";
+import RemovalNotices from "./RemovalNotices";
 import GymOfferCard from "./GymOfferCard";
 import MyFee from "./MyFee";
 import PastFees from "./PastFees";
@@ -134,10 +136,11 @@ export default async function ProfilePage() {
   }
 
   // The trainer the member's gym arranged stops training them if they leave it.
-  const [gymLinkId, myFees, pastFees] = await Promise.all([
+  const [gymLinkId, myFees, pastFees, removals] = await Promise.all([
     myTrainer && membership ? getTrainerLinkGymId(myTrainer.linkId) : null,
     getMyFees(),
     getMyPastFees(),
+    getMyRecentRemovals(),
   ]);
   const gymArrangedTrainer = myTrainer && membership && gymLinkId === membership.gym.id ? myTrainer.trainer.display_name : null;
   const today = todayIn(profile?.timezone);
@@ -147,6 +150,14 @@ export default async function ProfilePage() {
   return (
     <main className="px-4 pt-6 pb-10 md:px-8 md:pt-10">
       <PageHeader title="Profile" />
+
+      <RemovalNotices
+        removals={removals.map((removal) => ({
+          kind: removal.kind,
+          name: removal.name,
+          since: formatDateLong(todayIn(profile?.timezone, new Date(removal.ended_at))),
+        }))}
+      />
 
       <ProfileCard initial={profileFieldsFromProfile(profile)} email={user?.email ?? null} />
 

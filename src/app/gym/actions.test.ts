@@ -10,6 +10,11 @@ const notifyUser = vi.fn();
 vi.mock("@/lib/push/notifyUser", () => ({ notifyUser: (...args: unknown[]) => notifyUser(...args) }));
 vi.mock("@/lib/gyms", () => ({
   getGymTrainers: async () => [{ trainer_id: "t-1", display_name: "Ravi" }],
+  getGymMembers: async () => [
+    { member_id: "m-1", trainer_id: "t-1", trainer_name: "Ravi" },
+    { member_id: "m-2", trainer_id: "t-1", trainer_name: "Ravi" },
+    { member_id: "m-3", trainer_id: null, trainer_name: null },
+  ],
 }));
 
 const rpc = vi.fn();
@@ -49,6 +54,44 @@ describe("gym actions", () => {
     expect((await removeStaff("gym-1", "a-1", "admin")).error).toBe("Only the gym's owner can do that.");
     rpc.mockResolvedValue({ data: null, error: { message: "connection reset" } });
     expect((await removeMember("gym-1", "m-1")).error).toBe("Couldn't remove the member. Please try again.");
+    await runAfter();
+    expect(notifyUser).not.toHaveBeenCalled();
+  });
+
+  it("tells a member the gym removed them, only if it did", async () => {
+    rpc.mockResolvedValue({ data: true, error: null });
+    await removeMember("gym-1", "m-1");
+    await runAfter();
+    expect(notifyUser).toHaveBeenCalledWith("m-1", expect.objectContaining({ title: "You're no longer a member of Iron Gym", url: "/profile" }));
+    notifyUser.mockClear();
+    rpc.mockResolvedValue({ data: false, error: null });
+    await removeMember("gym-1", "m-1");
+    await runAfter();
+    expect(notifyUser).not.toHaveBeenCalled();
+  });
+
+  it("tells a member their trainer was taken away, but not a suggestion taken back", async () => {
+    rpc.mockResolvedValue({ data: true, error: null });
+    await unassignTrainer("gym-1", "m-1");
+    await runAfter();
+    expect(notifyUser).toHaveBeenCalledWith("m-1", expect.objectContaining({ title: "Ravi is no longer your trainer" }));
+    notifyUser.mockClear();
+    await unassignTrainer("gym-1", "m-3");
+    await runAfter();
+    expect(notifyUser).not.toHaveBeenCalled();
+  });
+
+  it("tells each of a removed trainer's members, and nobody for an admin", async () => {
+    rpc.mockResolvedValue({ data: true, error: null });
+    await removeStaff("gym-1", "t-1", "trainer");
+    await runAfter();
+    expect(notifyUser.mock.calls.map(([id]) => id)).toEqual(["m-1", "m-2"]);
+    notifyUser.mockClear();
+    await removeStaff("gym-1", "a-1", "admin");
+    await runAfter();
+    expect(notifyUser).not.toHaveBeenCalled();
+    rpc.mockResolvedValue({ data: false, error: null });
+    await removeStaff("gym-1", "t-1", "trainer");
     await runAfter();
     expect(notifyUser).not.toHaveBeenCalled();
   });
