@@ -10,6 +10,7 @@ import {
   getRemainingPlannedSetCount,
   setCountLabel,
   setValueProblem,
+  firstEntryWithSetProblem,
   type SetRow,
 } from "./ExerciseLogPanel";
 import type { PreviousPerformance } from "@/lib/queries";
@@ -369,6 +370,20 @@ describe("plateText (M3)", () => {
     const [first, second] = compareSets([{ ...set("80", "5"), setType: "working" }, { ...set("80", "5"), setType: "working" }], previous);
     expect(first).toBeNull();
     expect(formatSetComparison(second)).toBe("same weight as last time · same reps as last time");
+  });
+});
+
+describe("firstEntryWithSetProblem", () => {
+  const good = { sets: [{ weight: "60", reps: "8" }] };
+  const bad = { sets: [{ weight: "60", reps: "8" }, { weight: "2000", reps: "8" }] };
+
+  it("finds the first exercise with a number that can't save", () => {
+    expect(firstEntryWithSetProblem([good, bad, bad])).toBe(1);
+  });
+
+  it("says so when every number is fine", () => {
+    expect(firstEntryWithSetProblem([good, good])).toBe(-1);
+    expect(firstEntryWithSetProblem([])).toBe(-1);
   });
 });
 

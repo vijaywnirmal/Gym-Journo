@@ -12,7 +12,10 @@ vi.mock("./send", () => ({
 const filters: string[] = [];
 let remindersOn = true;
 let subscriptions: unknown[] = [];
+let claim: { data: boolean | null; error: unknown } = { data: true, error: null };
+const rpc = vi.fn().mockImplementation(async () => claim);
 const admin = {
+  rpc,
   from: (table: string) => ({
     select: () => ({
       eq: (column: string, value: string) => {
@@ -45,6 +48,24 @@ describe("notifyUser", () => {
     adminClient = admin;
     remindersOn = true;
     subscriptions = [];
+    claim = { data: true, error: null };
+    rpc.mockClear();
+  });
+
+  it("holds back a repeat of the same kind sent within the last 10 minutes", async () => {
+    subscriptions = [device("https://push/a")];
+    claim = { data: false, error: null };
+    await notifyUser("u1", payload);
+    expect(rpc).toHaveBeenCalledWith("claim_notification", { p_user_id: "u1", p_topic: "trainer-plan", p_min_gap: "10 minutes" });
+    expect(deliver).not.toHaveBeenCalled();
+  });
+
+  it("still sends if the repeat check itself fails", async () => {
+    subscriptions = [device("https://push/a")];
+    deliver.mockResolvedValue({ sent: 1, failed: 0, expired: [] });
+    claim = { data: null, error: { message: "down" } };
+    await notifyUser("u1", payload);
+    expect(deliver).toHaveBeenCalledOnce();
   });
 
   it("sends only to that person's devices and forgets only their dead ones", async () => {

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getExerciseFilterOptions, getExerciseSessions, getLogHistory, type LogHistoryPage } from "@/lib/queries";
 import PageHeader from "@/components/PageHeader";
 import Icon from "@/components/Icon";
@@ -59,6 +60,9 @@ export default async function HistoryPage({
   const backToRecentHref = exerciseId ? `/history?exercise=${exerciseId}` : "/history";
   // Looked up independently of the sessions so the heading still has a name when the exercise
   // has no performed sessions yet.
+  // An old link to an exercise since deleted, or a mistyped one: there's nothing to filter by.
+  if (exerciseId && !exercises.some((ex) => ex.id === exerciseId)) redirect("/history");
+
   const selectedExerciseName = exerciseId
     ? exercises.find((ex) => ex.id === exerciseId)?.name ?? "Exercise"
     : null;

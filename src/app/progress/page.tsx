@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getExerciseFilterOptions, getExerciseSessions } from "@/lib/queries";
 import { formatDate } from "@/lib/date";
 import {
@@ -45,6 +46,9 @@ export default async function ProgressPage({
     getExerciseFilterOptions(exerciseId),
     exerciseId ? getExerciseSessions(exerciseId) : Promise.resolve([]),
   ]);
+
+  // An old link to an exercise since deleted, or a mistyped one: there's nothing to chart.
+  if (exerciseId && !exercises.some((ex) => ex.id === exerciseId)) redirect("/progress");
 
   const selectedExerciseName = exerciseId
     ? exercises.find((ex) => ex.id === exerciseId)?.name ?? "Exercise"

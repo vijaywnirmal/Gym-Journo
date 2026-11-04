@@ -18,6 +18,8 @@ import { saveLog, fetchPreviousPerformance, fetchPersonalRecords } from "./actio
 import { toSetType } from "@/lib/setData";
 import { lighterSets, lighterSetCount } from "@/lib/analyze/comeback";
 import ExerciseLogPanel, {
+  firstEntryWithSetProblem,
+  setValueProblem,
   countLoggedSets,
   CURRENT_EXERCISE_TITLE_ID,
   setCountLabel,
@@ -442,7 +444,7 @@ export default function LogForm({
     updateEntries(() => pendingBackup.entries);
     updateNotesValue(pendingBackup.notes);
     updateCompleted(pendingBackup.workoutCompleted);
-    setCurrentIndex(0);
+    setCurrentIndex(Math.max(0, firstEntryWithSetProblem(pendingBackup.entries)));
     setBackupHandled(true);
     scheduleSave(true);
 
@@ -654,6 +656,7 @@ export default function LogForm({
   }
 
   const current = entries[currentIndex];
+  const backupNeedsFixing = !!pendingBackup && firstEntryWithSetProblem(pendingBackup.entries) >= 0;
   const recordEntries = entries.filter((e) => personalRecords[e.exerciseId]?.length);
   const completedCount = entries.filter((e) => e.done).length;
 
@@ -678,7 +681,13 @@ export default function LogForm({
             ? `Workout finished.${recordEntries.length > 0 ? ` New personal record: ${recordEntries.map((e) => e.name).join(", ")}.` : ""}`
             : ""}
       </p>
-      <SaveStatus state={saveState} error={saveError} onRetry={() => scheduleSave(true)} />
+      <SaveStatus
+        state={saveState}
+        error={saveError}
+        // The set itself already says what's wrong, out loud; saying it here too would repeat it.
+        announceError={workoutCompleted || !current?.sets.some((set) => setValueProblem(set))}
+        onRetry={() => scheduleSave(true)}
+      />
 
       {lighter && (
         <div className="card border-teal/30 bg-teal/5 px-4 py-3" role="note">
@@ -694,7 +703,7 @@ export default function LogForm({
         <div className="rounded-xl bg-accent/10 px-4 py-3" role="status">
           <p className="text-sm text-link">
             This device has changes to this workout from {formatBackupTime(pendingBackup.savedAt)} that
-            didn&apos;t sync.
+            didn&apos;t sync.{backupNeedsFixing && " One number needs fixing before they can."}
           </p>
           <div className="mt-2 flex gap-2">
             <button
@@ -702,7 +711,7 @@ export default function LogForm({
               onClick={restoreBackup}
               className="h-8 rounded-lg bg-accent px-3 text-xs font-semibold text-on-accent hover:bg-accent-hover"
             >
-              Restore and sync
+              {backupNeedsFixing ? "Restore and fix" : "Restore and sync"}
             </button>
             <button
               type="button"
@@ -1005,10 +1014,12 @@ function formatBackupTime(savedAt: number): string {
 function SaveStatus({
   state,
   error,
+  announceError,
   onRetry,
 }: {
   state: SaveState;
   error: string | null;
+  announceError: boolean;
   onRetry: () => void;
 }) {
   const offline = useOffline();
@@ -1023,7 +1034,7 @@ function SaveStatus({
 
   if (state === "error") {
     return (
-      <div role="alert" className="flex items-center justify-between rounded-lg bg-red/12 px-3 py-2">
+      <div role={announceError ? "alert" : undefined} className="flex items-center justify-between rounded-lg bg-red/12 px-3 py-2">
         <p className="text-sm text-red">{error ?? "Couldn't save — your changes are kept here."}</p>
         <button
           type="button"
