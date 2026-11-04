@@ -5,7 +5,8 @@ import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getGymMembers, getGymTrainers } from "@/lib/gyms";
 import { notifyUser } from "@/lib/push/notifyUser";
-import { gymOfferMessage, gymRemovedMessage, trainerEndedMessage } from "@/lib/push/trainerMessage";
+import { gymOfferMessage, gymRemovedMessage, gymStaffRemovedMessage, trainerEndedMessage } from "@/lib/push/trainerMessage";
+import { tellPeople } from "@/lib/tellPeople";
 
 // The database refuses someone who no longer runs the gym (42501 from require_gym_admin).
 function refusal(error: { code?: string; message: string }, fallback: string): string {
@@ -57,19 +58,21 @@ export async function unassignTrainer(gymId: string, memberId: string) {
   const { data, error } = await supabase.rpc("unassign_gym_trainer", { p_gym_id: gymId, p_member_id: memberId });
   if (error) return { error: refusal(error, "Couldn't change the trainer. Please try again.") };
   revalidateGym();
-  if (data && trainerName) after(() => notifyUser(memberId, trainerEndedMessage({ trainerName })));
+  if (data && trainerName) after(() => tellPeople([memberId], trainerEndedMessage({ trainerName })));
   return { success: true };
 }
 
 export async function removeMember(gymId: string, memberId: string) {
   const supabase = await createClient();
+  // Read first: afterwards they no longer have a trainer to name.
+  const trainerName = (await getGymMembers(gymId)).find((m) => m.member_id === memberId)?.trainer_name;
   const { data, error } = await supabase.rpc("end_gym_membership", { p_gym_id: gymId, p_user_id: memberId });
   if (error) return { error: refusal(error, "Couldn't remove the member. Please try again.") };
   revalidateGym();
   if (data) {
     after(async () => {
       const { data: gym } = await supabase.from("gyms").select("name").eq("id", gymId).maybeSingle();
-      if (gym) await notifyUser(memberId, gymRemovedMessage({ gymName: gym.name }));
+      if (gym) await tellPeople([memberId], gymRemovedMessage({ gymName: gym.name, trainerName }));
     });
   }
   return { success: true };
@@ -84,11 +87,14 @@ export async function removeStaff(gymId: string, userId: string, role: "admin" |
   if (error) return { error: refusal(error, "Couldn't remove them. Please try again.") };
   revalidateGym();
   revalidatePath("/gym/invite");
-  if (data && clients.length > 0) {
+  if (data) {
     after(async () => {
-      await Promise.all(
-        clients.map((m) => notifyUser(m.member_id, trainerEndedMessage({ trainerName: m.trainer_name ?? "Your trainer" })))
-      );
+      const { data: gym } = await supabase.from("gyms").select("name").eq("id", gymId).maybeSingle();
+      await Promise.all([
+        gym && tellPeople([userId], gymStaffRemovedMessage({ gymName: gym.name, role })),
+        clients.length > 0 &&
+          tellPeople(clients.map((m) => m.member_id), trainerEndedMessage({ trainerName: clients[0].trainer_name ?? "Your trainer" })),
+      ]);
     });
   }
   return { success: true };

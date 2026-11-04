@@ -75,10 +75,10 @@ export function gymOfferMessage({ gymName, trainerName }: { gymName: string; tra
 }
 
 // What a member sees when their gym removes them.
-export function gymRemovedMessage({ gymName }: { gymName: string }): PushPayload {
+export function gymRemovedMessage({ gymName, trainerName }: { gymName: string; trainerName?: string | null }): PushPayload {
   return {
     title: `You're no longer a member of ${gymName}`,
-    body: "Your workouts and history are still here.",
+    body: `${trainerName ? `${trainerName} is no longer your trainer. ` : ""}Your workouts and history are still here. If this is a mistake, ask the gym.`,
     url: "/profile",
     tag: "gym-removed",
   };
@@ -91,5 +91,15 @@ export function trainerEndedMessage({ trainerName }: { trainerName: string }): P
     body: "Your workouts and plans are still here.",
     url: "/profile",
     tag: "trainer-ended",
+  };
+}
+
+// What a trainer or admin sees when their gym removes them.
+export function gymStaffRemovedMessage({ gymName, role }: { gymName: string; role: "admin" | "trainer" }): PushPayload {
+  return {
+    title: `You're no longer ${role === "admin" ? "an admin" : "a trainer"} at ${gymName}`,
+    body: role === "admin" ? "You can no longer manage this gym." : "You'll no longer train members through this gym.",
+    url: "/profile",
+    tag: "gym-staff-removed",
   };
 }
