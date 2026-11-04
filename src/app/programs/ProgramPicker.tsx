@@ -240,7 +240,7 @@ function ProgramForm({ program, today, target }: { program: Program; today: stri
             {result.skipped > 0 &&
               ` · skipped ${result.skipped} day${result.skipped === 1 ? "" : "s"} already planned`}
             .{" "}
-            <Link href={`${target.seeHrefPrefix}${result.firstDate}`} className="font-medium text-link">
+            <Link href={`${target.seeHrefPrefix}${result.firstDate}`} className="inline-block py-1 font-medium text-link">
               {target.seeLabel}
             </Link>
             {result.createdDates.length > 0 && (
@@ -250,7 +250,7 @@ function ProgramForm({ program, today, target }: { program: Program; today: stri
                   type="button"
                   onClick={() => undo(result.createdDates)}
                   disabled={pending}
-                  className="font-medium text-link disabled:opacity-50"
+                  className="py-1 font-medium text-link disabled:opacity-50"
                 >
                   Undo
                 </button>

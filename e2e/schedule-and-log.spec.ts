@@ -74,3 +74,14 @@ test("logging a past day keeps the logger open after the first save", async ({ p
   await expect(page.getByText("50kg × 8")).toBeVisible();
   await expect(page.getByText("50kg × 7")).toBeVisible();
 });
+
+test("a plan can't be saved while exercises are ticked but not confirmed", { tag: PROD_SAFE }, async ({ page }) => {
+  await page.goto(`/schedule/${testDate(isRemote ? 366 : 40)}`);
+  const save = page.getByRole("button", { name: "Save plan" });
+  await expect(save).toBeVisible();
+  await page.getByRole("button", { name: "Add exercises" }).click();
+  await expect(page.getByRole("heading", { name: "Choose exercises" })).toBeVisible();
+  await expect(save).toBeHidden();
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(save).toBeVisible();
+});

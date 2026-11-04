@@ -127,7 +127,7 @@ export default function InviteLinkCard({
         <button
           type="button"
           onClick={() => setConfirmingNew(true)}
-          className="self-start text-sm font-medium text-link"
+          className="self-start py-1 text-sm font-medium text-link"
         >
           Make a new link
         </button>

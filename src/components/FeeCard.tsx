@@ -351,7 +351,7 @@ export default function FeeCard({
               <button
                 type="button"
                 onClick={() => open("stop")}
-                className="text-sm font-medium text-label-2 hover:text-red"
+                className="py-1 text-sm font-medium text-label-2 hover:text-red"
               >
                 Stop fee
               </button>

@@ -101,7 +101,7 @@ export default function TrainerSetupForm({
           role="checkbox"
           aria-checked={confirmedAdult}
           onClick={() => setConfirmedAdult((value) => !value)}
-          className="flex items-center gap-2.5 text-left text-sm font-medium"
+          className="flex items-center gap-2.5 py-1 text-left text-sm font-medium"
         >
           <span
             className={`grid size-5 shrink-0 place-items-center rounded-md border ${

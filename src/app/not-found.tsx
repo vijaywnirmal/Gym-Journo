@@ -7,7 +7,7 @@ export default function NotFound() {
   return (
     <main className="px-4 pt-6 pb-10 md:px-8 md:pt-10">
       <PageHeader title="This page isn't available" subtitle="It may have moved, or you may no longer have access to it." />
-      <Link href="/" className="text-sm font-semibold text-link">
+      <Link href="/" className="inline-block py-1 text-sm font-semibold text-link">
         Go to Today
       </Link>
     </main>

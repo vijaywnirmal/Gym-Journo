@@ -6,6 +6,7 @@ import {
   isQuietClient,
   lastWorkoutLine,
   mondayOf,
+  performedExercises,
   todayStatus,
   toWorkoutPlan,
   trainerToday,
@@ -123,7 +124,7 @@ describe("trainer's Today", () => {
   it("calls a client quiet after 7 days without a workout, or with none", () => {
     expect(isQuietClient(overview({ last_workout_on: "2026-10-18" }))).toBe(false);
     expect(isQuietClient(overview({ last_workout_on: "2026-10-17" }))).toBe(true);
-    expect(isQuietClient(overview({}))).toBe(true);
+    expect(isQuietClient(overview({ started_at: "2026-10-01T09:00:00+00:00" }))).toBe(true);
     expect(lastWorkoutLine(overview({ last_workout_on: "2026-10-23" }))).toBe("Last workout yesterday");
   });
 
@@ -136,5 +137,31 @@ describe("trainer's Today", () => {
     expect(view.needPlan.map((r) => r.client_id)).toEqual(["c"]);
     expect(view.quiet.map((r) => r.client_id)).toEqual(["c"]);
     expect([view.doneThisWeek, view.plannedThisWeek]).toEqual([3, 5]);
+  });
+});
+
+describe("isQuietClient for someone new", () => {
+  it("gives a client a week from joining before calling them quiet", () => {
+    const today = "2026-10-24";
+    expect(isQuietClient(overview({ client_today: today, started_at: "2026-10-24T09:00:00+00:00" }))).toBe(false);
+    expect(isQuietClient(overview({ client_today: today, started_at: "2026-10-18T09:00:00+00:00" }))).toBe(false);
+    expect(isQuietClient(overview({ client_today: today, started_at: "2026-10-17T09:00:00+00:00" }))).toBe(true);
+  });
+});
+
+describe("performedExercises", () => {
+  const set = (reps: number | null, weight: number | null) => ({
+    set_number: 1, reps, weight, weight_unit: "kg", set_type: null, rpe: null, notes: null,
+  });
+  const exercise = (name: string, sets: ReturnType<typeof set>[]) => ({
+    exercise_id: name, name, position: 0, notes: null, sets,
+  });
+
+  it("leaves out blank rows, and exercises with nothing else", () => {
+    const shown = performedExercises({
+      exercises: [exercise("Bench", [set(10, 40), set(null, null), set(null, 40)]), exercise("Row", [set(null, null)])],
+    });
+    expect(shown.map((e) => e.name)).toEqual(["Bench"]);
+    expect(shown[0].sets.map((s) => [s.reps, s.weight])).toEqual([[10, 40], [null, 40]]);
   });
 });

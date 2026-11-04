@@ -38,7 +38,7 @@ export default async function TrainerTodayPage() {
           <p className="mt-0.5 text-sm text-label-2">
             Send your invite link on WhatsApp. Clients show up here once they accept.
           </p>
-          <Link href="/trainer/invite" className="mt-3 inline-block text-sm font-semibold text-link">
+          <Link href="/trainer/invite" className="mt-2 inline-block py-1 text-sm font-semibold text-link">
             Invite a client
           </Link>
         </section>
@@ -49,7 +49,7 @@ export default async function TrainerTodayPage() {
               ? `${view.doneThisWeek} of ${view.plannedThisWeek} planned sessions done this week`
               : `${view.doneThisWeek} workout${view.doneThisWeek === 1 ? "" : "s"} logged this week`}
             {" · "}
-            <Link href="/trainer/clients" className="text-link">
+            <Link href="/trainer/clients" className="inline-block py-1 text-link">
               All clients
             </Link>
           </p>
