@@ -56,7 +56,7 @@ export default async function GymMembersPage({ searchParams }: PageProps<"/gym/m
           <p className="mt-0.5 text-sm text-label-2">
             Put up the poster at your front desk. Members show up here once they scan it and join.
           </p>
-          <Link href="/gym/invite" className="mt-3 inline-block text-sm font-semibold text-link">
+          <Link href="/gym/invite" className="mt-2 inline-block py-1 text-sm font-semibold text-link">
             Get the poster
           </Link>
         </section>

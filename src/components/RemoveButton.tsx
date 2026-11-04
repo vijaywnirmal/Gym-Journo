@@ -64,7 +64,7 @@ export default function RemoveButton({
         <button
           type="button"
           onClick={() => setConfirming(true)}
-          className={`text-sm ${subtle ? "font-medium text-label-2 hover:text-red" : "font-semibold text-red"}`}
+          className={`py-1 text-sm ${subtle ? "font-medium text-label-2 hover:text-red" : "font-semibold text-red"}`}
         >
           {label}
         </button>

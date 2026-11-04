@@ -44,7 +44,7 @@ export default async function GymTrainersPage() {
         <section className="card p-4">
           <p className="text-sm font-semibold">No trainers yet</p>
           <p className="mt-0.5 text-sm text-label-2">Send your trainers the invite link on WhatsApp.</p>
-          <Link href="/gym/invite" className="mt-3 inline-block text-sm font-semibold text-link">
+          <Link href="/gym/invite" className="mt-2 inline-block py-1 text-sm font-semibold text-link">
             Invite a trainer
           </Link>
         </section>
@@ -56,7 +56,7 @@ export default async function GymTrainersPage() {
                 <p className="text-sm font-semibold">{t.display_name}</p>
                 <p className="text-sm text-label-2">
                   {t.members_assigned > 0 ? (
-                    <Link href={`/gym/members?trainer=${t.trainer_id}`} className="text-link">
+                    <Link href={`/gym/members?trainer=${t.trainer_id}`} className="inline-block py-1 text-link">
                       {count(t.members_assigned, "member")}
                     </Link>
                   ) : (
@@ -89,7 +89,7 @@ export default async function GymTrainersPage() {
           {admins.length === 0 ? (
             <p className="px-1 text-sm text-label-2">
               Only you run {gym.name}.{" "}
-              <Link href="/gym/invite" className="text-link">
+              <Link href="/gym/invite" className="inline-block py-1 text-link">
                 Add an admin
               </Link>
             </p>

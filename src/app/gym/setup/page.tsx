@@ -37,7 +37,7 @@ export default async function GymSetupPage() {
         />
         {!onboarded && (
           <p className="pb-8 text-center text-sm">
-            <Link href="/onboarding" className="text-link">
+            <Link href="/onboarding" className="inline-block py-1 text-link">
               Not a gym? Set up a regular account
             </Link>
           </p>

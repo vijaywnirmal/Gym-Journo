@@ -12,6 +12,9 @@ export default function OnboardingPage() {
         Tell us a bit about yourself so your plans fit you.{" "}
         <Link href="/trainer/setup" className="text-link">
           Are you a trainer?
+        </Link>{" "}
+        <Link href="/gym/setup" className="text-link">
+          Run a gym?
         </Link>
       </p>
       <OnboardingForm />

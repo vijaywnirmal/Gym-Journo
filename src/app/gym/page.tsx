@@ -40,7 +40,7 @@ export default async function GymDashboardPage() {
         subtitle={
           <>
             {place && `${place} · `}
-            <Link href="/gym/setup" className="text-link">
+            <Link href="/gym/setup" className="inline-block py-1 text-link">
               Gym details
             </Link>
           </>
@@ -62,7 +62,7 @@ export default async function GymDashboardPage() {
           <p className="mt-0.5 text-sm text-label-2">
             Put up the poster at your front desk. Members show up here once they scan it and join.
           </p>
-          <Link href="/gym/invite" className="mt-3 inline-block text-sm font-semibold text-link">
+          <Link href="/gym/invite" className="mt-2 inline-block py-1 text-sm font-semibold text-link">
             Get the poster
           </Link>
         </section>
@@ -118,7 +118,7 @@ export default async function GymDashboardPage() {
       {trainers.length === 0 ? (
         <section className="card p-4">
           <p className="text-sm text-label-2">No trainers yet. Send your trainers the invite link on WhatsApp.</p>
-          <Link href="/gym/invite" className="mt-2 inline-block text-sm font-semibold text-link">
+          <Link href="/gym/invite" className="mt-1 inline-block py-1 text-sm font-semibold text-link">
             Invite a trainer
           </Link>
         </section>

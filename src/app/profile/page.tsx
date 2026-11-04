@@ -60,7 +60,7 @@ export default async function ProfilePage() {
           <>
             <h2 className="section-title">Gym</h2>
             <section className="card divide-y divide-separator">
-              <LinkRow href="/gym/invite" title="Invite people" text="Member poster, trainer and admin links" />
+              <LinkRow href="/gym/invite" title="Invite people" text={adminGym.isOwner ? "Member poster, trainer and admin links" : "Member poster and trainer links"} />
               <LinkRow
                 href="/gym/setup"
                 title="Gym details"
