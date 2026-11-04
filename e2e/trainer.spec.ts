@@ -79,3 +79,40 @@ test("a trainer plans a client's day, the client sees who planned it, and the tr
     await admin.from("workout_plans").delete().eq("user_id", clientId).eq("date", DATE);
   }
 });
+
+test("a live invite asks for an account first, and once replaced says it has expired", async ({ browser }) => {
+  const admin = adminClient();
+  const email = "e2e-invite-trainer@example.test";
+  const { data: list, error: listError } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  if (listError) throw listError;
+  const previous = list.users.find((user) => user.email === email);
+  if (previous) await admin.auth.admin.deleteUser(previous.id);
+  const { data: created, error } = await admin.auth.admin.createUser({ email, password: "e2e-invite-123", email_confirm: true });
+  if (error || !created.user) throw error ?? new Error("createUser returned no user");
+  const trainerId = created.user.id;
+  const code = "e2einvite1";
+
+  try {
+    for (const [table, row] of [
+      ["profiles", { id: trainerId, first_name: "Ina", full_name: "Ina", onboarded: true, timezone: "UTC" }],
+      ["trainer_profiles", { user_id: trainerId, display_name: "Ina" }],
+      ["trainer_invites", { code, trainer_id: trainerId }],
+    ] as const) {
+      const { error: insertError } = await admin.from(table).insert(row);
+      if (insertError) throw insertError;
+    }
+    const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await context.newPage();
+    await page.goto(`/join/${code}`);
+    await expect(page).toHaveURL(/\/login\?invite=1$/);
+    await expect(page.getByText("Create an account to join your trainer.")).toBeVisible();
+
+    const { error: revokeError } = await admin.from("trainer_invites").update({ revoked_at: new Date().toISOString() }).eq("code", code);
+    if (revokeError) throw revokeError;
+    await page.goto(`/join/${code}`);
+    await expect(page.getByRole("heading", { name: "This invite link has expired" })).toBeVisible();
+    await context.close();
+  } finally {
+    await admin.auth.admin.deleteUser(trainerId);
+  }
+});

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  endedInvitePath,
   formatPhone,
   gymInviteUrl,
   gymJoinCodeOf,
@@ -86,5 +87,18 @@ describe("formatPhone", () => {
     expect(formatPhone("+919876543210")).toBe("+91 98765 43210");
     expect(formatPhone("98765 43210")).toBe("+91 98765 43210");
     expect(formatPhone("+447700900123")).toBe("+447700900123");
+  });
+});
+
+describe("endedInvitePath", () => {
+  it("sends a dead link to a page that says so", () => {
+    expect(endedInvitePath("expired", "trainer")).toBe("/invite-ended?from=trainer&state=expired");
+    expect(endedInvitePath("not_found", "gym")).toBe("/invite-ended?from=gym&state=not_found");
+  });
+
+  it("lets a working link through, and doesn't block anyone when the check fails", () => {
+    expect(endedInvitePath("open", "trainer")).toBeNull();
+    expect(endedInvitePath(null, "gym")).toBeNull();
+    expect(endedInvitePath(undefined, "trainer")).toBeNull();
   });
 });
