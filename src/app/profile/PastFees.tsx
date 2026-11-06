@@ -10,7 +10,7 @@ function day(date: string) {
 }
 
 // Fees that have ended: the member's own record of what they paid, kept after they leave a gym or
-// trainer, or after that gym or trainer leaves Gym Journal.
+// trainer, or after that gym or trainer leaves GymJourno.
 export default function PastFees({ fees }: { fees: { fee: PastFee; payments: FeePayment[] }[] }) {
   if (fees.length === 0) return null;
   return (

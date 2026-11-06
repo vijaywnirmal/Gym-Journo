@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    // "Gym Journal" everywhere in the app; "Gym Journo" (the domain) under the home-screen icon.
-    name: "Gym Journal",
-    short_name: "Gym Journo",
+    // The same name everywhere: in the app and under the home-screen icon.
+    name: "GymJourno",
+    short_name: "GymJourno",
     description: "Plan your workouts and log what you actually do.",
     start_url: "/",
     scope: "/",

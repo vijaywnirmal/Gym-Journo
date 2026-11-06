@@ -44,7 +44,7 @@ export async function saveTrainerProfile(input: TrainerProfileInput) {
   const { data: profile } = await supabase.from("profiles").select("onboarded").eq("id", user.id).maybeSingle();
   const onboarded = profile?.onboarded === true;
   if (!onboarded && input.confirmedAdult !== true) {
-    return { error: "Gym Journal is for people 18 or older. Please confirm your age." };
+    return { error: "GymJourno is for people 18 or older. Please confirm your age." };
   }
 
   const { error } = await supabase

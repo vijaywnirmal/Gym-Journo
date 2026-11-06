@@ -7,7 +7,7 @@ export type EmailContent = {
   buttonUrl: string;
 };
 
-const PRODUCT_NAME = "Gym Journal";
+const PRODUCT_NAME = "GymJourno";
 
 function escapeHtml(text: string): string {
   return text

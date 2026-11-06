@@ -49,7 +49,7 @@ export default async function PrivacyPage() {
       />
       <div className="max-w-xl">
         <p className="text-sm text-label-2">
-          Gym Journal (gymjourno.fit) keeps your training records so you can plan and log your workouts. Questions
+          GymJourno (gymjourno.fit) keeps your training records so you can plan and log your workouts. Questions
           or requests about your data: {email}.
         </p>
 
@@ -80,7 +80,7 @@ export default async function PrivacyPage() {
               </>,
               <>
                 <strong>Fees, if your gym or trainer records them:</strong> the amount, how often it&apos;s due, and
-                each payment&apos;s date, amount and method (cash, UPI and so on). Gym Journal doesn&apos;t take
+                each payment&apos;s date, amount and method (cash, UPI and so on). GymJourno doesn&apos;t take
                 payments.
               </>,
             ]}
@@ -111,7 +111,7 @@ export default async function PrivacyPage() {
               </>,
               <>
                 <strong>Fees:</strong> the gym or trainer who records your fee, and you, in Profile. Nobody else. They
-                keep their record of what you paid if you leave, and you keep yours if they leave Gym Journal, until
+                keep their record of what you paid if you leave, and you keep yours if they leave GymJourno, until
                 you delete your account.
               </>,
               <>
@@ -177,7 +177,7 @@ export default async function PrivacyPage() {
         </Section>
 
         <Section title="Age">
-          <p>Gym Journal is for people 18 or older.</p>
+          <p>GymJourno is for people 18 or older.</p>
         </Section>
 
         <Section title="Changes">

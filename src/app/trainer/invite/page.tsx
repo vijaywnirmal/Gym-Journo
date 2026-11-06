@@ -33,7 +33,7 @@ export default async function TrainerInvitePage() {
             }
           }
           makeLink={createInviteLink}
-          shareText="Join me on Gym Journal:"
+          shareText="Join me on GymJourno:"
         />
       </div>
     </main>

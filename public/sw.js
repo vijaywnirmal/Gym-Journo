@@ -1,4 +1,4 @@
-// Gym Journal service worker. Deliberately small:
+// GymJourno service worker. Deliberately small:
 // - Hashed build assets (/_next/static) are cached on first use, so the app shell loads fast and
 //   keeps working through flaky gym Wi-Fi.
 // - Page loads always go to the network (they are per-user and must never be served stale or to
@@ -70,7 +70,7 @@ self.addEventListener("push", (event) => {
   }
   const url = typeof payload.url === "string" && payload.url.startsWith("/") ? payload.url : "/";
   event.waitUntil(
-    self.registration.showNotification(payload.title || "Gym Journal", {
+    self.registration.showNotification(payload.title || "GymJourno", {
       body: payload.body || "",
       tag: payload.tag || undefined,
       icon: "/icons/icon-192.png",

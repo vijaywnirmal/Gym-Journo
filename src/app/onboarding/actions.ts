@@ -45,7 +45,7 @@ export async function completeOnboarding(input: CompleteOnboardingInput) {
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not signed in" };
 
-  if (input.confirmedAdult !== true) return { error: "Gym Journal is for people 18 or older. Please confirm your age." };
+  if (input.confirmedAdult !== true) return { error: "GymJourno is for people 18 or older. Please confirm your age." };
 
   if (input.dateOfBirth) {
     const dobError = validateDateOfBirth(input.dateOfBirth);

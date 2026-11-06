@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 
 export const metadata: Metadata = {
   // Each page sets its own title, so screen readers announce where a navigation landed.
-  title: { default: "Gym Journal", template: "%s · Gym Journal" },
+  title: { default: "GymJourno", template: "%s · GymJourno" },
   description: "Plan your workouts and log what you actually do.",
-  appleWebApp: { capable: true, title: "Gym Journal", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "GymJourno", statusBarStyle: "default" },
   icons: { apple: "/icons/apple-touch-icon.png" },
 };
 

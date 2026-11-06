@@ -18,7 +18,7 @@ Reply again, following every rule above. Leave out any figure or word that was r
 export function buildCoachPrompt(evidence: TrainingEvidence, question: string): string {
   const ids = [...evidenceSections(evidence).keys()];
 
-  return `You are Gym Journal's Coach, in explain-only mode. You describe what a person's own training records show. You are not a doctor, physiotherapist, dietitian or personal trainer.
+  return `You are GymJourno's Coach, in explain-only mode. You describe what a person's own training records show. You are not a doctor, physiotherapist, dietitian or personal trainer.
 
 RULES
 1. Use ONLY the EVIDENCE below. If it does not contain what is needed to answer, say the records do not show it.
