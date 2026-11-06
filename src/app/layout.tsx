@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import AppNav from "@/components/AppNav";
+import AppFrame from "@/components/AppFrame";
 import TimezoneSync from "@/components/TimezoneSync";
 import OfflineBanner from "@/components/OfflineBanner";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
@@ -12,10 +13,17 @@ import { getAdminGym } from "@/lib/gyms";
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
+const DESCRIPTION = "Plan your workouts and log what you actually do.";
+
 export const metadata: Metadata = {
+  // Link previews need absolute image URLs.
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL?.trim() || "http://localhost:3000"),
   // Each page sets its own title, so screen readers announce where a navigation landed.
   title: { default: "GymJourno", template: "%s · GymJourno" },
-  description: "Plan your workouts and log what you actually do.",
+  description: DESCRIPTION,
+  // What WhatsApp, Instagram and others show for a shared link (the image is opengraph-image.tsx).
+  openGraph: { siteName: "GymJourno", type: "website", title: "GymJourno", description: DESCRIPTION },
+  twitter: { card: "summary_large_image" },
   appleWebApp: { capable: true, title: "GymJourno", statusBarStyle: "default" },
   icons: { apple: "/icons/apple-touch-icon.png" },
 };
@@ -43,13 +51,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           Skip to content
         </a>
         <OfflineBanner />
-        <AppNav isTrainer={trainer !== null} isGymAdmin={gym !== null} />
-        {/* Phones: content above the bottom bar. Wider screens: content beside the sidebar. */}
-        <div className="pt-[env(safe-area-inset-top)] pb-24 md:pb-10 md:pl-60">
-          <div id="content" tabIndex={-1} className="mx-auto w-full max-w-2xl outline-none">
-            {children}
-          </div>
-        </div>
+        <AppNav isTrainer={trainer !== null} isGymAdmin={gym !== null} signedIn={signedIn} />
+        <AppFrame signedIn={signedIn}>{children}</AppFrame>
         {signedIn && <TimezoneSync stored={timeZone} />}
         <ServiceWorkerRegister />
       </body>
