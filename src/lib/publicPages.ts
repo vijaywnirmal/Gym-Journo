@@ -1,10 +1,13 @@
+import { gymJoinCodeOf, joinCodeOf } from "@/lib/trainerInvites";
+
 // The front door: pages anyone can open without an account, laid out full width with their own
 // header instead of the app's navigation. "/" is the public home page only when signed out; signed
 // in, it's Today.
 const PUBLIC_PATHS = ["/trainers", "/gyms", "/demo"];
 
 export function isPublicPage(pathname: string, signedIn: boolean): boolean {
-  if (pathname === "/") return !signedIn;
+  // Signed out, an invite link opens a welcome page (signed in, the page to accept it).
+  if (pathname === "/" || joinCodeOf(pathname) || gymJoinCodeOf(pathname)) return !signedIn;
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 

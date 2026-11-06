@@ -7,6 +7,14 @@ describe("isPublicPage", () => {
     expect(isPublicPage("/", true)).toBe(false);
   });
 
+  it("treats invite links as public welcome pages only when signed out", () => {
+    expect(isPublicPage("/join/abcdef1234", false)).toBe(true);
+    expect(isPublicPage("/g/abcdef1234", false)).toBe(true);
+    expect(isPublicPage("/join/abcdef1234", true)).toBe(false);
+    expect(isPublicPage("/g/abcdef1234", true)).toBe(false);
+    expect(isPublicPage("/join/short", false)).toBe(false);
+  });
+
   it("covers the trainer, gym and demo pages for everyone", () => {
     for (const signedIn of [true, false]) {
       expect(isPublicPage("/trainers", signedIn)).toBe(true);

@@ -85,26 +85,23 @@ export async function updateSession(request: NextRequest) {
     supabaseResponse.cookies.set(SIGNUP_COOKIE, signupRole, intentCookie);
   }
 
+  // An invite opened before signing in shows a welcome page (who sent it, what they'll see, and the
+  // way to sign up), and is remembered for after sign-up.
+  const inviteCode = joinCode ?? gymJoinCode;
+  if (!userId && inviteCode) {
+    const from = joinCode ? "trainer" : "gym";
+    const { data: state } = await supabase.rpc("invite_link_state", { p_kind: from, p_code: inviteCode });
+    // A dead link says so now, not after they've made an account and been through setup.
+    const ended = endedInvitePath(state, from);
+    if (ended) return NextResponse.redirect(new URL(ended, request.url));
+    supabaseResponse.cookies.set(joinCode ? JOIN_COOKIE : GYM_JOIN_COOKIE, inviteCode, intentCookie);
+    return supabaseResponse;
+  }
+
   if (!userId && !isAuthRoute && !isOpenToSignedOut(pathname)) {
-    const inviteCode = joinCode ?? gymJoinCode;
-    if (inviteCode) {
-      const from = joinCode ? "trainer" : "gym";
-      const { data: state } = await supabase.rpc("invite_link_state", { p_kind: from, p_code: inviteCode });
-      // A dead link says so now, not after they've made an account and been through setup.
-      const ended = endedInvitePath(state, from);
-      if (ended) return NextResponse.redirect(new URL(ended, request.url));
-    }
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    // A gym's trainer or admin link carries its ?role= through to sign-up.
-    if (joinCode) url.search = "?invite=1";
-    if (gymJoinCode) {
-      url.search = signupRole === "trainer" || signupRole === "admin" ? `?invite=gym&role=${signupRole}` : "?invite=gym";
-    }
-    const response = NextResponse.redirect(url);
-    if (joinCode) response.cookies.set(JOIN_COOKIE, joinCode, intentCookie);
-    if (gymJoinCode) response.cookies.set(GYM_JOIN_COOKIE, gymJoinCode, intentCookie);
-    return response;
+    return NextResponse.redirect(url);
   }
 
   if (

@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Privacy" };
 
 // Keep this true to the app: it states what's stored, who sees it, which services handle it, and
 // how to leave. The Gemini lists themselves live in lib/ai-plan-prompt.ts and lib/coach/consent.ts.
-const UPDATED = "4 November 2026";
+const UPDATED = "6 November 2026";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -116,7 +116,12 @@ export default async function PrivacyPage() {
               </>,
               <>
                 <strong>A trainer&apos;s details</strong> (name, gym, city, WhatsApp) are shown to people who open
-                their invite link and to their clients.
+                their invite link and to their clients. Before someone has an account, the link and its preview in
+                apps like WhatsApp show only the name, gym and city.
+              </>,
+              <>
+                <strong>A gym&apos;s name, area and city</strong> are shown to anyone who opens one of its invite
+                links, and in the link&apos;s preview. Not its phone number.
               </>,
             ]}
           />
