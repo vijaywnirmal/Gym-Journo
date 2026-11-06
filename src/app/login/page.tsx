@@ -31,8 +31,9 @@ function LoginForm() {
   const invite = searchParams.get("invite");
   const fromInvite = invite === "1" || invite === "gym";
   const inviter = invite === "gym" ? "your gym" : "your trainer";
+  // "Start free" on the home page (?signup=1) also opens on sign-up.
   const [mode, setMode] = useState<"password" | "magic-link" | "register">(
-    asTrainer || asGym || fromInvite ? "register" : "password"
+    asTrainer || asGym || fromInvite || searchParams.get("signup") === "1" ? "register" : "password"
   );
   // Switching between password, magic link and sign-up keeps focus in the form (the button that
   // was clicked disappears), on the email field.
@@ -147,9 +148,13 @@ function LoginForm() {
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6">
-      <span className="mb-6 grid size-12 place-items-center rounded-xl bg-accent text-on-accent">
+      <Link
+        href="/"
+        aria-label="GymJourno home"
+        className="mb-6 grid size-12 place-items-center rounded-xl bg-accent text-on-accent hover:bg-accent-hover"
+      >
         <Icon name="dumbbell" className="size-7" strokeWidth={2.25} />
-      </span>
+      </Link>
       <h1 className="mb-1 page-title">{title}</h1>
       <p className="mb-8 text-sm text-label-2">{subtitle}</p>
 

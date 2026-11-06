@@ -13,6 +13,7 @@ import {
   setupPathFor,
 } from "@/lib/trainerInvites";
 import { ACCOUNT_DISABLED_PATH, ONBOARDED_COOKIE } from "@/lib/accountStatus";
+import { isOpenToSignedOut } from "@/lib/publicPages";
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -84,7 +85,7 @@ export async function updateSession(request: NextRequest) {
     supabaseResponse.cookies.set(SIGNUP_COOKIE, signupRole, intentCookie);
   }
 
-  if (!userId && !isAuthRoute) {
+  if (!userId && !isAuthRoute && !isOpenToSignedOut(pathname)) {
     const inviteCode = joinCode ?? gymJoinCode;
     if (inviteCode) {
       const from = joinCode ? "trainer" : "gym";

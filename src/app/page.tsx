@@ -32,8 +32,18 @@ import QuickWorkoutList from "@/components/QuickWorkoutList";
 import { topQuickWorkouts } from "@/lib/quickWorkouts";
 import Icon, { type IconName } from "@/components/Icon";
 import { requireMemberApp } from "@/lib/workAccount";
+import { getCurrentUser } from "@/lib/currentUser";
+import PublicHome from "@/components/public/PublicHome";
 
-export const metadata: Metadata = { title: "Today" };
+// Signed out, gymjourno.fit is the public home page (components/public/PublicHome.tsx).
+export async function generateMetadata(): Promise<Metadata> {
+  if (await getCurrentUser()) return { title: "Today" };
+  return {
+    title: { absolute: "GymJourno: plan your workouts, log every set" },
+    description:
+      "A training journal for your phone. Plan your week, log every set, and see yourself get stronger, on your own or with your trainer. Free to start.",
+  };
+}
 
 const TRAINING_FREQUENCY_WINDOW_DAYS = 7;
 const COMEBACK_SUGGESTIONS = 3;
@@ -53,6 +63,7 @@ function ShortcutCard({ href, icon, title, text }: { href: string; icon: IconNam
 }
 
 export default async function TodayPage() {
+  if (!(await getCurrentUser())) return <PublicHome />;
   await requireMemberApp();
   const { timeZone } = await getUserTimeZone();
   const date = todayIn(timeZone);

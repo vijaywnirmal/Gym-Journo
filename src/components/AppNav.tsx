@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Icon, { type IconName } from "@/components/Icon";
+import { isPublicPage } from "@/lib/publicPages";
 
 type Tab = { href: string; label: string; icon: IconName };
 
@@ -79,9 +80,18 @@ export function activeTab(pathname: string, tabs: Tab[]): string {
 }
 
 // Primary navigation: a bottom bar on phones, a sidebar from tablet width up.
-export default function AppNav({ isTrainer = false, isGymAdmin = false }: { isTrainer?: boolean; isGymAdmin?: boolean }) {
+export default function AppNav({
+  isTrainer = false,
+  isGymAdmin = false,
+  signedIn = true,
+}: {
+  isTrainer?: boolean;
+  isGymAdmin?: boolean;
+  signedIn?: boolean;
+}) {
   const pathname = usePathname();
-  if (HIDDEN_ON.some((p) => pathname.startsWith(p))) return null;
+  // Signed out, there's nothing to navigate to: the front door has its own header.
+  if (!signedIn || isPublicPage(pathname, signedIn) || HIDDEN_ON.some((p) => pathname.startsWith(p))) return null;
   const tabs = tabsFor(isTrainer, isGymAdmin);
   const current = activeTab(pathname, tabs);
 
