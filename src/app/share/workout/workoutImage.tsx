@@ -87,7 +87,7 @@ export function workoutImageResponse({
           {more > 0 && <div style={{ display: "flex", fontSize: 28, color: "#737373" }}>+{more} more</div>}
         </div>
 
-        <div style={{ display: "flex", marginTop: "auto", fontSize: 28, color: "#737373" }}>Logged with Gym Journo</div>
+        <div style={{ display: "flex", marginTop: "auto", fontSize: 28, color: "#737373" }}>Logged with GymJourno</div>
       </div>
     ),
     { width: WIDTH, height: HEIGHT, headers: { "Cache-Control": "private, no-store" } }

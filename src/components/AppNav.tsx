@@ -120,7 +120,7 @@ export default function AppNav({ isTrainer = false, isGymAdmin = false }: { isTr
           <span className="grid size-8 place-items-center rounded-lg bg-accent text-on-accent">
             <Icon name="dumbbell" className="size-5" strokeWidth={2.25} />
           </span>
-          <span className="text-[15px] font-semibold tracking-tight">Gym Journal</span>
+          <span className="text-[15px] font-semibold tracking-tight">GymJourno</span>
         </Link>
         <ul className="flex flex-col gap-0.5">
           {tabs.map((tab) => {

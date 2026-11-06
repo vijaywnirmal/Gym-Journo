@@ -133,7 +133,7 @@ function LoginForm() {
         : asGym
           ? "Create your gym account"
           : "Create your account"
-      : "Gym Journal";
+      : "GymJourno";
   const subtitle =
     mode === "password"
       ? fromInvite

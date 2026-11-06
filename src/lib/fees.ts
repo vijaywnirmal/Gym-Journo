@@ -1,5 +1,5 @@
 // Membership fees (migration 0040): how the screens describe them. Pure, so the rules are tested in
-// one place. Gym Journal tracks fees; money changes hands outside it.
+// one place. GymJourno tracks fees; money changes hands outside it.
 
 import { addMonths, format, parseISO } from "date-fns";
 import { DATE_FMT, daysBetween, shiftDate } from "@/lib/date";

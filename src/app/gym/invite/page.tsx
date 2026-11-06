@@ -38,7 +38,7 @@ export default async function GymInvitePage() {
         <InviteLinkCard
           invite={invite("member")}
           makeLink={createGymInviteLink.bind(null, gym.id, "member")}
-          shareText={`Join ${gym.name} on Gym Journal:`}
+          shareText={`Join ${gym.name} on GymJourno:`}
           replaceWarning="Your current link and poster will stop working."
         >
           {invites.member && (
@@ -56,7 +56,7 @@ export default async function GymInvitePage() {
         <InviteLinkCard
           invite={invite("trainer")}
           makeLink={createGymInviteLink.bind(null, gym.id, "trainer")}
-          shareText={`Join ${gym.name} as a trainer on Gym Journal:`}
+          shareText={`Join ${gym.name} as a trainer on GymJourno:`}
         />
 
         {gym.isOwner && (
@@ -66,7 +66,7 @@ export default async function GymInvitePage() {
             <InviteLinkCard
               invite={invite("admin")}
               makeLink={createGymInviteLink.bind(null, gym.id, "admin")}
-              shareText={`Help run ${gym.name} on Gym Journal:`}
+              shareText={`Help run ${gym.name} on GymJourno:`}
               singleUse
             />
           </>

@@ -28,7 +28,7 @@ export default async function GymPosterPage() {
         <PrintButton />
       </div>
       <h1 className="text-4xl font-bold tracking-tight">{gym.name}</h1>
-      <p className="mt-3 text-xl text-label-2">Scan to join us on Gym Journal</p>
+      <p className="mt-3 text-xl text-label-2">Scan to join us on GymJourno</p>
       {/* The SVG is generated here from our own link, not from user input. */}
       <div className="mt-8 w-72 max-w-full rounded-2xl bg-white p-3 sm:w-96" dangerouslySetInnerHTML={{ __html: qr }} />
       <p className="mt-4 font-mono text-sm text-label-2">{url.replace(/^https?:\/\/(www\.)?/, "")}</p>

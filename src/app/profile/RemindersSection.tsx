@@ -227,7 +227,7 @@ export default function RemindersSection({
           {support === "needs-install" && (
             <p className="text-sm text-label-2">
               On iPhone and iPad, reminders work from the installed app: tap Share → Add to Home Screen, then open
-              Gym Journo from your Home Screen and turn reminders on there.
+              GymJourno from your Home Screen and turn reminders on there.
             </p>
           )}
           {support === "no-worker" && (

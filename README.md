@@ -1,4 +1,4 @@
-# Gym Journal & Scheduler
+# GymJourno
 
 Plan your workouts by day and muscle group, then log the sets/reps/weight you actually did. Mobile-first, built with Next.js (App Router) + Supabase.
 

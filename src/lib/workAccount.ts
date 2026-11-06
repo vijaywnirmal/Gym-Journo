@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getAdminGym } from "@/lib/gyms";
 import { getMyTrainerProfile } from "@/lib/trainers";
 
-// Trainers and the people who run a gym (its owner and admins) use Gym Journal for work only: they
+// Trainers and the people who run a gym (its owner and admins) use GymJourno for work only: they
 // get work screens instead of the workout journal, and use a separate member account for their own
 // training.
 export type WorkRoles = { trainer: boolean; gym: boolean };

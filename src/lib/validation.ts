@@ -16,7 +16,7 @@ export function isValidEmail(email: string): boolean {
 // or a birth year so old it's clearly a mistake).
 // Matches the date picker's range (ProfileFields): at most 120 years ago, and at least 18 years ago.
 // 18 is a rule, not a typo check: India's data protection law (DPDP Act) needs a parent's consent
-// for anyone younger, so Gym Journal is for adults only (also confirmed at onboarding).
+// for anyone younger, so GymJourno is for adults only (also confirmed at onboarding).
 export const MIN_AGE_YEARS = 18;
 export const MAX_AGE_YEARS = 120;
 
@@ -29,7 +29,7 @@ export function validateDateOfBirth(dateOfBirth: string): string | null {
   const minDate = new Date(now.getFullYear() - MAX_AGE_YEARS, now.getMonth(), now.getDate());
   if (parsed < minDate) return "Enter a valid date of birth.";
   const youngest = new Date(now.getFullYear() - MIN_AGE_YEARS, now.getMonth(), now.getDate());
-  if (parsed > youngest) return `You need to be ${MIN_AGE_YEARS} or older to use Gym Journal.`;
+  if (parsed > youngest) return `You need to be ${MIN_AGE_YEARS} or older to use GymJourno.`;
   return null;
 }
 

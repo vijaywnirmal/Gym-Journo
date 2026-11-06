@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { emailConfigFromEnv, sendEmails, type OutgoingEmail } from "./send";
 
-const config = { apiKey: "test-key", from: "Gym Journal <hello@example.test>" };
+const config = { apiKey: "test-key", from: "GymJourno <hello@example.test>" };
 const email = (to: string): OutgoingEmail => ({ to, subject: "s", html: "h", text: "t" });
 
 describe("emailConfigFromEnv", () => {

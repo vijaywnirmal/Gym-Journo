@@ -19,7 +19,7 @@ export async function saveAdminProfile(input: { name: string; confirmedAdult: bo
   const name = cleanName(input.name);
   const nameError = validateName(name, "name", true);
   if (nameError) return { error: nameError };
-  if (input.confirmedAdult !== true) return { error: "Gym Journal is for people 18 or older. Please confirm your age." };
+  if (input.confirmedAdult !== true) return { error: "GymJourno is for people 18 or older. Please confirm your age." };
 
   const { firstName, lastName } = splitFullName(name);
   const { error } = await supabase.from("profiles").upsert({

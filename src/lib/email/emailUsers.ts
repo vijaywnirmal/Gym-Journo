@@ -19,7 +19,7 @@ export async function emailUsers(userIds: string[], message: PushPayload): Promi
     const email = renderEmail({
       title: message.title,
       body: message.body,
-      buttonLabel: "Open Gym Journal",
+      buttonLabel: "Open GymJourno",
       buttonUrl: `${site}${message.url}`,
     });
     await sendEmails(addresses.map((to) => ({ ...email, to })), config);

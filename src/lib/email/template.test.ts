@@ -4,7 +4,7 @@ import { renderEmail } from "./template";
 const content = {
   title: "You're no longer a member of Iron Temple",
   body: "Your workouts and history are still here.",
-  buttonLabel: "Open Gym Journal",
+  buttonLabel: "Open GymJourno",
   buttonUrl: "https://example.test/profile",
 };
 
@@ -15,7 +15,7 @@ describe("renderEmail", () => {
     expect(html).toContain("You&#39;re no longer a member of Iron Temple");
     expect(html).toContain('href="https://example.test/profile"');
     expect(text).toContain(content.title);
-    expect(text).toContain("Open Gym Journal: https://example.test/profile");
+    expect(text).toContain("Open GymJourno: https://example.test/profile");
   });
 
   it("doesn't let a gym's name put markup into the email", () => {
