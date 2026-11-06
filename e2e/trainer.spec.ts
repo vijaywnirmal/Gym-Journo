@@ -103,7 +103,11 @@ test("a live invite asks for an account first, and once replaced says it has exp
     }
     const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
     const page = await context.newPage();
+    // A welcome page says who sent the link and what they'll see, then leads to sign-up.
     await page.goto(`/join/${code}`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Train with Ina");
+    await expect(page.getByText("Ina will see")).toBeVisible();
+    await page.getByRole("link", { name: "Create account to join" }).click();
     await expect(page).toHaveURL(/\/login\?invite=1$/);
     await expect(page.getByText("Create an account to join your trainer.")).toBeVisible();
 

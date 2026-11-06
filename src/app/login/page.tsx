@@ -32,8 +32,11 @@ function LoginForm() {
   const fromInvite = invite === "1" || invite === "gym";
   const inviter = invite === "gym" ? "your gym" : "your trainer";
   // "Start free" on the home page (?signup=1) also opens on sign-up.
+  // "I already have an account" on an invite's welcome page (?signin=1) opens on sign-in.
   const [mode, setMode] = useState<"password" | "magic-link" | "register">(
-    asTrainer || asGym || fromInvite || searchParams.get("signup") === "1" ? "register" : "password"
+    searchParams.get("signin") !== "1" && (asTrainer || asGym || fromInvite || searchParams.get("signup") === "1")
+      ? "register"
+      : "password"
   );
   // Switching between password, magic link and sign-up keeps focus in the form (the button that
   // was clicked disappears), on the email field.

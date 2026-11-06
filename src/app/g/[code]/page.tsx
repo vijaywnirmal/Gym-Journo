@@ -9,8 +9,28 @@ import WorkAccountNotice, { hasJournal } from "@/components/WorkAccountNotice";
 import { getProfile } from "@/lib/queries";
 import type { GymRole } from "@/lib/types";
 import GymJoinActions from "./GymJoinActions";
+import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/currentUser";
+import { getInvitePreview } from "@/lib/invitePreview";
+import { endedInvitePath } from "@/lib/trainerInvites";
+import InviteWelcome from "@/components/public/InviteWelcome";
 
-export const metadata: Metadata = { title: "Join a gym" };
+// Signed out, the link opens a welcome page; its title and description are also the link's preview
+// in WhatsApp and the like (with opengraph-image.tsx).
+export async function generateMetadata({ params }: { params: Promise<{ code: string }> }): Promise<Metadata> {
+  if (await getCurrentUser()) return { title: "Join a gym" };
+  const { code } = await params;
+  const invite = await getInvitePreview("gym", code);
+  if (invite?.state !== "open" || invite.kind !== "gym") return { title: "Join a gym" };
+  const title =
+    invite.role === "trainer"
+      ? `Train at ${invite.name} on GymJourno`
+      : invite.role === "admin"
+        ? `Help run ${invite.name} on GymJourno`
+        : `Join ${invite.name} on GymJourno`;
+  const description = `${invite.name} has invited you to GymJourno.`;
+  return { title: { absolute: title }, description, openGraph: { title, description }, robots: { index: false } };
+}
 
 type InviteDetails = {
   state: "valid" | "expired" | "not_found" | "current" | "own" | "needs_trainer_profile";
@@ -28,6 +48,12 @@ const CURRENT: Record<GymRole, (gym: string) => string> = {
 
 export default async function GymJoinPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
+  if (!(await getCurrentUser())) {
+    const invite = await getInvitePreview("gym", code);
+    if (invite?.state === "open") return <InviteWelcome invite={invite} />;
+    // A link that died since the proxy checked it, or a failed lookup: the old way in.
+    redirect(endedInvitePath(invite?.state, "gym") ?? "/login?invite=gym");
+  }
   const supabase = await createClient();
   const [{ data, error }, membership, myTrainer, roles, profile] = await Promise.all([
     supabase.rpc("gym_invite_details", { p_code: code }),

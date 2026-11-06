@@ -6,8 +6,23 @@ import { getMyTrainer } from "@/lib/trainers";
 import { getWorkRoles, isWorkAccount, workHome } from "@/lib/workAccount";
 import TrainerSeesList from "@/components/TrainerSeesList";
 import JoinActions from "./JoinActions";
+import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/currentUser";
+import { getInvitePreview } from "@/lib/invitePreview";
+import { endedInvitePath } from "@/lib/trainerInvites";
+import InviteWelcome from "@/components/public/InviteWelcome";
 
-export const metadata: Metadata = { title: "Join your trainer" };
+// Signed out, the link opens a welcome page; its title and description are also the link's preview
+// in WhatsApp and the like (with opengraph-image.tsx).
+export async function generateMetadata({ params }: { params: Promise<{ code: string }> }): Promise<Metadata> {
+  if (await getCurrentUser()) return { title: "Join your trainer" };
+  const { code } = await params;
+  const invite = await getInvitePreview("trainer", code);
+  if (invite?.state !== "open") return { title: "Join your trainer" };
+  const title = `Train with ${invite.name} on GymJourno`;
+  const description = `${invite.name} has invited you to GymJourno to plan and log your workouts together.`;
+  return { title: { absolute: title }, description, openGraph: { title, description }, robots: { index: false } };
+}
 
 type InviteDetails = {
   state: "valid" | "expired" | "not_found" | "own" | "current";
@@ -18,6 +33,12 @@ type InviteDetails = {
 
 export default async function JoinPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
+  if (!(await getCurrentUser())) {
+    const invite = await getInvitePreview("trainer", code);
+    if (invite?.state === "open") return <InviteWelcome invite={invite} />;
+    // A link that died since the proxy checked it, or a failed lookup: the old way in.
+    redirect(endedInvitePath(invite?.state, "trainer") ?? "/login?invite=1");
+  }
   const supabase = await createClient();
   const [{ data, error }, current, roles] = await Promise.all([
     supabase.rpc("trainer_invite_details", { p_code: code }),
