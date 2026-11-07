@@ -79,6 +79,13 @@ export function activeTab(pathname: string, tabs: Tab[]): string {
   return under.sort((a, b) => b.href.length - a.href.length)[0]?.href ?? "";
 }
 
+// Whether a page has the app's navigation. Signed out, there's nothing to navigate to (the front
+// door has its own header); sign-in, setup and similar pages stand alone. AppFrame leaves room for
+// the navigation only where this is true.
+export function showsAppNav(pathname: string, signedIn: boolean): boolean {
+  return signedIn && !isPublicPage(pathname, signedIn) && !HIDDEN_ON.some((p) => pathname.startsWith(p));
+}
+
 // Primary navigation: a bottom bar on phones, a sidebar from tablet width up.
 export default function AppNav({
   isTrainer = false,
@@ -90,8 +97,7 @@ export default function AppNav({
   signedIn?: boolean;
 }) {
   const pathname = usePathname();
-  // Signed out, there's nothing to navigate to: the front door has its own header.
-  if (!signedIn || isPublicPage(pathname, signedIn) || HIDDEN_ON.some((p) => pathname.startsWith(p))) return null;
+  if (!showsAppNav(pathname, signedIn)) return null;
   const tabs = tabsFor(isTrainer, isGymAdmin);
   const current = activeTab(pathname, tabs);
 

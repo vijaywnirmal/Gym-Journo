@@ -3,9 +3,11 @@
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { isPublicPage } from "@/lib/publicPages";
+import { showsAppNav } from "@/components/AppNav";
 
 // Where a page's content sits. App screens: a reading-width column above the phone's bottom bar,
-// beside the sidebar from tablet width. The public front door: the full width, with its own header.
+// beside the sidebar from tablet width. Pages without the navigation (sign-in, setup) get the same
+// column, centred on the whole screen. The public front door: the full width, with its own header.
 export default function AppFrame({ signedIn, children }: { signedIn: boolean; children: ReactNode }) {
   const pathname = usePathname();
   if (isPublicPage(pathname, signedIn)) {
@@ -15,8 +17,9 @@ export default function AppFrame({ signedIn, children }: { signedIn: boolean; ch
       </div>
     );
   }
+  const withNav = showsAppNav(pathname, signedIn);
   return (
-    <div className="pt-[env(safe-area-inset-top)] pb-24 md:pb-10 md:pl-60">
+    <div className={`pt-[env(safe-area-inset-top)] ${withNav ? "pb-24 md:pb-10 md:pl-60" : "pb-10"}`}>
       <div id="content" tabIndex={-1} className="mx-auto w-full max-w-2xl outline-none">
         {children}
       </div>

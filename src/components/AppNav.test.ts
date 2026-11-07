@@ -1,5 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { activeTab, tabsFor } from "./AppNav";
+import { activeTab, showsAppNav, tabsFor } from "./AppNav";
+
+describe("showsAppNav", () => {
+  it("shows the navigation on the app's own screens", () => {
+    expect(showsAppNav("/", true)).toBe(true);
+    expect(showsAppNav("/calendar", true)).toBe(true);
+    expect(showsAppNav("/trainer/clients", true)).toBe(true);
+  });
+
+  it("leaves it off sign-in, setup and the front door, and whenever signed out", () => {
+    expect(showsAppNav("/login", false)).toBe(false);
+    expect(showsAppNav("/login", true)).toBe(false);
+    expect(showsAppNav("/onboarding", true)).toBe(false);
+    expect(showsAppNav("/privacy", true)).toBe(false);
+    expect(showsAppNav("/trainers", true)).toBe(false);
+    expect(showsAppNav("/", false)).toBe(false);
+    expect(showsAppNav("/calendar", false)).toBe(false);
+  });
+});
 
 const labels = (isTrainer: boolean, isGymAdmin: boolean) => tabsFor(isTrainer, isGymAdmin).map((t) => t.label);
 
