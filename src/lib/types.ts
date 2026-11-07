@@ -41,6 +41,8 @@ export type Exercise = {
   instructions?: string | null;
   demo_images?: string[] | null;
   muscle_groups?: MuscleGroup[];
+  // How it's measured (migration 0051): weight_reps | time | distance. See lib/measure.ts.
+  measure?: string;
 };
 
 export type WorkoutPlan = {
@@ -102,6 +104,10 @@ export type LoggedSet = {
   notes: string | null;
   set_type?: string;
   rpe?: number | null;
+  // A timed set or a distance (migration 0051); null for weight-and-reps sets.
+  duration_seconds?: number | null;
+  distance?: number | null;
+  distance_unit?: string;
 };
 
 // A reusable workout definition. Instantiating one copies its template_exercises into a dated
@@ -227,6 +233,10 @@ export type ClientLog = {
       set_type: string | null;
       rpe: number | null;
       notes: string | null;
+      // Sent from migration 0051; absent from an older database.
+      duration_seconds?: number | null;
+      distance?: number | null;
+      distance_unit?: string;
     }[];
   }[];
 };

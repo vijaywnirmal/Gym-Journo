@@ -5,6 +5,7 @@ import type { MuscleGroup } from "@/lib/types";
 import { EQUIPMENT_OPTIONS } from "@/lib/exerciseSearch";
 import Icon from "@/components/Icon";
 import Select from "@/components/ui/Select";
+import { DEFAULT_MEASURE, MEASURES, MEASURE_LABEL, toMeasure, type Measure } from "@/lib/measure";
 import ToggleChip from "@/components/ui/ToggleChip";
 import { createExercise } from "./actions";
 
@@ -20,6 +21,7 @@ export default function ExerciseCreateForm({
   const [pending, startTransition] = useTransition();
   const [name, setName] = useState("");
   const [equipment, setEquipment] = useState("");
+  const [measure, setMeasure] = useState<Measure>(DEFAULT_MEASURE);
   const [instructions, setInstructions] = useState("");
   const [selectedMuscleGroups, setSelectedMuscleGroups] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +47,7 @@ export default function ExerciseCreateForm({
       const result = await createExercise({
         name,
         equipment,
+        measure,
         instructions,
         muscleGroupIds: [...selectedMuscleGroups],
       });
@@ -96,6 +99,18 @@ export default function ExerciseCreateForm({
               className="w-full"
             />
           </div>
+        </div>
+        <div>
+          <span className="mb-1.5 block text-sm font-medium">How do you measure it?</span>
+          <Select
+            value={measure}
+            onChange={(v) => setMeasure(toMeasure(v))}
+            options={MEASURES.map((m) => ({ value: m, label: MEASURE_LABEL[m] }))}
+            ariaLabel="How do you measure it?"
+            size="lg"
+            className="w-full sm:w-80"
+          />
+          <p className="mt-1 text-xs text-label-3">This can&apos;t be changed once you&apos;ve logged it.</p>
         </div>
         <div>
           <span className="mb-2 block text-sm font-medium">Muscle groups</span>

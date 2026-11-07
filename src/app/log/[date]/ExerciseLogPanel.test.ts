@@ -11,12 +11,14 @@ import {
   setCountLabel,
   setValueProblem,
   firstEntryWithSetProblem,
+  setHasValues,
+  toSavedSet,
   type SetRow,
 } from "./ExerciseLogPanel";
 import type { PreviousPerformance } from "@/lib/queries";
 
 function set(weight: string, reps: string, weightUnit = "kg"): SetRow {
-  return { weight, reps, weightUnit, setType: "working", rpe: "" };
+  return { weight, reps, weightUnit, setType: "working", rpe: "", duration: "", distance: "", distanceUnit: "km" };
 }
 
 function previousWith(
@@ -327,8 +329,8 @@ describe("setsFromPrevious (M3)", () => {
       ],
     };
     expect(setsFromPrevious(previous)).toEqual([
-      { reps: "10", weight: "60", weightUnit: "kg", setType: "working", rpe: "" },
-      { reps: "8", weight: "", weightUnit: "lb", setType: "working", rpe: "" },
+      { reps: "10", weight: "60", weightUnit: "kg", setType: "working", rpe: "", duration: "", distance: "", distanceUnit: "km" },
+      { reps: "8", weight: "", weightUnit: "lb", setType: "working", rpe: "", duration: "", distance: "", distanceUnit: "km" },
     ]);
   });
 
@@ -341,22 +343,59 @@ describe("setsFromPrevious (M3)", () => {
   });
 });
 
+describe("timed and distance rows (I1.2, I1.3)", () => {
+  const row = (overrides: Partial<SetRow>): SetRow => ({ ...set("", ""), ...overrides });
+
+  it("counts a row with only a time or a distance as logged", () => {
+    expect(setHasValues(row({ duration: "1:30" }))).toBe(true);
+    expect(setHasValues(row({ distance: "5" }))).toBe(true);
+    expect(setHasValues(row({}))).toBe(false);
+    expect(countLoggedSets([row({ duration: "45" }), row({})])).toBe(1);
+  });
+
+  it("saves times as seconds, distances as numbers, and blanks as null", () => {
+    expect(toSavedSet(row({ duration: "1:30" }))).toMatchObject({ durationSeconds: 90, distance: null, reps: null, weight: null });
+    expect(toSavedSet(row({ distance: "5.2", duration: "28:30", distanceUnit: "mi" }))).toMatchObject({
+      distance: 5.2,
+      durationSeconds: 1710,
+      distanceUnit: "mi",
+    });
+    // A time that can't be read isn't saved; the row says why.
+    expect(toSavedSet(row({ duration: "1.5" })).durationSeconds).toBeNull();
+    expect(setValueProblem(row({ duration: "1.5" }))).toMatch(/like 45/);
+  });
+
+  it("explains times and distances it can't save", () => {
+    expect(setValueProblem(row({ duration: "3:00:00" }))).toMatch(/2 hours or less/);
+    expect(setValueProblem(row({ distance: "2000" }))).toMatch(/between 0 and 1000/);
+    expect(setValueProblem(row({ duration: "45", distance: "1" }))).toBeNull();
+  });
+
+  it("copies last time's time and distance for Repeat", () => {
+    const rows = setsFromPrevious({
+      date: "2026-10-01",
+      sets: [{ setNumber: 1, reps: null, weight: null, weightUnit: "kg", durationSeconds: 1710, distance: 5, distanceUnit: "mi" }],
+    });
+    expect(rows[0]).toMatchObject({ duration: "28:30", distance: "5", distanceUnit: "mi", reps: "", weight: "" });
+  });
+});
+
 describe("plateText (M3)", () => {
   it("describes the per-side load", () => {
-    expect(plateText({ reps: "5", weight: "100", weightUnit: "kg", setType: "working", rpe: "" })).toBe("Per side: 25 + 15");
-    expect(plateText({ reps: "5", weight: "225", weightUnit: "lb", setType: "working", rpe: "" })).toBe("Per side: 45 ×2");
+    expect(plateText({ reps: "5", weight: "100", weightUnit: "kg", setType: "working", rpe: "", duration: "", distance: "", distanceUnit: "km" })).toBe("Per side: 25 + 15");
+    expect(plateText({ reps: "5", weight: "225", weightUnit: "lb", setType: "working", rpe: "", duration: "", distance: "", distanceUnit: "km" })).toBe("Per side: 45 ×2");
   });
 
   it("notes when the weight can't be made exactly", () => {
-    expect(plateText({ reps: "5", weight: "101", weightUnit: "kg", setType: "working", rpe: "" })).toBe(
+    expect(plateText({ reps: "5", weight: "101", weightUnit: "kg", setType: "working", rpe: "", duration: "", distance: "", distanceUnit: "km" })).toBe(
       "Per side: 25 + 15 (100 kg loaded, 1 short)"
     );
   });
 
   it("says nothing for blank weights or loads at or below the bar", () => {
-    expect(plateText({ reps: "5", weight: "", weightUnit: "kg", setType: "working", rpe: "" })).toBeNull();
-    expect(plateText({ reps: "5", weight: "20", weightUnit: "kg", setType: "working", rpe: "" })).toBeNull();
-    expect(plateText({ reps: "5", weight: "21", weightUnit: "kg", setType: "working", rpe: "" })).toBeNull();
+    expect(plateText({ reps: "5", weight: "", weightUnit: "kg", setType: "working", rpe: "", duration: "", distance: "", distanceUnit: "km" })).toBeNull();
+    expect(plateText({ reps: "5", weight: "20", weightUnit: "kg", setType: "working", rpe: "", duration: "", distance: "", distanceUnit: "km" })).toBeNull();
+    expect(plateText({ reps: "5", weight: "21", weightUnit: "kg", setType: "working", rpe: "", duration: "", distance: "", distanceUnit: "km" })).toBeNull();
   });
 
   it("doesn't compare a working set with last time's warm-up in the same position", () => {

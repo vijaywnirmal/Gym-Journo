@@ -1,4 +1,5 @@
 import { formatSetDetail } from "@/lib/setData";
+import { formatSetValue } from "@/lib/measure";
 import type { PerformedSet } from "@/lib/analyze/exerciseSessions";
 import type { SetComparison, ValueComparison } from "@/lib/analyze/setComparison";
 
@@ -9,7 +10,12 @@ import type { SetComparison, ValueComparison } from "@/lib/analyze/setComparison
 // being invented.
 export function formatPerformedSet(set: PerformedSet): string {
   const detail = formatSetDetail(set.setType, null);
-  return `${set.weight ?? "?"}${set.weightUnit} × ${set.reps ?? "?"}${detail ? ` (${detail})` : ""}`;
+  // Timed and distance sets read in their own units ("1:30", "5 km in 28:30").
+  const value =
+    set.durationSeconds != null || set.distance != null
+      ? formatSetValue(set)
+      : `${set.weight ?? "?"}${set.weightUnit} × ${set.reps ?? "?"}`;
+  return `${value}${detail ? ` (${detail})` : ""}`;
 }
 
 // Rounded so binary floating point (e.g. 0.1 + 0.2) never leaks into the display.

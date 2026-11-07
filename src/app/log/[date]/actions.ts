@@ -8,6 +8,7 @@ import { detectPersonalRecords, type PersonalRecord } from "@/lib/analyze/person
 import { WEIGHT_UNITS } from "@/lib/validation";
 import { isValidIsoDate } from "@/lib/date";
 import { isSetType, isValidRpe, MAX_EXERCISE_NOTE_LENGTH, type SetType } from "@/lib/setData";
+import { DISTANCE_UNITS, MAX_DISTANCE, MAX_DURATION_SECONDS, toMeasure, type Measure } from "@/lib/measure";
 
 export type SaveLogInput = {
   date: string;
@@ -23,6 +24,10 @@ export type SaveLogInput = {
       weightUnit: string;
       setType?: SetType;
       rpe?: number | null;
+      // Timed and distance sets (lib/measure.ts). Absent from an older client, which saves as before.
+      durationSeconds?: number | null;
+      distance?: number | null;
+      distanceUnit?: string;
     }[];
   }[];
 };
@@ -47,6 +52,23 @@ function validateSaveLogInput(input: SaveLogInput): string | null {
       if (!WEIGHT_UNITS.has(s.weightUnit)) return "Invalid weight unit.";
       if (s.setType !== undefined && !isSetType(s.setType)) return "Invalid set type.";
       if (s.rpe !== undefined && s.rpe !== null && !isValidRpe(s.rpe)) return "RPE must be 1–10 in half steps.";
+      if (
+        s.durationSeconds !== undefined &&
+        s.durationSeconds !== null &&
+        (!Number.isInteger(s.durationSeconds) || s.durationSeconds < 0 || s.durationSeconds > MAX_DURATION_SECONDS)
+      ) {
+        return "Enter a time of 2 hours or less.";
+      }
+      if (
+        s.distance !== undefined &&
+        s.distance !== null &&
+        (!Number.isFinite(s.distance) || s.distance < 0 || s.distance > MAX_DISTANCE)
+      ) {
+        return `Enter a distance between 0 and ${MAX_DISTANCE}.`;
+      }
+      if (s.distanceUnit !== undefined && !(DISTANCE_UNITS as readonly string[]).includes(s.distanceUnit)) {
+        return "Invalid distance unit.";
+      }
     }
   }
   return null;
@@ -83,6 +105,9 @@ export async function saveLog(input: SaveLogInput) {
         weight_unit: s.weightUnit,
         set_type: s.setType ?? "working",
         rpe: s.rpe ?? null,
+        duration_seconds: s.durationSeconds ?? null,
+        distance: s.distance ?? null,
+        distance_unit: s.distanceUnit ?? "km",
       })),
     })),
   });
@@ -133,6 +158,16 @@ export async function fetchPreviousPerformance(exerciseId: string, beforeDate: s
   } = await supabase.auth.getUser();
   if (!user) return null;
   return getPreviousPerformance(exerciseId, beforeDate);
+}
+
+// How an exercise added mid-workout is measured (lib/measure.ts). Reads every column, so it also
+// works for the minute a release can meet a database from before migration 0051. Weight and reps
+// when signed out, unknown or on error.
+export async function fetchExerciseMeasure(exerciseId: string): Promise<Measure> {
+  if (typeof exerciseId !== "string" || !exerciseId) return "weight_reps";
+  const supabase = await createClient();
+  const { data } = await supabase.from("exercises").select("*").eq("id", exerciseId).maybeSingle();
+  return toMeasure((data as { measure?: string } | null)?.measure);
 }
 
 const MAX_EXCLUDED = 100;

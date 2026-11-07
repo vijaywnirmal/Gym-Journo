@@ -14,12 +14,17 @@ const setSchema = z.object({
   weightUnit: z.string(),
   setType: z.enum(["working", "warmup", "drop", "failure"]).catch("working"),
   rpe: z.string().catch(""),
+  // Timed and distance sets (lib/measure.ts); a backup from before them has none.
+  duration: z.string().catch(""),
+  distance: z.string().catch(""),
+  distanceUnit: z.enum(["km", "mi"]).catch("km"),
   done: z.boolean().optional(),
 });
 
 const entrySchema = z.object({
   exerciseId: z.string().min(1),
   name: z.string(),
+  measure: z.enum(["weight_reps", "time", "distance"]).catch("weight_reps"),
   notes: z.string().catch(""),
   target: z.object({ sets: z.number().nullable(), reps: z.number().nullable() }).nullable().catch(null),
   sets: z.array(setSchema),

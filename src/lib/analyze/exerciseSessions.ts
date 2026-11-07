@@ -14,6 +14,10 @@ export type PerformedSet = {
   weightUnit: string;
   // "working" | "warmup" | "drop" | "failure"; absent/unknown reads as working (lib/setData.ts).
   setType?: string;
+  // Timed and distance sets (lib/measure.ts); absent on weight-and-reps sets.
+  durationSeconds?: number | null;
+  distance?: number | null;
+  distanceUnit?: string;
 };
 
 export type ExerciseSession = { date: string; sets: PerformedSet[] };
@@ -24,6 +28,9 @@ type SetRowLike = {
   weight: number | null;
   weight_unit: string;
   set_type?: string | null;
+  duration_seconds?: number | null;
+  distance?: number | null;
+  distance_unit?: string | null;
 };
 
 export type SessionSourceLog = {
@@ -48,6 +55,8 @@ export function performedSetsOf(log: SessionSourceLog, exerciseId: string): Perf
       weight: s.weight,
       weightUnit: s.weight_unit,
       ...(s.set_type ? { setType: s.set_type } : {}),
+      ...(s.duration_seconds != null ? { durationSeconds: s.duration_seconds } : {}),
+      ...(s.distance != null ? { distance: Number(s.distance), distanceUnit: s.distance_unit ?? "km" } : {}),
     }));
 }
 
