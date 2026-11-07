@@ -5,7 +5,8 @@
 -- Run the whole file in the Supabase SQL editor (or the SQL API). Rerun after each release.
 --
 -- Optionally edit `params`: the first day of real sign-ups, test accounts to leave out (by email),
--- and the day to measure "as of" (today by default). Accounts on example.test are always left out.
+-- and the day to measure "as of" (today by default). Accounts on example.test, and any email containing "+gjtest"
+-- (Gmail-style aliases for the live test accounts), are always left out.
 -- Every account created before 7 November 2026 is a test account, so only accounts created on or
 -- after `real_from` count (and gyms and trainers only when their owner's account does).
 --
@@ -38,6 +39,7 @@ people as (
   join profiles p on p.id = u.id
   cross join params
   where u.email not like '%@example.test'
+    and u.email not like '%+gjtest%'
     and not (u.email = any (params.exclude_emails))
     and u.created_at >= params.real_from
 ),
