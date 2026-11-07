@@ -108,8 +108,9 @@ export default async function ProfilePage() {
         />
 
         <h2 className="section-title mt-8">Privacy</h2>
-        <section className="card">
+        <section className="card divide-y divide-separator">
           <LinkRow href="/privacy" title="Privacy policy" text="What's kept, who sees it, and how to delete it" />
+          <DownloadDataRow />
         </section>
 
         <h2 className="section-title mt-8">Account</h2>
@@ -212,8 +213,9 @@ export default async function ProfilePage() {
 
       <h2 className="section-title mt-8">Privacy</h2>
       <CoachConsentSection consentedAt={profile?.coach_consent_at ?? null} timeZone={profile?.timezone ?? null} />
-      <section className="card mt-3">
+      <section className="card mt-3 divide-y divide-separator">
         <LinkRow href="/privacy" title="Privacy policy" text="What's kept, who sees it, and how to delete it" />
+        <DownloadDataRow />
       </section>
 
       <h2 className="section-title mt-8">Account</h2>
@@ -230,6 +232,19 @@ export default async function ProfilePage() {
         <DeleteAccountSection />
       </section>
     </main>
+  );
+}
+
+// A plain link, not <Link>: it downloads a file (story I5.1) rather than opening a page.
+function DownloadDataRow() {
+  return (
+    <a href="/api/export" download className="flex items-center gap-3 px-4 py-3 hover:bg-fill">
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold">Download my data</span>
+        <span className="block text-sm text-label-2">Your workouts, plans and body weight as a PDF</span>
+      </span>
+      <Icon name="download" className="size-4 shrink-0 text-label-3" />
+    </a>
   );
 }
 
