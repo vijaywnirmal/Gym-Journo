@@ -1,5 +1,7 @@
 # Implementation plan — 2026-10-29
 
+> **Replaced on 6 November 2026** by [`product-charter.md`](product-charter.md) (why, who for, what's decided) and [`delivery-plan.md`](delivery-plan.md) (what we build and when). Kept for history; where they disagree, follow those two.
+
 Fits the current stack: Next.js Server Actions, plus Supabase RLS and SECURITY DEFINER RPCs. No new
 services. Each phase is one or more small PRs against `master`, and each needs green CI (lint,
 typecheck, unit, SQL, E2E) and a green Production E2E after deploy.

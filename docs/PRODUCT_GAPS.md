@@ -1,5 +1,7 @@
 # Product gaps and priorities — 2026-10-29
 
+> **Replaced on 6 November 2026** by [`product-charter.md`](product-charter.md) (why, who for, what's decided) and [`delivery-plan.md`](delivery-plan.md) (what we build and when). Kept for history; where they disagree, follow those two.
+
 Based on [`audit/BASELINE.md`](audit/BASELINE.md). The product today:
 
 - A strong single-person training journal: logging, PRs, analytics, AI coach, programs.

@@ -1,5 +1,7 @@
 # Gym-Journo — Roadmap v1
 
+> **Replaced on 6 November 2026** by [`product-charter.md`](product-charter.md) (why, who for, what's decided) and [`delivery-plan.md`](delivery-plan.md) (what we build and when). Kept for history; where they disagree, follow those two.
+
 Status: Draft for product-owner review. Reflects Phase 0 audit as of 2026-09-16. Phase numbering matches the kickoff brief.
 
 Legend for "Dependencies": phases that must be functionally complete (not necessarily merged, but working) before this phase starts.

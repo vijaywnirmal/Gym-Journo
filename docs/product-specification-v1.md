@@ -1,5 +1,7 @@
 # Gym-Journo — Product Specification v1
 
+> **Replaced on 6 November 2026** by [`product-charter.md`](product-charter.md) (why, who for, what's decided) and [`delivery-plan.md`](delivery-plan.md) (what we build and when). Kept for history; where they disagree, follow those two.
+
 Status: Draft for product-owner review. Reflects Phase 0 audit of the repository as of 2026-09-16.
 
 ## 1. Product Vision
