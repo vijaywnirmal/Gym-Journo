@@ -19,19 +19,36 @@ import {
 } from "@/lib/setData";
 import type { PreviousPerformance } from "@/lib/queries";
 import { compareSet, type SetComparison, type ValueComparison } from "@/lib/analyze/setComparison";
+import {
+  distanceProblem,
+  durationProblem,
+  formatDuration,
+  formatPace,
+  formatSetValue,
+  parseDuration,
+  type DistanceUnit,
+  type Measure,
+} from "@/lib/measure";
 
 // rpe is "" when not recorded. done is the on-screen ✓ (it starts the rest timer); it is not saved.
+// duration is typed text ("45", "1:30"); distance is a number as typed. Which fields a row shows
+// depends on the exercise's measure (lib/measure.ts).
 export type SetRow = {
   reps: string;
   weight: string;
   weightUnit: string;
   setType: SetType;
   rpe: string;
+  duration: string;
+  distance: string;
+  distanceUnit: DistanceUnit;
   done?: boolean;
 };
 export type ExerciseEntry = {
   exerciseId: string;
   name: string;
+  // How the exercise is measured: which fields its set rows show.
+  measure: Measure;
   notes: string;
   // The plan's target; weight is left out of a lighter session, which lightens the load.
   target: { sets: number | null; reps: number | null; weight?: number | null; weightUnit?: string } | null;
@@ -105,7 +122,31 @@ export function setsFromPrevious(previous: PreviousPerformance | null | undefine
       setType: toSetType(s.setType),
       // Effort is about today, so it is never copied.
       rpe: "",
+      duration: s.durationSeconds != null ? formatDuration(s.durationSeconds) : "",
+      distance: s.distance != null ? String(s.distance) : "",
+      distanceUnit: s.distanceUnit === "mi" ? "mi" : "km",
     }));
+}
+
+// A row with anything recorded in it: reps, weight, a time or a distance.
+export function setHasValues(set: Pick<SetRow, "reps" | "weight"> & Partial<Pick<SetRow, "duration" | "distance">>): boolean {
+  return !!(set.reps.trim() || set.weight.trim() || set.duration?.trim() || set.distance?.trim());
+}
+
+// A row as the server saves it. Blank fields are null; a time that can't be read is null too
+// (setValueProblem already says so beside the set).
+export function toSavedSet(set: SetRow) {
+  const seconds = parseDuration(set.duration);
+  return {
+    reps: set.reps ? parseInt(set.reps, 10) : null,
+    weight: set.weight ? parseFloat(set.weight) : null,
+    weightUnit: set.weightUnit,
+    setType: set.setType,
+    rpe: set.rpe ? parseFloat(set.rpe) : null,
+    durationSeconds: seconds === null || Number.isNaN(seconds) ? null : seconds,
+    distance: set.distance ? parseFloat(set.distance) : null,
+    distanceUnit: set.distanceUnit,
+  };
 }
 
 // Per-side plate breakdown for one set row, or null when there's nothing to load (no weight, not
@@ -146,6 +187,7 @@ export function exerciseHistoryHref(exerciseId: string): string {
 function targetLabel(target: ExerciseEntry["target"]): string | null {
   if (!target || (!target.sets && !target.reps && !target.weight)) return null;
   const sets = target.sets ?? "?";
+  if (!target.reps && !target.weight) return `${sets} set${sets === 1 ? "" : "s"}`;
   const reps = target.reps ?? "?";
   const weight = target.weight ? ` @ ${target.weight} ${target.weightUnit ?? "kg"}` : "";
   return `${sets} × ${reps}${weight}`;
@@ -159,7 +201,13 @@ export function setCountLabel(count: number): string {
 
 // What's wrong with a set's numbers, in the same limits the server saves by. One bad number stops
 // the whole workout saving, so it's said beside the set rather than only at the top of the page.
-export function setValueProblem(set: Pick<SetRow, "weight" | "reps">): string | null {
+export function setValueProblem(
+  set: Pick<SetRow, "weight" | "reps"> & Partial<Pick<SetRow, "duration" | "distance">>
+): string | null {
+  const duration = durationProblem(set.duration ?? "");
+  if (duration) return `${duration} This set isn't saved yet.`;
+  const distance = distanceProblem(set.distance ?? "");
+  if (distance) return `${distance} This set isn't saved yet.`;
   if (set.weight.trim()) {
     const weight = parseFloat(set.weight);
     if (!(weight >= 0 && weight <= 1000)) return "Enter a weight between 0 and 1000. This set isn't saved yet.";
@@ -172,21 +220,23 @@ export function setValueProblem(set: Pick<SetRow, "weight" | "reps">): string | 
 }
 
 // Where to look when a workout can't save because of a number: the first exercise holding one.
-export function firstEntryWithSetProblem(entries: { sets: Pick<SetRow, "weight" | "reps">[] }[]): number {
+export function firstEntryWithSetProblem(
+  entries: { sets: (Pick<SetRow, "weight" | "reps"> & Partial<Pick<SetRow, "duration" | "distance">>)[] }[]
+): number {
   return entries.findIndex((entry) => entry.sets.some((set) => setValueProblem(set)));
 }
 
 // Removing an exercise deletes its sets too, so it asks first once anything has been entered.
 function hasEnteredData(sets: SetRow[]): boolean {
-  return sets.some((set) => set.weight.trim() || set.reps.trim() || set.rpe.trim() || set.done);
+  return sets.some((set) => setHasValues(set) || set.rpe.trim() || set.done);
 }
 
-// A set counts as logged once it has recorded content (reps or weight) — a freshly plan-seeded
+// A set counts as logged once it has recorded content (reps, weight, time or distance) — a freshly plan-seeded
 // row present in the array but still blank does not count. Mirrors LogForm's isExerciseEntryLogged
 // at set granularity, so a plan targeting 3 sets doesn't read as "3 logged" the moment the stepper
 // pre-populates 3 empty rows, before the user has entered anything.
 export function countLoggedSets(sets: SetRow[]): number {
-  return sets.filter((s) => s.reps.trim() !== "" || s.weight.trim() !== "").length;
+  return sets.filter((s) => setHasValues(s)).length;
 }
 
 // Purely descriptive: how many more planned sets remain unlogged, based only on the literal
@@ -243,6 +293,8 @@ export default function ExerciseLogPanel({
   const remainingPlannedSets = formatRemainingPlannedSets(
     getRemainingPlannedSetCount(entry.target?.sets, countLoggedSets(entry.sets))
   );
+  const measure = entry.measure;
+  const gridCols = measure === "time" ? "grid-cols-[2rem_1fr_2.5rem]" : "grid-cols-[2rem_1fr_1fr_2.5rem]";
 
   return (
     <div className="card p-4">
@@ -348,9 +400,7 @@ export default function ExerciseLogPanel({
           <div className="min-w-0 flex-1">
             <p className="text-xs font-medium text-label-3">Last time</p>
             <p className="truncate text-sm tabular-nums">
-              {previous.sets
-                .map((s) => `${s.weight ?? "?"}${s.weightUnit} × ${s.reps ?? "?"}`)
-                .join(", ")}
+              {previous.sets.map((s) => formatSetValue(s)).join(", ")}
             </p>
           </div>
           {canCopyPrevious && (
@@ -368,23 +418,35 @@ export default function ExerciseLogPanel({
       )}
 
       <div className="flex flex-col gap-2">
-        <div className="grid grid-cols-[2rem_1fr_1fr_2.5rem] gap-x-2 px-0.5 text-[11px] font-medium text-label-3" aria-hidden>
+        <div className={`grid ${gridCols} gap-x-2 px-0.5 text-[11px] font-medium text-label-3`} aria-hidden>
           <span className="text-center">Set</span>
-          <span>Weight</span>
-          <span>Reps</span>
+          {measure === "time" ? (
+            <span>Time</span>
+          ) : measure === "distance" ? (
+            <>
+              <span>Distance</span>
+              <span>Time</span>
+            </>
+          ) : (
+            <>
+              <span>Weight</span>
+              <span>Reps</span>
+            </>
+          )}
           <span className="text-center">Done</span>
         </div>
         {entry.sets.map((set, i) => {
           const comparisonText = formatSetComparison(comparisons[i]);
-          const plates = showPlates ? plateText(set) : null;
+          const plates = showPlates && measure === "weight_reps" ? plateText(set) : null;
           const problem = setValueProblem(set);
-          const blank = !set.weight.trim() && !set.reps.trim();
+          const blank = !setHasValues(set);
+          const pace = measure === "distance" ? formatPace(parseFloat(set.distance), parseDuration(set.duration), set.distanceUnit) : null;
           return (
             <div
               key={i}
               className={`rounded-lg px-0.5 py-1 transition-colors ${set.done ? "bg-green/8" : ""}`}
             >
-              <div className="grid grid-cols-[2rem_1fr_1fr_2.5rem] items-center gap-x-2">
+              <div className={`grid ${gridCols} items-center gap-x-2`}>
                 <button
                   type="button"
                   onClick={() => onUpdateSet(i, "setType", nextSetType(set.setType))}
@@ -396,37 +458,67 @@ export default function ExerciseLogPanel({
                 >
                   {SET_TYPE_BADGE[set.setType] ?? i + 1}
                 </button>
-                {/* The same focus ring as the other fields (.field:focus), drawn around the whole box. */}
-                <div className="field flex h-10 items-center rounded-lg focus-within:border-accent focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--accent)_22%,transparent)]">
-                  <input
-                    type="number"
-                    min="0"
-                    inputMode="decimal"
-                    placeholder="0"
-                    value={set.weight}
-                    onChange={(e) => onUpdateSet(i, "weight", e.target.value)}
-                    aria-label={`Set ${i + 1} weight`}
-                    className="h-full w-full min-w-0 bg-transparent pl-2.5 text-base tabular-nums outline-none placeholder:text-label-3"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => onUpdateSet(i, "weightUnit", set.weightUnit === "kg" ? "lb" : "kg")}
-                    aria-label={`Unit: ${set.weightUnit}. Switch to ${set.weightUnit === "kg" ? "lb" : "kg"}`}
-                    className="mr-1 h-7 shrink-0 rounded-md px-1.5 text-xs font-semibold text-label-2 hover:bg-fill"
-                  >
-                    {set.weightUnit}
-                  </button>
-                </div>
-                <input
-                  type="number"
-                  min="0"
-                  inputMode="numeric"
-                  placeholder="0"
-                  value={set.reps}
-                  onChange={(e) => onUpdateSet(i, "reps", e.target.value)}
-                  aria-label={`Set ${i + 1} reps`}
-                  className="field h-10 w-full min-w-0 rounded-lg px-2.5 text-base tabular-nums"
-                />
+                {measure === "time" ? (
+                  <DurationInput value={set.duration} onChange={(v) => onUpdateSet(i, "duration", v)} label={`Set ${i + 1} time`} />
+                ) : measure === "distance" ? (
+                  <>
+                    <div className={UNIT_FIELD}>
+                      <input
+                        type="number"
+                        min="0"
+                        inputMode="decimal"
+                        placeholder="0"
+                        value={set.distance}
+                        onChange={(e) => onUpdateSet(i, "distance", e.target.value)}
+                        aria-label={`Set ${i + 1} distance`}
+                        className="h-full w-full min-w-0 bg-transparent pl-2.5 text-base tabular-nums outline-none placeholder:text-label-3"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => onUpdateSet(i, "distanceUnit", set.distanceUnit === "km" ? "mi" : "km")}
+                        aria-label={`Unit: ${set.distanceUnit}. Switch to ${set.distanceUnit === "km" ? "mi" : "km"}`}
+                        className="mr-1 h-7 shrink-0 rounded-md px-1.5 text-xs font-semibold text-label-2 hover:bg-fill"
+                      >
+                        {set.distanceUnit}
+                      </button>
+                    </div>
+                    <DurationInput value={set.duration} onChange={(v) => onUpdateSet(i, "duration", v)} label={`Set ${i + 1} time`} />
+                  </>
+                ) : (
+                  <>
+                    {/* The same focus ring as the other fields (.field:focus), drawn around the whole box. */}
+                    <div className="field flex h-10 items-center rounded-lg focus-within:border-accent focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--accent)_22%,transparent)]">
+                      <input
+                        type="number"
+                        min="0"
+                        inputMode="decimal"
+                        placeholder="0"
+                        value={set.weight}
+                        onChange={(e) => onUpdateSet(i, "weight", e.target.value)}
+                        aria-label={`Set ${i + 1} weight`}
+                        className="h-full w-full min-w-0 bg-transparent pl-2.5 text-base tabular-nums outline-none placeholder:text-label-3"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => onUpdateSet(i, "weightUnit", set.weightUnit === "kg" ? "lb" : "kg")}
+                        aria-label={`Unit: ${set.weightUnit}. Switch to ${set.weightUnit === "kg" ? "lb" : "kg"}`}
+                        className="mr-1 h-7 shrink-0 rounded-md px-1.5 text-xs font-semibold text-label-2 hover:bg-fill"
+                      >
+                        {set.weightUnit}
+                      </button>
+                    </div>
+                    <input
+                      type="number"
+                      min="0"
+                      inputMode="numeric"
+                      placeholder="0"
+                      value={set.reps}
+                      onChange={(e) => onUpdateSet(i, "reps", e.target.value)}
+                      aria-label={`Set ${i + 1} reps`}
+                      className="field h-10 w-full min-w-0 rounded-lg px-2.5 text-base tabular-nums"
+                    />
+                  </>
+                )}
                 <button
                   type="button"
                   onClick={(e) => {
@@ -477,6 +569,7 @@ export default function ExerciseLogPanel({
                 </button>
               </div>
               {plates && <p className="pl-10 text-xs text-orange">{plates}</p>}
+              {pace && !problem && <p className="pl-10 text-xs text-label-2">Pace {pace}</p>}
               {problem && (
                 <p role="alert" className="pl-10 text-xs text-red">
                   {problem}
@@ -484,7 +577,11 @@ export default function ExerciseLogPanel({
               )}
               {blank && !set.done && blankTick === `${entry.exerciseId}:${i}` && (
                 <p role="alert" className="pl-10 text-xs text-red">
-                  Enter the weight or reps first, so this set is saved.
+                  {measure === "time"
+                    ? "Enter the time first, so this set is saved."
+                    : measure === "distance"
+                      ? "Enter the distance or time first, so this set is saved."
+                      : "Enter the weight or reps first, so this set is saved."}
                 </p>
               )}
             </div>
@@ -507,6 +604,7 @@ export default function ExerciseLogPanel({
             <Icon name="plus" className="size-4" strokeWidth={2.25} />
             Add set
           </button>
+          {measure === "weight_reps" && (
           <button
             type="button"
             onClick={() => setShowPlates((v) => !v)}
@@ -517,9 +615,11 @@ export default function ExerciseLogPanel({
           >
             Plate math
           </button>
+          )}
         </div>
         <p className="text-xs text-label-3">
-          {showPlates ? "Plates per side on a 20 kg / 45 lb bar. " : ""}Tap a set number to mark it warm-up (W), drop
+          {showPlates && measure === "weight_reps" ? "Plates per side on a 20 kg / 45 lb bar. " : ""}
+          {measure === "time" ? "Type a time like 45 (seconds) or 1:30. " : measure === "distance" ? "Time like 28:30 or 1:05:00. " : ""}Tap a set number to mark it warm-up (W), drop
           (D) or to failure (F).
         </p>
       </div>
@@ -546,5 +646,25 @@ export default function ExerciseLogPanel({
         {entry.done ? "Mark as not done" : "Finish exercise"}
       </button>
     </div>
+  );
+}
+
+// A box with a unit button inside it (kg/lb, km/mi), with the same focus ring as other fields.
+const UNIT_FIELD =
+  "field flex h-10 items-center rounded-lg focus-within:border-accent focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--accent)_22%,transparent)]";
+
+// A time typed as seconds ("45") or a clock time ("1:30", "1:02:30").
+function DurationInput({ value, onChange, label }: { value: string; onChange: (value: string) => void; label: string }) {
+  return (
+    <input
+      type="text"
+      inputMode="text"
+      autoComplete="off"
+      placeholder="0:45"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      aria-label={label}
+      className="field h-10 w-full min-w-0 rounded-lg px-2.5 text-base tabular-nums"
+    />
   );
 }

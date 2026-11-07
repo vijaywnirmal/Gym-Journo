@@ -10,7 +10,12 @@ import { shiftDate, today } from "@/lib/date";
 //              never used here to decide whether anything was performed
 //   WORKOUT DAY  a date whose log is PERFORMED and is not in the future
 
-export type SetLike = { reps: number | null; weight: number | null };
+export type SetLike = {
+  reps: number | null;
+  weight: number | null;
+  duration_seconds?: number | null;
+  distance?: number | null;
+};
 export type LoggedExerciseLike = { logged_sets?: SetLike[] | null };
 export type WorkoutLogLike = { date: string; logged_exercises?: LoggedExerciseLike[] | null };
 
@@ -18,11 +23,12 @@ function hasValue(value: number | null | undefined): boolean {
   return value !== null && value !== undefined;
 }
 
-// Same rule as the logger's own "logged set" test (countLoggedSets in ExerciseLogPanel: reps or
-// weight has content), applied to persisted values. A blank placeholder (reps and weight both
-// null) is not performed; a recorded 0 is, since it is content the user entered.
+// Same rule as the logger's own "logged set" test (countLoggedSets in ExerciseLogPanel: reps,
+// weight, time or distance has content), applied to persisted values, and the same as the database's
+// (migration 0051). A blank placeholder is not performed; a recorded 0 is, since it is content the
+// user entered.
 export function isPerformedSet(set: SetLike): boolean {
-  return hasValue(set.reps) || hasValue(set.weight);
+  return hasValue(set.reps) || hasValue(set.weight) || hasValue(set.duration_seconds) || hasValue(set.distance);
 }
 
 export function isPerformedExercise(exercise: LoggedExerciseLike): boolean {

@@ -14,8 +14,10 @@ import type { WorkoutLog, WorkoutPlan } from "@/lib/types";
 import type { ExerciseListItem } from "@/lib/exerciseLibrary";
 import type { PreviousPerformance } from "@/lib/queries";
 import { describePersonalRecord, type PersonalRecord } from "@/lib/analyze/personalRecords";
-import { saveLog, fetchPreviousPerformance, fetchPersonalRecords } from "./actions";
+import { saveLog, fetchPreviousPerformance, fetchPersonalRecords, fetchExerciseMeasure } from "./actions";
 import { toSetType } from "@/lib/setData";
+import { formatDuration, toDistanceUnit, toMeasure } from "@/lib/measure";
+import { isPerformedSet } from "@/lib/analyze/definitions";
 import { lighterSets, lighterSetCount } from "@/lib/analyze/comeback";
 import ExerciseLogPanel, {
   firstEntryWithSetProblem,
@@ -24,6 +26,8 @@ import ExerciseLogPanel, {
   CURRENT_EXERCISE_TITLE_ID,
   setCountLabel,
   setsFromPrevious,
+  setHasValues,
+  toSavedSet,
   type ExerciseEntry,
   type SetRow,
 } from "./ExerciseLogPanel";
@@ -67,8 +71,9 @@ type SaveState = "idle" | "saving" | "saved" | "error";
 
 const AUTOSAVE_DEBOUNCE_MS = 900;
 
-// A new set carries the previous weight and unit forward, but is always a working set with no
-// effort recorded — carrying "warm-up" into the next set would silently mislabel it.
+// A new set carries the previous weight and units forward, but is always a working set with no
+// effort recorded — carrying "warm-up" into the next set would silently mislabel it. Times and
+// distances start blank: each one is its own.
 function emptySet(carryForward?: SetRow): SetRow {
   return {
     reps: "",
@@ -76,6 +81,9 @@ function emptySet(carryForward?: SetRow): SetRow {
     weightUnit: carryForward?.weightUnit ?? "kg",
     setType: "working",
     rpe: "",
+    duration: "",
+    distance: "",
+    distanceUnit: carryForward?.distanceUnit ?? "km",
   };
 }
 
@@ -87,7 +95,7 @@ export type PlannedExerciseRef = { exerciseId: string; name: string };
 // never show anything as outstanding. Marking a set done also counts, even with blank values,
 // since that's an explicit user action on the exercise.
 export function isExerciseEntryLogged(entry: ExerciseEntry): boolean {
-  return entry.done || entry.sets.some((s) => s.reps.trim() !== "" || s.weight.trim() !== "");
+  return entry.done || entry.sets.some(setHasValues);
 }
 
 // Purely descriptive set difference: which planned exercises have no corresponding logged
@@ -186,6 +194,7 @@ export default function LogForm({
     ? existingLog.logged_exercises.map((le, i) => ({
         exerciseId: le.exercise_id,
         name: le.exercise?.name ?? "Exercise",
+        measure: toMeasure(le.exercise?.measure),
         notes: le.notes ?? "",
         target: loggedTargets[i],
         sets: le.logged_sets?.length
@@ -195,19 +204,22 @@ export default function LogForm({
               weightUnit: s.weight_unit,
               setType: toSetType(s.set_type),
               rpe: s.rpe === null || s.rpe === undefined ? "" : String(Number(s.rpe)),
-              done: s.reps !== null || s.weight !== null,
+              duration: s.duration_seconds != null ? formatDuration(s.duration_seconds) : "",
+              distance: s.distance != null ? String(Number(s.distance)) : "",
+              distanceUnit: toDistanceUnit(s.distance_unit),
+              done: isPerformedSet(s),
             }))
           : [emptySet()],
         // Exercise completion isn't stored, so it's rebuilt on reload: everything is done in a
         // finished workout, and otherwise an exercise is done once every saved set has values.
-        done:
-          !!existingLog.completed_at ||
-          (!!le.logged_sets?.length && le.logged_sets.every((s) => s.reps !== null || s.weight !== null)),
+        done: !!existingLog.completed_at || (!!le.logged_sets?.length && le.logged_sets.every(isPerformedSet)),
       }))
     : quickStart && !plan?.planned_exercises?.length
       ? quickStart.exercises.map((qe) => ({
           exerciseId: qe.exerciseId,
           name: qe.name,
+          // Quick sessions are built from weight-and-reps exercises (lib/quickWorkouts.ts).
+          measure: "weight_reps" as const,
           notes: "",
           target: quickTarget(qe),
           sets: Array.from({ length: qe.sets }, () => emptySet()),
@@ -216,6 +228,7 @@ export default function LogForm({
       : plan?.planned_exercises?.map((pe) => ({
           exerciseId: pe.exercise_id,
           name: pe.exercise?.name ?? "Exercise",
+          measure: toMeasure(pe.exercise?.measure),
           notes: "",
           target: showTargets ? planTarget(pe) : null,
           sets: Array.from({ length: plannedSets(pe.target_sets ?? 3) ?? 3 }, () => emptySet()),
@@ -325,13 +338,7 @@ export default function LogForm({
     const exercisesPayload = snapshot.entries.map((e) => ({
       exerciseId: e.exerciseId,
       notes: e.notes,
-      sets: e.sets.map((s) => ({
-        reps: s.reps ? parseInt(s.reps, 10) : null,
-        weight: s.weight ? parseFloat(s.weight) : null,
-        weightUnit: s.weightUnit,
-        setType: s.setType,
-        rpe: s.rpe ? parseFloat(s.rpe) : null,
-      })),
+      sets: e.sets.map(toSavedSet),
     }));
     // With experimental.useOffline, a save made offline waits and retries by itself once the
     // connection returns; anything that still rejects (e.g. a server crash) must not leave
@@ -580,6 +587,8 @@ export default function LogForm({
               ...entry,
               exerciseId,
               name: exercise.name,
+              // Until it's known, a new exercise shows weight and reps; set rows start fresh anyway.
+              measure: "weight_reps" as const,
               target: entry.target ? { ...entry.target, weight: null } : null,
               sets: entry.sets.map(() => emptySet()),
               done: false,
@@ -588,11 +597,20 @@ export default function LogForm({
       )
     );
     scheduleSave(true);
+    loadMeasure(exerciseId);
 
     if (!(exerciseId in previousPerformance)) {
       const prev = await fetchPreviousPerformance(exerciseId, date);
       setPreviousPerformance((p) => ({ ...p, [exerciseId]: prev }));
     }
+  }
+
+  // An exercise added or swapped in mid-workout comes from the library list, which doesn't say how
+  // it's measured: look it up, then show the right fields (its rows are still blank by then).
+  async function loadMeasure(exerciseId: string) {
+    const measure = await fetchExerciseMeasure(exerciseId);
+    if (measure === "weight_reps") return;
+    updateEntries((prev) => prev.map((e) => (e.exerciseId === exerciseId ? { ...e, measure } : e)));
   }
 
   async function addExercise(exercise: Pick<ExerciseListItem, "id" | "name">) {
@@ -603,12 +621,14 @@ export default function LogForm({
       {
         exerciseId,
         name: exercise.name,
+        measure: "weight_reps" as const,
         notes: "",
         target: targetByExerciseId.get(exerciseId) ?? null,
         sets: [emptySet()],
         done: false,
       },
     ]);
+    loadMeasure(exerciseId);
     setCurrentIndex(entries.length);
     setPickerOpen(false);
     // The picker that had focus is gone: carry on at the new exercise, not the top of the page.
@@ -984,7 +1004,12 @@ const noopSubscribe = () => () => {};
 // finished or not, and each exercise's filled-in sets (blank rows and the per-set "done" ticks
 // aren't saved, so they don't count). Numbers are compared as numbers ("60" and "60.0" match).
 type LogContent = {
-  entries: { exerciseId: string; notes: string; sets: Pick<SetRow, "reps" | "weight" | "weightUnit" | "setType" | "rpe">[] }[];
+  entries: {
+    exerciseId: string;
+    notes: string;
+    sets: (Pick<SetRow, "reps" | "weight" | "weightUnit" | "setType" | "rpe"> &
+      Partial<Pick<SetRow, "duration" | "distance" | "distanceUnit">>)[];
+  }[];
   notes: string;
   workoutCompleted: boolean;
 };
@@ -997,8 +1022,17 @@ function logContentKey(state: LogContent): string {
       e.exerciseId,
       e.notes.trim(),
       e.sets
-        .filter((s) => s.reps.trim() || s.weight.trim())
-        .map((s) => [num(s.reps), num(s.weight), s.weightUnit, s.setType, num(s.rpe)]),
+        .filter((s) => setHasValues(s))
+        .map((s) => [
+          num(s.reps),
+          num(s.weight),
+          s.weightUnit,
+          s.setType,
+          num(s.rpe),
+          s.duration?.trim() || null,
+          num(s.distance ?? ""),
+          s.distance?.trim() ? s.distanceUnit : null,
+        ]),
     ]),
   ]);
 }

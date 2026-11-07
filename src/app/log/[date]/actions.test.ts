@@ -92,7 +92,7 @@ describe("saveLog", () => {
           exercise_id: "ex-1",
           position: 0,
           notes: null,
-          sets: [{ set_number: 1, reps: 10, weight: 60, weight_unit: "kg", set_type: "working", rpe: null }],
+          sets: [{ set_number: 1, reps: 10, weight: 60, weight_unit: "kg", set_type: "working", rpe: null, duration_seconds: null, distance: null, distance_unit: "km" }],
         },
       ],
     });
@@ -134,7 +134,7 @@ describe("saveLog", () => {
             exercise_id: "ex-1",
             position: 0,
             notes: null,
-            sets: [{ set_number: 1, reps: 8, weight: 65, weight_unit: "kg", set_type: "working", rpe: null }],
+            sets: [{ set_number: 1, reps: 8, weight: 65, weight_unit: "kg", set_type: "working", rpe: null, duration_seconds: null, distance: null, distance_unit: "km" }],
           },
           { exercise_id: "ex-2", position: 1, notes: null, sets: [] },
         ],
@@ -336,7 +336,7 @@ describe("saveLog — set type, RPE and exercise notes (M4)", () => {
             exercise_id: "ex-1",
             position: 0,
             notes: "felt strong",
-            sets: [{ set_number: 1, reps: 10, weight: 40, weight_unit: "kg", set_type: "warmup", rpe: 6.5 }],
+            sets: [{ set_number: 1, reps: 10, weight: 40, weight_unit: "kg", set_type: "warmup", rpe: 6.5, duration_seconds: null, distance: null, distance_unit: "km" }],
           },
         ],
       })
@@ -351,6 +351,43 @@ describe("saveLog — set type, RPE and exercise notes (M4)", () => {
     const result = await saveLog({
       ...basicInput,
       exercises: [{ exerciseId: "ex-1", sets: [{ reps: 5, weight: 60, weightUnit: "kg", ...extra } as never] }],
+    });
+    expect(result.error).toBeTruthy();
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("sends a timed set and a distance with its unit (I1.2, I1.3)", async () => {
+    await saveLog({
+      ...basicInput,
+      exercises: [
+        { exerciseId: "plank", sets: [{ reps: null, weight: null, weightUnit: "kg", durationSeconds: 90 }] },
+        { exerciseId: "run", sets: [{ reps: null, weight: null, weightUnit: "kg", distance: 5, durationSeconds: 1710, distanceUnit: "mi" }] },
+      ],
+    });
+    expect(rpc).toHaveBeenCalledWith(
+      "save_workout_log",
+      expect.objectContaining({
+        p_exercises: [
+          expect.objectContaining({ exercise_id: "plank", sets: [expect.objectContaining({ duration_seconds: 90, distance: null })] }),
+          expect.objectContaining({
+            exercise_id: "run",
+            sets: [expect.objectContaining({ distance: 5, duration_seconds: 1710, distance_unit: "mi" })],
+          }),
+        ],
+      })
+    );
+  });
+
+  it.each([
+    ["a time over 2 hours", { durationSeconds: 7201 }],
+    ["a fractional time", { durationSeconds: 1.5 }],
+    ["a negative distance", { distance: -1 }],
+    ["a distance over 1000", { distance: 1001 }],
+    ["an unknown distance unit", { distance: 5, distanceUnit: "yd" }],
+  ])("rejects %s without calling the database", async (_label, extra) => {
+    const result = await saveLog({
+      ...basicInput,
+      exercises: [{ exerciseId: "ex-1", sets: [{ reps: null, weight: null, weightUnit: "kg", ...extra } as never] }],
     });
     expect(result.error).toBeTruthy();
     expect(rpc).not.toHaveBeenCalled();

@@ -1,3 +1,5 @@
+import { formatSetValue } from "@/lib/measure";
+
 // Set type and effort (RPE) — shared by the logger, validation and Analyze. Mirrors the checks in
 // supabase/migrations/0020_add_set_type_rpe_exercise_notes.sql.
 
@@ -64,8 +66,16 @@ export function formatSetCompact(set: {
   weight_unit: string;
   set_type?: string | null;
   rpe?: number | null;
+  duration_seconds?: number | null;
+  distance?: number | null;
+  distance_unit?: string | null;
 }): string {
   const badge = SET_TYPE_BADGE[toSetType(set.set_type)];
   const rpe = set.rpe === null || set.rpe === undefined ? "" : ` @${Number(set.rpe)}`;
-  return `${badge ? `${badge} ` : ""}${set.weight ?? "?"}${set.weight_unit}×${set.reps ?? "?"}${rpe}`;
+  // A timed set or a distance reads in its own units ("1:30", "5 km in 28:30").
+  const value =
+    set.duration_seconds != null || set.distance != null
+      ? formatSetValue(set)
+      : `${set.weight ?? "?"}${set.weight_unit}×${set.reps ?? "?"}`;
+  return `${badge ? `${badge} ` : ""}${value}${rpe}`;
 }

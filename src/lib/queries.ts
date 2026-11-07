@@ -389,7 +389,7 @@ export async function getPlanForDate(date: string): Promise<WorkoutPlan | null> 
   const { data, error } = await supabase
     .from("workout_plans")
     .select(
-      "*, workout_plan_muscle_groups(muscle_group:muscle_groups(id, name)), planned_exercises(*, exercise:exercises(id, name, equipment))"
+      "*, workout_plan_muscle_groups(muscle_group:muscle_groups(id, name)), planned_exercises(*, exercise:exercises(*))"
     )
     .eq("user_id", user.id)
     .eq("date", date)
@@ -505,7 +505,7 @@ export async function getLogHistory(options: {
   let query = supabase
     .from("workout_logs")
     .select(
-      "*, plan:workout_plans(title), logged_exercises(*, exercise:exercises(id, name, equipment), logged_sets(*))"
+      "*, plan:workout_plans(title), logged_exercises(*, exercise:exercises(*), logged_sets(*))"
     )
     .eq("user_id", user.id)
     .order("date", { ascending: false })
@@ -552,7 +552,7 @@ export async function getExerciseSessions(exerciseId: string): Promise<ExerciseS
   const { data, error } = await supabase
     .from("workout_logs")
     .select(
-      "date, logged_exercises!inner(exercise_id, position, logged_sets(set_number, reps, weight, weight_unit, set_type))"
+      "date, logged_exercises!inner(exercise_id, position, logged_sets(*))"
     )
     .eq("user_id", user.id)
     .eq("logged_exercises.exercise_id", exerciseId)
@@ -760,7 +760,7 @@ export async function getLogForDate(date: string): Promise<WorkoutLogWithContext
   const { data, error } = await supabase
     .from("workout_logs")
     .select(
-      "*, plan:workout_plans(title), logged_exercises(*, exercise:exercises(id, name, equipment), logged_sets(*))"
+      "*, plan:workout_plans(title), logged_exercises(*, exercise:exercises(*), logged_sets(*))"
     )
     .eq("user_id", user.id)
     .eq("date", date)
@@ -800,7 +800,7 @@ export async function getTrainingEvidence(): Promise<TrainingEvidence | null> {
       getBodyMeasurements(),
       supabase
         .from("workout_logs")
-        .select("date, logged_exercises(exercise_id, logged_sets(reps, weight))")
+        .select("date, logged_exercises(exercise_id, logged_sets(*))")
         .eq("user_id", user.id)
         .gte("date", windowStart(RECENT_EXERCISE_WINDOW_DAYS, todayStr))
         .lte("date", todayStr),
@@ -851,7 +851,7 @@ export async function getPriorExerciseSessions(
   const { data, error } = await supabase
     .from("workout_logs")
     .select(
-      "date, logged_exercises!inner(exercise_id, position, logged_sets(set_number, reps, weight, weight_unit, set_type))"
+      "date, logged_exercises!inner(exercise_id, position, logged_sets(*))"
     )
     .eq("user_id", user.id)
     .in("logged_exercises.exercise_id", ids)

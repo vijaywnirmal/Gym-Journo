@@ -21,7 +21,7 @@ export const DAY_STATUS_LABEL: Record<DayStatus, string> = {
 
 // A performed set has reps or weight recorded (a recorded 0 counts), as in performed_workout_dates.
 export function isPerformed(log: ClientLog | null | undefined): boolean {
-  return !!log?.exercises.some((ex) => ex.sets.some((s) => s.reps !== null || s.weight !== null));
+  return !!log?.exercises.some((ex) => ex.sets.some((s) => isPerformedSet(s)));
 }
 
 // One day of the client's week, judged against the client's today.

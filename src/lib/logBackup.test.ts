@@ -16,9 +16,10 @@ const state: LogBackupState = {
     {
       exerciseId: "ex-1",
       name: "Bench",
+      measure: "weight_reps",
       notes: "",
       target: { sets: 3, reps: 5 },
-      sets: [{ reps: "5", weight: "100", weightUnit: "kg", setType: "working", rpe: "8" }],
+      sets: [{ reps: "5", weight: "100", weightUnit: "kg", setType: "working", rpe: "8", duration: "", distance: "", distanceUnit: "km" }],
       done: false,
     },
   ],
@@ -66,7 +67,7 @@ describe("log backup", () => {
     );
     const backup = readLogBackup(storage, key);
     expect(backup?.entries[0]).toMatchObject({ notes: "", done: false, target: null });
-    expect(backup?.entries[0].sets[0]).toMatchObject({ setType: "working", rpe: "" });
+    expect(backup?.entries[0].sets[0]).toMatchObject({ setType: "working", rpe: "", duration: "", distance: "", distanceUnit: "km" });
   });
 
   it("never throws when storage is missing or throws", () => {

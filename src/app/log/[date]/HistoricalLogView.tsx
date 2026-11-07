@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { formatSetValue } from "@/lib/measure";
 import { useRouter } from "next/navigation";
 import type { WorkoutPlan } from "@/lib/types";
 import type { PreviousPerformance, WorkoutLogWithContext } from "@/lib/queries";
@@ -121,10 +122,7 @@ export default function HistoricalLogView({
                 {(le.logged_sets ?? []).filter(isPerformedSet).map((s) => (
                   <li key={s.id} className="flex items-center gap-3">
                     <span className="w-5 text-right text-xs tabular-nums text-label-3">{s.set_number}</span>
-                    <span className="tabular-nums">
-                      {s.weight ?? "?"}
-                      {s.weight_unit} × {s.reps ?? "?"}
-                    </span>
+                    <span className="tabular-nums">{formatSetValue(s)}</span>
                     {formatSetDetail(s.set_type, s.rpe) && (
                       <span className="text-xs text-label-2">{formatSetDetail(s.set_type, s.rpe)}</span>
                     )}
