@@ -3,11 +3,13 @@ import {
   completesExercise,
   getUnloggedPlannedExercises,
   isExerciseEntryLogged,
+  lastDistanceUnit,
   loggedExerciseTargets,
   nextUnfinishedIndex,
   type PlannedExerciseRef,
 } from "./LogForm";
 import type { ExerciseEntry, SetRow } from "./ExerciseLogPanel";
+import type { PreviousPerformance } from "@/lib/queries";
 
 function planned(exerciseId: string, name = exerciseId): PlannedExerciseRef {
   return { exerciseId, name };
@@ -159,5 +161,18 @@ describe("loggedExerciseTargets (after a reload)", () => {
 
   it("gives nothing when nothing was planned", () => {
     expect(loggedExerciseTargets(["squat"], [])).toEqual([null]);
+  });
+});
+
+describe("lastDistanceUnit (I1.3)", () => {
+  it("starts in the unit used last time, or km", () => {
+    expect(lastDistanceUnit({
+    date: "2026-09-10",
+    sets: [
+      { setNumber: 1, weight: null, reps: null, weightUnit: "kg", durationSeconds: 1710, distance: 5, distanceUnit: "mi" },
+    ],
+    } as PreviousPerformance)).toBe("mi");
+    expect(lastDistanceUnit({ date: "2026-09-10", sets: [{ setNumber: 1, weight: 60, reps: 8, weightUnit: "kg" }] } as PreviousPerformance)).toBe("km");
+    expect(lastDistanceUnit(null)).toBe("km");
   });
 });

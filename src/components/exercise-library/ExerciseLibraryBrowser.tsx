@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { EQUIPMENT_OPTIONS, MAX_SEARCH_LENGTH, searchWords, type Equipment } from "@/lib/exerciseSearch";
 import type { ExerciseListItem } from "@/lib/exerciseLibrary";
+import type { Measure } from "@/lib/measure";
 import Disclosure from "@/components/ui/Disclosure";
 import Icon from "@/components/Icon";
 import Select from "@/components/ui/Select";
@@ -10,6 +11,14 @@ import ExercisePageList from "./ExercisePageList";
 import { useDebouncedValue, useExerciseGroups } from "./hooks";
 
 const SEARCH_DEBOUNCE_MS = 300;
+
+// How an exercise is measured, as the filter names it.
+const MEASURE_FILTER_OPTIONS: { value: Measure | ""; label: string }[] = [
+  { value: "", label: "All types" },
+  { value: "weight_reps", label: "Weight and reps" },
+  { value: "time", label: "Timed" },
+  { value: "distance", label: "Distance" },
+];
 
 type Props = {
   // How each exercise row looks and what it does (open its tutorial, add it to a workout, ...).
@@ -22,19 +31,20 @@ type Props = {
 };
 
 // Browse the exercise library without loading it all: muscle groups with counts, ten exercises at
-// a time within the open group ("Load more" for the next ten), and a search box and equipment
-// filter that page through matching exercises across every group. Shared by the library page and
+// a time within the open group ("Load more" for the next ten), and a search box, equipment
+// filter and type filter (timed, distance, ...) that page through matching exercises across every group. Shared by the library page and
 // the log and schedule pickers.
 export default function ExerciseLibraryBrowser({ renderExercise, version = 0, autoFocus, resultsClassName = "" }: Props) {
   const [term, setTerm] = useState("");
   const [equipment, setEquipment] = useState<Equipment | "">("");
+  const [measure, setMeasure] = useState<Measure | "">("");
   const debouncedTerm = useDebouncedValue(term.trim(), SEARCH_DEBOUNCE_MS);
   const searching = searchWords(debouncedTerm).length > 0;
-  const filters = { term: debouncedTerm, equipment: equipment || null };
+  const filters = { term: debouncedTerm, equipment: equipment || null, measure: measure || null };
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Stacked on phones, so neither the search hint nor the equipment choice gets cut off. */}
+      {/* Stacked on phones, so neither the search hint nor the filters get cut off. */}
       <div className="flex flex-col gap-2 sm:flex-row">
         <label className="field flex h-10 min-w-0 items-center gap-2 sm:flex-1 rounded-[10px] px-3 focus-within:border-accent">
           <Icon name="search" className="size-4 shrink-0 text-label-3" />
@@ -59,27 +69,36 @@ export default function ExerciseLibraryBrowser({ renderExercise, version = 0, au
             </button>
           )}
         </label>
-        <Select
-          value={equipment}
-          onChange={(v) => setEquipment(v as Equipment | "")}
-          options={[{ value: "", label: "All equipment" }, ...EQUIPMENT_OPTIONS.map((o) => ({ value: o, label: o }))]}
-          ariaLabel="Filter by equipment"
-          className="w-full sm:w-36 sm:shrink-0"
-        />
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0">
+          <Select
+            value={equipment}
+            onChange={(v) => setEquipment(v as Equipment | "")}
+            options={[{ value: "", label: "All equipment" }, ...EQUIPMENT_OPTIONS.map((o) => ({ value: o, label: o }))]}
+            ariaLabel="Filter by equipment"
+            className="w-full sm:w-36"
+          />
+          <Select
+            value={measure}
+            onChange={(v) => setMeasure(v as Measure | "")}
+            options={MEASURE_FILTER_OPTIONS}
+            ariaLabel="Filter by type"
+            className="w-full sm:w-36"
+          />
+        </div>
       </div>
 
       <div className={resultsClassName}>
         {searching ? (
           <div className="rounded-[10px] border border-separator">
             <ExercisePageList
-              key={`search|${debouncedTerm}|${equipment}|${version}`}
+              key={`search|${debouncedTerm}|${equipment}|${measure}|${version}`}
               {...filters}
               renderExercise={renderExercise}
             />
           </div>
         ) : (
           <MuscleGroupAccordion
-            key={`groups|${equipment}`}
+            key={`groups|${equipment}|${measure}`}
             filters={filters}
             renderExercise={renderExercise}
             version={version}
@@ -95,7 +114,7 @@ function MuscleGroupAccordion({
   renderExercise,
   version,
 }: {
-  filters: { term: string; equipment: Equipment | null };
+  filters: { term: string; equipment: Equipment | null; measure: Measure | null };
   renderExercise: Props["renderExercise"];
   version: number;
 }) {
@@ -142,7 +161,7 @@ function MuscleGroupAccordion({
               {open && (
                 <div className="border-t border-separator">
                   <ExercisePageList
-                    key={`${group.id}|${filters.equipment ?? ""}|${version}`}
+                    key={`${group.id}|${filters.equipment ?? ""}|${filters.measure ?? ""}|${version}`}
                     muscleGroupId={group.id}
                     {...filters}
                     renderExercise={renderExercise}

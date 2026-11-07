@@ -2,9 +2,9 @@ import { decodeCursor, exerciseListQuerySchema, type ExercisePage } from "@/lib/
 import { browseExercises } from "@/lib/exerciseQueries";
 import { jsonError, jsonResponse, queryObject, signedInClient } from "@/lib/api";
 
-// GET /api/exercises?muscleGroup=&q=&equipment=&cursor=
+// GET /api/exercises?muscleGroup=&q=&equipment=&measure=&cursor=
 // One page of exercises (EXERCISE_PAGE_SIZE) in name order, optionally within one muscle group and
-// filtered by search term and equipment. Pass `nextCursor` back as `cursor` for the next page.
+// filtered by search term, equipment and how it's measured. Pass `nextCursor` back as `cursor` for the next page.
 export async function GET(request: Request): Promise<Response> {
   const session = await signedInClient();
   if (!session) return jsonError(401, "Not signed in");
@@ -19,6 +19,7 @@ export async function GET(request: Request): Promise<Response> {
     muscleGroupId: query.data.muscleGroup,
     term: query.data.q,
     equipment: query.data.equipment,
+    measure: query.data.measure,
     after,
   });
   if (!page) return jsonError(500, "Couldn't load exercises");

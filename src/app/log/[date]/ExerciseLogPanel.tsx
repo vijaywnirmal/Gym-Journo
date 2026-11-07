@@ -109,6 +109,12 @@ export function formatSetComparison(comparison: SetComparison | null): string | 
   return parts.length > 0 ? parts.join(" · ") : null;
 }
 
+// One of last time's sets in words, with the pace for a distance and time ("5 km in 28:30 · 5:42 /km").
+export function lastTimeValue(set: PreviousPerformance["sets"][number]): string {
+  const pace = formatPace(set.distance ?? null, set.durationSeconds ?? null, set.distanceUnit ?? "km");
+  return pace ? `${formatSetValue(set)} · ${pace}` : formatSetValue(set);
+}
+
 // "Same as last time": the previous session's performed sets as editable rows, in set order.
 // Missing values stay blank rather than becoming "0".
 export function setsFromPrevious(previous: PreviousPerformance | null | undefined): SetRow[] {
@@ -400,7 +406,7 @@ export default function ExerciseLogPanel({
           <div className="min-w-0 flex-1">
             <p className="text-xs font-medium text-label-3">Last time</p>
             <p className="truncate text-sm tabular-nums">
-              {previous.sets.map((s) => formatSetValue(s)).join(", ")}
+              {previous.sets.map(lastTimeValue).join(", ")}
             </p>
           </div>
           {canCopyPrevious && (

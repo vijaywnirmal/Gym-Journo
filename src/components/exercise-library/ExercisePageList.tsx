@@ -11,8 +11,8 @@ type Props = ExerciseFilters & {
 
 // A paged list of exercises: the first page on mount, then "Load more" for each next page. Key it
 // by its parameters so a change starts again from the first page.
-export default function ExercisePageList({ muscleGroupId, term, equipment, renderExercise }: Props) {
-  const { items, hasMore, status, loadMore, retry } = useExercisePages({ muscleGroupId, term, equipment });
+export default function ExercisePageList({ muscleGroupId, term, equipment, measure, renderExercise }: Props) {
+  const { items, hasMore, status, loadMore, retry } = useExercisePages({ muscleGroupId, term, equipment, measure });
   const loadingFirstPage = status === "loading" && items.length === 0;
 
   return (

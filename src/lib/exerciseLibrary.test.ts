@@ -42,6 +42,8 @@ describe("exerciseListQuerySchema", () => {
 
   it("rejects unknown equipment, bad ids and overlong searches", () => {
     expect(exerciseListQuerySchema.safeParse({ equipment: "Spaceship" }).success).toBe(false);
+    expect(exerciseListQuerySchema.safeParse({ measure: "laps" }).success).toBe(false);
+    expect(exerciseListQuerySchema.parse({ measure: "time" })).toEqual({ measure: "time" });
     expect(exerciseListQuerySchema.safeParse({ muscleGroup: "chest" }).success).toBe(false);
     expect(exerciseListQuerySchema.safeParse({ q: "x".repeat(101) }).success).toBe(false);
   });
@@ -53,6 +55,8 @@ describe("URLs", () => {
     expect(exerciseListUrl({ term: "  ", equipment: null, muscleGroupId: ID })).toBe(`/api/exercises?muscleGroup=${ID}`);
     expect(exerciseListUrl({ term: "db press", cursor: "abc" })).toBe("/api/exercises?q=db+press&cursor=abc");
     expect(exerciseGroupsUrl({ equipment: "Cable" })).toBe("/api/exercises/groups?equipment=Cable");
+    expect(exerciseGroupsUrl({ measure: "distance" })).toBe("/api/exercises/groups?measure=distance");
+    expect(exerciseListUrl({ measure: "time" })).toBe("/api/exercises?measure=time");
     expect(exerciseTutorialUrl(ID)).toBe(`/api/exercises/${ID}`);
   });
 });
