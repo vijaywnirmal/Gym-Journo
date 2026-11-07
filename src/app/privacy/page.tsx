@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Privacy" };
 
 // Keep this true to the app: it states what's stored, who sees it, which services handle it, and
 // how to leave. The Gemini lists themselves live in lib/ai-plan-prompt.ts and lib/coach/consent.ts.
-const UPDATED = "6 November 2026";
+const UPDATED = "7 November 2026";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -174,7 +174,9 @@ export default async function PrivacyPage() {
                 the gym. Or disable your account, which pauses it and deletes nothing.
               </>,
               <>
-                For a copy of your data, a correction, or a complaint, email {email}. We&apos;ll reply within 30 days.
+                <strong>Download your data</strong> in Profile: your workouts, plans and body weight as a PDF.
+                For anything else (a fuller copy of your data, a correction, or a complaint), email {email}.
+                We&apos;ll reply within 30 days.
                 If you&apos;re not satisfied, you can complain to the Data Protection Board of India.
               </>,
             ]}
