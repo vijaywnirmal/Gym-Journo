@@ -1,5 +1,7 @@
 # Gym-Journo — Milestones
 
+> **Replaced on 6 November 2026** by [`product-charter.md`](product-charter.md) (why, who for, what's decided) and [`delivery-plan.md`](delivery-plan.md) (what we build and when). Kept for history; where they disagree, follow those two.
+
 The path from "solid personal logger" to something that competes with Strong, Hevy and Fitbod.
 Work top to bottom: one milestone at a time, each finished, tested and bug-free before the next starts.
 
