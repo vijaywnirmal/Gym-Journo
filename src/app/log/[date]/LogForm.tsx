@@ -16,7 +16,7 @@ import type { PreviousPerformance } from "@/lib/queries";
 import { describePersonalRecord, type PersonalRecord } from "@/lib/analyze/personalRecords";
 import { saveLog, fetchPreviousPerformance, fetchPersonalRecords, fetchExerciseMeasure } from "./actions";
 import { toSetType } from "@/lib/setData";
-import { formatDuration, toDistanceUnit, toMeasure } from "@/lib/measure";
+import { formatDuration, toDistanceUnit, toMeasure, type DistanceUnit } from "@/lib/measure";
 import { isPerformedSet } from "@/lib/analyze/definitions";
 import { lighterSets, lighterSetCount } from "@/lib/analyze/comeback";
 import ExerciseLogPanel, {
@@ -74,7 +74,7 @@ const AUTOSAVE_DEBOUNCE_MS = 900;
 // A new set carries the previous weight and units forward, but is always a working set with no
 // effort recorded — carrying "warm-up" into the next set would silently mislabel it. Times and
 // distances start blank: each one is its own.
-function emptySet(carryForward?: SetRow): SetRow {
+function emptySet(carryForward?: Partial<SetRow>): SetRow {
   return {
     reps: "",
     weight: carryForward?.weight ?? "",
@@ -85,6 +85,12 @@ function emptySet(carryForward?: SetRow): SetRow {
     distance: "",
     distanceUnit: carryForward?.distanceUnit ?? "km",
   };
+}
+
+// The km or miles last used for an exercise, so a new workout starts in it, as weights start in
+// the planned unit. km when there's no earlier distance.
+export function lastDistanceUnit(previous: PreviousPerformance | null | undefined): DistanceUnit {
+  return toDistanceUnit(previous?.sets.find((s) => s.distance != null)?.distanceUnit);
 }
 
 export type PlannedExerciseRef = { exerciseId: string; name: string };
@@ -231,7 +237,9 @@ export default function LogForm({
           measure: toMeasure(pe.exercise?.measure),
           notes: "",
           target: showTargets ? planTarget(pe) : null,
-          sets: Array.from({ length: plannedSets(pe.target_sets ?? 3) ?? 3 }, () => emptySet()),
+          sets: Array.from({ length: plannedSets(pe.target_sets ?? 3) ?? 3 }, () =>
+            emptySet({ distanceUnit: lastDistanceUnit(initialPreviousPerformance[pe.exercise_id]) })
+          ),
           done: false,
         })) ?? [];
 
@@ -598,11 +606,26 @@ export default function LogForm({
     );
     scheduleSave(true);
     loadMeasure(exerciseId);
+    loadPrevious(exerciseId);
+  }
 
+  // Last time's sets for an exercise just added or swapped in. While its rows are still blank,
+  // they switch to the distance unit used last time.
+  async function loadPrevious(exerciseId: string) {
+    let prev = previousPerformance[exerciseId];
     if (!(exerciseId in previousPerformance)) {
-      const prev = await fetchPreviousPerformance(exerciseId, date);
+      prev = await fetchPreviousPerformance(exerciseId, date);
       setPreviousPerformance((p) => ({ ...p, [exerciseId]: prev }));
     }
+    const unit = lastDistanceUnit(prev);
+    if (unit === "km") return;
+    updateEntries((current) =>
+      current.map((e) =>
+        e.exerciseId === exerciseId && !e.sets.some(setHasValues)
+          ? { ...e, sets: e.sets.map((s) => ({ ...s, distanceUnit: unit })) }
+          : e
+      )
+    );
   }
 
   // An exercise added or swapped in mid-workout comes from the library list, which doesn't say how
@@ -634,11 +657,7 @@ export default function LogForm({
     // The picker that had focus is gone: carry on at the new exercise, not the top of the page.
     requestAnimationFrame(() => document.getElementById(CURRENT_EXERCISE_TITLE_ID)?.focus());
     scheduleSave(true);
-
-    if (!(exerciseId in previousPerformance)) {
-      const prev = await fetchPreviousPerformance(exerciseId, date);
-      setPreviousPerformance((p) => ({ ...p, [exerciseId]: prev }));
-    }
+    loadPrevious(exerciseId);
   }
 
   function goTo(index: number) {

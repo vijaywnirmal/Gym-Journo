@@ -2,7 +2,7 @@ import { exerciseGroupsQuerySchema, type MuscleGroupCount } from "@/lib/exercise
 import { getExerciseGroupCounts } from "@/lib/exerciseQueries";
 import { jsonError, jsonResponse, queryObject, signedInClient } from "@/lib/api";
 
-// GET /api/exercises/groups?q=&equipment=
+// GET /api/exercises/groups?q=&equipment=&measure=
 // Every muscle group with how many exercises in it match the filters.
 export async function GET(request: Request): Promise<Response> {
   const session = await signedInClient();
@@ -11,7 +11,11 @@ export async function GET(request: Request): Promise<Response> {
   const query = exerciseGroupsQuerySchema.safeParse(queryObject(request));
   if (!query.success) return jsonError(400, "Invalid query");
 
-  const groups = await getExerciseGroupCounts(session.supabase, { term: query.data.q, equipment: query.data.equipment });
+  const groups = await getExerciseGroupCounts(session.supabase, {
+    term: query.data.q,
+    equipment: query.data.equipment,
+    measure: query.data.measure,
+  });
   if (!groups) return jsonError(500, "Couldn't load muscle groups");
   return jsonResponse(groups satisfies MuscleGroupCount[]);
 }

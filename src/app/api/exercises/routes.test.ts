@@ -107,6 +107,15 @@ describe("GET /api/exercises/groups", () => {
     expect(await response.json()).toEqual([{ id: GROUP, name: "Chest", exerciseCount: 88 }]);
   });
 
+  it("passes the measure filter only when it's set", async () => {
+    rpc.mockResolvedValue({ data: [], error: null });
+    await groups.GET(request("/groups?measure=time"));
+    expect(rpc).toHaveBeenCalledWith("exercise_group_counts", { p_words: null, p_equipment: null, p_measure: "time" });
+    await list.GET(request("?measure=distance"));
+    expect(rpc).toHaveBeenCalledWith("browse_exercises", expect.objectContaining({ p_measure: "distance" }));
+    expect((await groups.GET(request("/groups?measure=laps"))).status).toBe(400);
+  });
+
   it("is 400 for invalid params and 500 when the query fails", async () => {
     expect((await groups.GET(request("/groups?equipment=nope"))).status).toBe(400);
     rpc.mockResolvedValue({ data: null, error: { message: "boom" } });

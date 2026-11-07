@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { EQUIPMENT_OPTIONS, MAX_SEARCH_LENGTH } from "./exerciseSearch";
+import { MEASURES, type Measure } from "./measure";
 
 export { MAX_SEARCH_LENGTH };
 
@@ -35,12 +36,13 @@ export type ExerciseTutorial = {
   demoImages: string[];
 };
 
-export type ExerciseFilters = { term?: string; equipment?: string | null };
+export type ExerciseFilters = { term?: string; equipment?: string | null; measure?: Measure | null };
 export type ExerciseListParams = ExerciseFilters & { muscleGroupId?: string | null; cursor?: string | null };
 
 const filterFields = {
   q: z.string().trim().max(MAX_SEARCH_LENGTH).optional(),
   equipment: z.enum(EQUIPMENT_OPTIONS).optional(),
+  measure: z.enum(MEASURES).optional(),
 };
 
 export const exerciseGroupsQuerySchema = z.object(filterFields);
@@ -104,12 +106,12 @@ function withQuery(path: string, params: Record<string, string | null | undefine
   return text ? `${path}?${text}` : path;
 }
 
-export function exerciseGroupsUrl({ term, equipment }: ExerciseFilters): string {
-  return withQuery("/api/exercises/groups", { q: term?.trim(), equipment });
+export function exerciseGroupsUrl({ term, equipment, measure }: ExerciseFilters): string {
+  return withQuery("/api/exercises/groups", { q: term?.trim(), equipment, measure });
 }
 
-export function exerciseListUrl({ term, equipment, muscleGroupId, cursor }: ExerciseListParams): string {
-  return withQuery("/api/exercises", { q: term?.trim(), equipment, muscleGroup: muscleGroupId, cursor });
+export function exerciseListUrl({ term, equipment, measure, muscleGroupId, cursor }: ExerciseListParams): string {
+  return withQuery("/api/exercises", { q: term?.trim(), equipment, measure, muscleGroup: muscleGroupId, cursor });
 }
 
 export function exerciseTutorialUrl(id: string): string {

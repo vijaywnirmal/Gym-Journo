@@ -26,6 +26,12 @@ type TutorialRow = {
   exercise_muscle_groups: { muscle_group: { name: string } | null }[] | null;
 };
 
+// Sent only when set: the database functions take p_measure from migration 0052 on, and leaving it
+// out keeps this working against a database that doesn't have it yet.
+function measureParam(measure: string | undefined): { p_measure?: string } {
+  return measure ? { p_measure: measure } : {};
+}
+
 function wordsOrNull(term: string | undefined): string[] | null {
   const words = searchWords(term ?? "");
   return words.length > 0 ? words : null;
@@ -35,7 +41,7 @@ function wordsOrNull(term: string | undefined): string[] | null {
 export async function browseExercises(
   supabase: SupabaseClient,
   viewerId: string,
-  options: { muscleGroupId?: string; term?: string; equipment?: string; after?: ExerciseCursor | null }
+  options: { muscleGroupId?: string; term?: string; equipment?: string; measure?: string; after?: ExerciseCursor | null }
 ): Promise<ExercisePage | null> {
   const { data, error } = await supabase.rpc("browse_exercises", {
     p_muscle_group_id: options.muscleGroupId ?? null,
@@ -44,6 +50,7 @@ export async function browseExercises(
     p_after_name: options.after?.name ?? null,
     p_after_id: options.after?.id ?? null,
     p_limit: EXERCISE_PAGE_SIZE + 1,
+    ...measureParam(options.measure),
   });
   if (error || !data) return null;
 
@@ -65,11 +72,12 @@ export async function browseExercises(
 // Every muscle group with how many exercises in it match the filters.
 export async function getExerciseGroupCounts(
   supabase: SupabaseClient,
-  options: { term?: string; equipment?: string }
+  options: { term?: string; equipment?: string; measure?: string }
 ): Promise<MuscleGroupCount[] | null> {
   const { data, error } = await supabase.rpc("exercise_group_counts", {
     p_words: wordsOrNull(options.term),
     p_equipment: options.equipment ?? null,
+    ...measureParam(options.measure),
   });
   if (error || !data) return null;
   return (data as GroupCountRow[]).map((row) => ({

@@ -13,6 +13,7 @@ import {
   firstEntryWithSetProblem,
   setHasValues,
   toSavedSet,
+  lastTimeValue,
   type SetRow,
 } from "./ExerciseLogPanel";
 import type { PreviousPerformance } from "@/lib/queries";
@@ -446,5 +447,14 @@ describe("setCountLabel", () => {
   it("says 1 set, not 1 sets", () => {
     expect(setCountLabel(1)).toBe("1 set");
     expect(setCountLabel(3)).toBe("3 sets");
+  });
+});
+
+describe("lastTimeValue (I1.3)", () => {
+  it("adds the pace to a distance with a time", () => {
+    const run = { setNumber: 1, weight: null, reps: null, weightUnit: "kg", durationSeconds: 1710, distance: 5, distanceUnit: "km" };
+    expect(lastTimeValue(run as PreviousPerformance["sets"][number])).toBe("5 km in 28:30 · 5:42 /km");
+    expect(lastTimeValue({ ...run, durationSeconds: null } as PreviousPerformance["sets"][number])).toBe("5 km");
+    expect(lastTimeValue({ setNumber: 1, weight: 60, reps: 8, weightUnit: "kg" } as PreviousPerformance["sets"][number])).toBe("60kg × 8");
   });
 });

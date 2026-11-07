@@ -1,5 +1,6 @@
 -- Checks for the exercise browsing functions in migration 0028 (browse_exercises,
--- exercise_group_counts, logged_exercise_options) against a real database.
+-- exercise_group_counts, logged_exercise_options) and the measure filter from 0052, against a real
+-- database.
 --
 -- Run against a local Supabase database with every migration applied:
 --   psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/tests/exercise_browse.sql
@@ -16,7 +17,8 @@ insert into muscle_groups (id, name) values
   ('00000000-0000-0000-0000-0000000000f1', 'Zz Test Group'),
   ('00000000-0000-0000-0000-0000000000f2', 'Zz Empty Group');
 
--- 25 shared exercises in the test group, plus one custom exercise for each user.
+-- 25 shared exercises in the test group, plus one custom exercise for each user. Lift 01 is timed
+-- and Lift 02 a distance exercise (for the measure filter); the rest are weight and reps.
 insert into exercises (id, user_id, name, equipment)
 select ('00000000-0000-0000-0000-0000000010' || lpad(n::text, 2, '0'))::uuid, null,
        'Zz Test Lift ' || lpad(n::text, 2, '0'), case when n % 2 = 0 then 'Dumbbell' else 'Barbell' end
@@ -24,6 +26,8 @@ from generate_series(1, 25) as n;
 insert into exercises (id, user_id, name, equipment) values
   ('00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-00000000a001', 'Zz Farmer''s Own Carry', 'Dumbbell'),
   ('00000000-0000-0000-0000-000000002002', '00000000-0000-0000-0000-00000000b002', 'Zz Someone Else''s Lift', 'Barbell');
+update exercises set measure = 'time' where name = 'Zz Test Lift 01';
+update exercises set measure = 'distance' where name = 'Zz Test Lift 02';
 insert into exercise_muscle_groups (exercise_id, muscle_group_id)
 select id, '00000000-0000-0000-0000-0000000000f1' from exercises where name like 'Zz %';
 
@@ -114,6 +118,38 @@ begin
   select array_agg(name) into got from logged_exercise_options() where name like 'Zz %';
   if got is distinct from array['Zz Test Lift 03'] then
     raise exception 'logged_exercise_options: expected only Zz Test Lift 03, got %', got;
+  end if;
+end $$;
+
+-- The measure filter (0052): only exercises measured that way, in the list and in the counts.
+do $$
+declare
+  got text[];
+  n integer;
+begin
+  select array_agg(name order by name) into got
+  from browse_exercises(p_muscle_group_id => '00000000-0000-0000-0000-0000000000f1', p_measure => 'time');
+  if got is distinct from array['Zz Test Lift 01'] then
+    raise exception 'browse_exercises: the timed filter should find only Zz Test Lift 01, got %', got;
+  end if;
+
+  select array_agg(name order by name) into got
+  from browse_exercises(p_words => array['zz'], p_equipment => 'Dumbbell', p_measure => 'distance');
+  if got is distinct from array['Zz Test Lift 02'] then
+    raise exception 'browse_exercises: distance and Dumbbell together should find only Zz Test Lift 02, got %', got;
+  end if;
+
+  select exercise_count into n
+  from exercise_group_counts(p_measure => 'weight_reps') where muscle_group_id = '00000000-0000-0000-0000-0000000000f1';
+  if n <> 24 then
+    raise exception 'exercise_group_counts: 24 visible weight-and-reps exercises expected, got %', n;
+  end if;
+
+  -- Without p_measure, as before 0052.
+  select exercise_count into n
+  from exercise_group_counts() where muscle_group_id = '00000000-0000-0000-0000-0000000000f1';
+  if n <> 26 then
+    raise exception 'exercise_group_counts: every visible exercise should count without a measure, got %', n;
   end if;
 end $$;
 
